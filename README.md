@@ -1,9 +1,8 @@
-# 💿 Đĩa Than Thở
+# EventFlow
 
-Website thương mại điện tử mua bán đĩa nhạc và merchandise âm nhạc đã qua sử dụng, theo mô hình **B2C kết hợp kênh thu mua sản phẩm từ người dùng**.
+**Website quản lý thành viên và sự kiện cho một câu lạc bộ duy nhất trong môi trường đại học.**
 
-👥 Thực hiện bởi nhóm 8:
-
+Nhóm thực hiện:
 - Dương Hoàng Sâm (Leader - PM)
 - Phạm Thiên Long (UI/UX Designer)
 - Phùng Cẩm Tân (Backend Lead)
@@ -13,210 +12,279 @@ Website thương mại điện tử mua bán đĩa nhạc và merchandise âm nh
 
 🧭 Project Coordinator(PC): Định Thị Anh Thư
 
-📦 Toàn bộ thư mục dự án(WorkSpace): https://drive.google.com/drive/u/2/folders/1QWyueOqePR0wD8tAhSNxiIu12lVThjkL
+EventFlow phục vụ hoạt động quản lý của **một câu lạc bộ** theo quy trình tập trung: quản lý thông tin thành viên, công bố sự kiện, tiếp nhận đăng ký, điểm danh và theo dõi kết quả tham gia. Ban chủ nhiệm, người tổ chức và người tham gia truy cập website qua trình duyệt trên máy tính hoặc điện thoại. **Backend sử dụng C# trên nền tảng .NET.**
 
-## 1. 📖 Tổng quan
+> **Trạng thái tại ngày 18/10/2026:** Dự án đang ở giai đoạn xác định yêu cầu. Định hướng đã chốt là **website cho một CLB duy nhất, backend C#/.NET**. Thư mục hiện có hai tài liệu PDF, chưa có mã nguồn website, cơ sở dữ liệu, cấu hình triển khai hoặc kết quả kiểm thử. Các chức năng chi tiết, framework, công nghệ giao diện, cơ sở dữ liệu và kiến trúc dưới đây vẫn là đề xuất để nhóm thảo luận.
 
-Đĩa Than Thở dự kiến cung cấp một nơi tập trung để người yêu âm nhạc tìm kiếm đĩa vinyl, CD, album, photocard, poster và merchandise đã qua sử dụng do cửa hàng đăng bán.
+## 1. Bối cảnh và mục tiêu
 
-Người sở hữu sản phẩm không còn nhu cầu sử dụng có thể gửi yêu cầu bán lại cho cửa hàng. Administrator tiếp nhận thông tin, xét duyệt sơ bộ và phản hồi trên website. Người dùng không tự mở gian hàng hoặc đăng sản phẩm để bán trực tiếp cho nhau.
+Các nhu cầu cần kiểm chứng gồm:
 
-Các nhận định về nhu cầu, hành vi và khó khăn của người dùng là **giả định ban đầu cần xác minh** bằng phỏng vấn hoặc nguồn dữ liệu phù hợp.
+- Ban chủ nhiệm cần theo dõi thông tin và tình trạng thành viên.
+- Người tổ chức cần quản lý thông tin sự kiện, danh sách đăng ký và kết quả điểm danh.
+- Sinh viên cần tìm thông tin sự kiện, đăng ký hoặc hủy trong thời hạn cho phép và biết trạng thái đăng ký của mình.
+- Người phụ trách cần số liệu cơ bản để tổng kết hoạt động.
 
-## 2. 🎯 Mục tiêu đồ án
+**Những khó khăn này chưa được xác nhận bằng khảo sát trong tài liệu hiện có.** Việc CLB được phục vụ đang dùng biểu mẫu, bảng tính, nhóm chat hoặc danh sách giấy mới là giả định cần tìm hiểu. Nhóm dự kiến phỏng vấn 5–10 người tổ chức/người tham gia hoạt động của CLB, khảo sát và quan sát quy trình thực tế; lưu ngày thực hiện, câu trả lời và ghi chú ẩn danh.
 
-- Xây dựng website responsive với ba phân hệ: Customer, Trade-in/Buyback và Administrator.
-- Trình diễn luồng mua hàng B2C và luồng gửi, xét duyệt, theo dõi phiếu thu mua.
-- Áp dụng lập trình hướng đối tượng (OOP) trong backend C# để phân chia trách nhiệm và quản lý quy tắc nghiệp vụ.
-- Xây dựng dữ liệu mô phỏng phục vụ demo và kiểm thử.
-- Thực hiện dự án trong 8 tuần với nhóm 6 thành viên theo tài liệu Overview.
+Mục tiêu MVP, tức phiên bản tối thiểu có thể dùng và nghiệm thu, là hoàn thành luồng nghiệp vụ cốt lõi đã được xác nhận, có tiêu chí nghiệm thu và minh chứng kiểm thử. Chưa đặt chỉ tiêu như “giảm 50% thời gian quản lý” khi chưa có số liệu ban đầu và cách đo.
 
-## 3. 👤 Người dùng
+## 2. Người dùng và các bên liên quan
 
-| Người dùng | Vai trò |
-|---|---|
-| **Customer** | Xem, tìm kiếm sản phẩm, thêm vào giỏ hàng và tạo đơn hàng mô phỏng. |
-| **Người gửi yêu cầu thu mua** | Dùng tài khoản khách hàng để gửi phiếu bán lại sản phẩm, xem trạng thái, phản hồi và ngày lấy hàng dự kiến. |
-| **Administrator** | Quản lý sản phẩm, tồn kho, đơn hàng; xét duyệt phiếu thu mua và tạo sản phẩm bán công khai thủ công. |
+| Nhóm | Nhu cầu chính |
+| --- | --- |
+| Ban chủ nhiệm / người phụ trách thành viên | Quản lý thông tin thành viên và theo dõi hoạt động CLB |
+| Người được phân công tổ chức sự kiện | Tạo, cập nhật, công bố sự kiện; theo dõi đăng ký; điểm danh; xem thống kê |
+| Sinh viên / thành viên tham gia | Xem sự kiện, đăng ký, hủy đăng ký trong hạn và kiểm tra trạng thái |
+| Giảng viên / người có thẩm quyền phê duyệt | Xác nhận đề tài, phạm vi và tiêu chí đánh giá theo học phần |
+| Nhóm phát triển | Khảo sát, thiết kế, xây dựng, kiểm thử và bàn giao sản phẩm |
 
-Việc lấy hàng, kiểm tra sản phẩm thực tế và thanh toán thu mua do cửa hàng xử lý ngoài hệ thống. Thông tin nguồn gốc và tình trạng không đồng nghĩa với chứng nhận chất lượng hoặc tính chính hãng.
+Một người có thể đồng thời là người tổ chức và người tham gia. **Có tài khoản hoặc đăng ký một sự kiện không mặc nhiên đồng nghĩa với là thành viên CLB.** Cần xác nhận sự kiện có cho phép sinh viên ngoài CLB tham gia hay không trước khi chốt phân quyền.
 
-## 4. 📦 Phạm vi MVP
+## 3. Phạm vi MVP dự kiến
 
-### 4.1. 🛒 Customer Module
+Website phục vụ một CLB duy nhất. Danh sách thành viên, sự kiện, phân quyền và thống kê đều thuộc phạm vi hoạt động của CLB này.
 
-- Đăng ký, đăng nhập tài khoản.
-- Xem danh mục và chi tiết sản phẩm, gồm thông tin nguồn gốc và tình trạng.
-- Tìm kiếm, lọc theo danh mục, mức giá và tình trạng sản phẩm.
-- Thêm sản phẩm vào giỏ hàng.
-- Tạo và xem đơn hàng mô phỏng thuộc tài khoản của mình.
+### Module quản lý thành viên
 
-### 4.2. 🔄 Trade-in/Buyback Module
+Tài liệu hiện mới xác định module này ở mức tổng quát. Các thao tác chi tiết sau là **đề xuất cần xác nhận**:
 
-- Gửi phiếu yêu cầu bán lại sản phẩm, gồm thông tin chi tiết, tình trạng, hình ảnh, giá đề xuất, thông tin liên hệ và địa chỉ lấy hàng.
-- Xem danh sách phiếu đã gửi, mã phiếu, chi tiết, trạng thái và phản hồi.
-- Xem ngày lấy hàng dự kiến và địa chỉ đã cung cấp khi phiếu được duyệt.
-- Xem lý do khi phiếu bị từ chối.
+- Xem và tìm kiếm danh sách thành viên.
+- Thêm, cập nhật thông tin thành viên và trạng thái hoạt động.
+- Xem hồ sơ cơ bản và lịch sử tham gia sự kiện của thành viên theo quyền truy cập.
 
-Phiếu thu mua có ba trạng thái:
+Quy trình xin gia nhập, duyệt thành viên và tự đăng ký tài khoản cần được làm rõ qua khảo sát.
 
-| Trạng thái | Ý nghĩa |
-|---|---|
-| ⏳ **Chờ duyệt** | Trạng thái mặc định của phiếu mới gửi. |
-| ✅ **Đã duyệt** | Chấp thuận sơ bộ dựa trên thông tin khai báo để tiếp nhận sản phẩm; chưa phải quyết định thu mua cuối cùng. |
-| ❌ **Bị từ chối** | Không chấp thuận yêu cầu; hiển thị lý do từ chối. |
+### Module quản lý sự kiện
 
-Giá đề xuất là mức người gửi mong muốn, chưa phải giá cửa hàng chấp nhận thanh toán. Trong demo, ngày lấy hàng dự kiến bằng ngày duyệt phiếu cộng 2 ngày; đây là giả định minh họa, không phải lịch được đơn vị vận chuyển xác nhận hoặc cam kết thu mua.
+Các nhóm chức năng đã được nêu trong tài liệu đề tài:
 
-### 4.3. ⚙️ Administrator Module
+| Chức năng | Kết quả mong muốn |
+| --- | --- |
+| Tạo và cập nhật sự kiện | Người tổ chức quản lý nội dung và thông tin sự kiện |
+| Công bố và xem sự kiện | Người tham gia tiếp cận thông tin sự kiện được công bố |
+| Đăng ký tham gia | Sinh viên đăng ký và kiểm tra được trạng thái của mình |
+| Hủy đăng ký | Người tham gia hủy trong thời hạn được cho phép |
+| Theo dõi danh sách đăng ký | Người phụ trách biết ai đã đăng ký sự kiện |
+| Điểm danh | Người phụ trách ghi nhận người thực tế tham gia |
+| Thống kê cơ bản | Người tổ chức xem kết quả đăng ký và tham gia |
 
-- Quản lý sản phẩm và tồn kho.
-- Quản lý, cập nhật trạng thái đơn hàng của khách mua.
-- Tiếp nhận và kiểm tra thông tin khai báo trong phiếu thu mua.
-- Duyệt sơ bộ hoặc từ chối phiếu; ghi phản hồi và lý do từ chối.
-- Tạo sản phẩm B2C thủ công, kèm thông tin nguồn gốc và tình trạng để đăng bán.
+**Chi tiết triển khai đề xuất:** sự kiện có tên, mô tả, địa điểm, thời gian bắt đầu/kết thúc và hạn đăng ký/hủy. Số lượng chỗ tối đa, quy trình duyệt đăng ký, trạng thái sự kiện và công thức thống kê cần được nhóm xác nhận. Bản đầu có thể điểm danh thủ công trên danh sách; QR là phương án mở rộng nếu có nhu cầu.
 
-Phiếu được duyệt **không tự động tạo sản phẩm bán công khai**. Website không ghi nhận xác nhận kiểm tra thực tế hoặc thanh toán thu mua.
+### Chức năng nền tảng đề xuất
 
-### 4.4. 🔐 Quyền truy cập
+- Đăng nhập, đăng xuất và quản lý tài khoản bằng ASP.NET Core Identity.
+- Phân quyền theo vai trò, kết hợp kiểm tra người được phân công phụ trách từng sự kiện.
+- Giao diện thích ứng với màn hình máy tính và điện thoại.
+- Kiểm tra dữ liệu nhập, thông báo lỗi rõ ràng và bảo vệ thông tin cá nhân.
 
-- Người dùng phải đăng nhập để gửi phiếu thu mua.
-- Customer chỉ được truy cập đơn hàng và phiếu thuộc tài khoản của mình.
-- Chỉ Administrator được xét duyệt phiếu và quản lý sản phẩm bán công khai.
-- Backend kiểm tra quyền và quyền sở hữu dữ liệu cho từng yêu cầu; việc ẩn nút trên giao diện không thay thế kiểm tra quyền.
+### Ngoài phạm vi
 
-## 5. 🛠️ Công nghệ và công cụ
+Theo TopicSelection: quản lý tài chính, nhà tài trợ, ứng dụng di động riêng, AI nâng cao và chức năng ngoài phạm vi đã duyệt.
 
-### 5.1. Công nghệ đã chốt
+Theo phạm vi đã chốt, hệ thống không bao gồm quản lý nhiều CLB, tạo/chuyển đổi giữa các CLB, quản trị liên CLB hoặc phát triển app cài đặt riêng trên máy tính/điện thoại.
 
-| Thành phần | Lựa chọn |
-|---|---|
-| Ngôn ngữ backend | C# |
-| Ngôn ngữ frontend | HTML, CSS, JavaScript |
-| Framework giao diện | Bootstrap |
-| Database | SQL Server Express |
-| Truy cập dữ liệu | Entity Framework Core |
-| Môi trường demo | Local |
+Đề xuất có thể cân nhắc sau cho chính CLB này: bán vé/thanh toán, chat, tích hợp hệ thống của trường, gửi thông báo tự động và điểm danh QR. Đây chưa phải cam kết của MVP.
 
-### 5.2. Định hướng bổ sung
+## 4. Luồng sử dụng chính
 
-| Thành phần | Đề xuất |
-|---|---|
-| Backend framework | ASP.NET Core Web API trên .NET 10 LTS |
-| Phiên bản EF Core | EF Core 10 và provider SQL Server tương thích |
-| Phiên bản Bootstrap | Bootstrap 5.3 |
-| Tài khoản và phân quyền | ASP.NET Core Identity, vai trò Customer/Administrator |
-| Xác thực | Cookie HttpOnly khi frontend và API được phục vụ cùng website, kèm bảo vệ chống giả mạo yêu cầu |
-| Giao tiếp frontend/backend | HTTP API, dữ liệu JSON, JavaScript `fetch` |
-| Tài liệu API | OpenAPI và Swagger UI |
-| Ảnh sản phẩm | Thư mục lưu ảnh local; database lưu đường dẫn |
-| Kiểm thử | xUnit, Postman và kiểm thử giao diện thủ công |
-| Quản lý mã nguồn | Git và GitHub |
-| Thiết kế UI/UX | Figma |
+1. Người tổ chức đăng nhập và tạo sự kiện.
+2. Người tổ chức kiểm tra thông tin, thiết lập các thời hạn đã thống nhất và công bố sự kiện.
+3. Sinh viên xem thông tin và đăng ký tham gia.
+4. Sinh viên kiểm tra trạng thái hoặc hủy đăng ký trong hạn.
+5. Người phụ trách theo dõi danh sách đăng ký.
+6. Khi sự kiện diễn ra, người được phân công thực hiện điểm danh.
+7. Sau sự kiện, người tổ chức xem thống kê và tổng kết.
 
-Các mục bổ sung là đề xuất triển khai, chưa phải xác nhận đã cài đặt hoặc sử dụng. Nhóm cần thống nhất phiên bản cụ thể khi khởi tạo mã nguồn.
+Luồng quản lý thành viên vận hành song song, cung cấp thông tin thành viên cho các nghiệp vụ liên quan sau khi quy tắc liên kết tài khoản và thành viên được xác nhận.
 
-## 6. 🧩 Định hướng kiến trúc và OOP
+## 5. Công nghệ đề xuất
 
-Backend dự kiến tổ chức theo luồng:
+**Backend đã xác định: C#/.NET. Bộ công nghệ khuyến nghị cho website: ASP.NET Core MVC trên .NET 10 LTS + Razor Views/Bootstrap + Entity Framework Core + SQL Server.**
 
-**Frontend → Controller → Service → EF Core/DbContext → SQL Server**
+Đây là lựa chọn phù hợp với phạm vi quản lý dữ liệu, biểu mẫu, phân quyền và báo cáo cơ bản của một CLB. Backend C# xử lý đăng nhập, quyền truy cập và nghiệp vụ trên server; giao diện website được xây bằng Razor Views, HTML/CSS và JavaScript khi cần. Nhóm có thể tổ chức hai phần trong cùng dự án web và chia việc theo chức năng.
 
-| Thành phần | Trách nhiệm |
-|---|---|
-| **Controller** | Nhận yêu cầu HTTP, tiếp nhận dữ liệu đầu vào, gọi service và trả kết quả. |
-| **Service** | Điều phối nghiệp vụ, kiểm tra quyền sở hữu dữ liệu và áp dụng quy tắc xử lý sản phẩm, đơn hàng, phiếu thu mua. |
-| **Entity** | Biểu diễn dữ liệu và hành vi nghiệp vụ của các đối tượng trong hệ thống. |
-| **DTO** | Định nghĩa dữ liệu đầu vào/đầu ra của API, tránh để người dùng tự ghi các trường do hệ thống quản lý. |
-| **DbContext và cấu hình EF Core** | Quản lý ánh xạ, quan hệ, ràng buộc và truy cập database. |
+### Bộ công nghệ chính
 
-### Nguyên tắc OOP dự kiến áp dụng
+| Thành phần | Đề xuất | Lý do lựa chọn |
+| --- | --- | --- |
+| Ngôn ngữ và nền tảng backend | C#, .NET 10 LTS | Giữ backend bằng C# theo yêu cầu; phiên bản .NET được đề xuất có thời gian hỗ trợ dài |
+| Framework backend và kết xuất trang | ASP.NET Core MVC | Xử lý yêu cầu tại server và tạo các trang HTML cho website quản lý |
+| Giao diện | Razor Views, HTML/CSS, Bootstrap 5; JavaScript khi cần | Xây dựng form, bảng, bộ lọc và giao diện responsive trong cùng dự án |
+| Truy cập dữ liệu | Entity Framework Core 10, SQL Server provider và migrations | Ánh xạ dữ liệu bằng C#, quản lý thay đổi cấu trúc cơ sở dữ liệu |
+| Cơ sở dữ liệu | SQL Server | Phù hợp dữ liệu quan hệ như thành viên, sự kiện, đăng ký và điểm danh |
+| Tài khoản và phân quyền | ASP.NET Core Identity, cookie authentication, authorization policies | Có nền tảng quản lý người dùng; bổ sung kiểm tra quyền trên từng tài nguyên |
+| Kiểm thử | xUnit và kiểm thử tích hợp với SQL Server dành riêng cho test | Kiểm tra quy tắc nghiệp vụ, phân quyền và tính nhất quán dữ liệu |
+| Làm việc nhóm | Git và GitHub; GitHub Actions khi có mã nguồn | Quản lý thay đổi, review và tự động build/test |
 
-- **Đóng gói:** Trạng thái phiếu được thay đổi qua hành vi nghiệp vụ có kiểm tra điều kiện, thay vì cho phép cập nhật tùy ý từ dữ liệu frontend. Tồn kho cũng được thay đổi qua các thao tác có kiểm tra hợp lệ.
-- **Trừu tượng:** Những nghiệp vụ chính có hợp đồng rõ ràng, chẳng hạn `IOrderService` và `IBuybackService`, để Controller phụ thuộc vào chức năng cần dùng.
-- **Đa hình:** Controller sử dụng service qua interface; khi kiểm thử có thể thay thế dependency bằng một triển khai phục vụ kiểm thử.
-- **Kế thừa có chọn lọc:** Chỉ sử dụng khi có quan hệ phù hợp; không tạo hệ thống lớp cha/con chỉ để thể hiện OOP. Một tài khoản Customer có thể vừa mua hàng vừa gửi yêu cầu thu mua.
-- **Trách nhiệm rõ ràng:** Tách xử lý đơn hàng, phiếu thu mua và sản phẩm thành các service phù hợp; không đặt toàn bộ nghiệp vụ trong Controller.
-- **Dependency Injection:** Cung cấp các dependency qua constructor để giảm phụ thuộc trực tiếp và hỗ trợ kiểm thử.
+Theo [chính sách hỗ trợ .NET của Microsoft](https://dotnet.microsoft.com/en-us/platform/support/policy), tại thời điểm viết README, .NET 10 là bản LTS được hỗ trợ đến **14/11/2028**. Nên dùng bản vá 10.0.x còn được hỗ trợ và thống nhất phiên bản SDK trong nhóm. .NET 8 và .NET 9 kết thúc hỗ trợ ngày 10/11/2026, nên .NET 10 phù hợp hơn cho dự án mới lúc này.
 
-Các đối tượng nghiệp vụ dự kiến gồm `ApplicationUser`, `Category`, `Product`, `ProductImage`, `Order`, `OrderItem`, `BuybackRequest` và `BuybackRequestImage`. Thiết kế database và lớp chi tiết cần được nhóm rà soát trước khi lập trình.
+[ASP.NET Core MVC](https://learn.microsoft.com/en-us/aspnet/core/mvc/overview?view=aspnetcore-10.0) hỗ trợ Razor để tạo HTML trên server. Vì vậy C# là ngôn ngữ chính, nhưng xây dựng giao diện vẫn cần HTML/CSS và một phần JavaScript. [EF Core SQL Server provider](https://learn.microsoft.com/en-us/ef/core/providers/sql-server/) hỗ trợ SQL Server và Azure SQL; [ASP.NET Core Identity](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity?view=aspnetcore-10.0) cung cấp nền tảng quản lý tài khoản.
 
-OOP cần thể hiện trong cách bảo vệ quy tắc và phối hợp giữa các đối tượng, không chỉ ở việc tạo lớp hoặc interface. Nội dung trên là định hướng thiết kế, chưa phải bằng chứng mã nguồn đã đáp ứng OOP.
+### Khi nào chọn hướng khác?
 
-## 7. 📂 Cấu trúc mã nguồn
+| Hướng | Khi phù hợp với nhóm | Điểm cần cân nhắc |
+| --- | --- | --- |
+| **ASP.NET Core MVC + Razor — khuyến nghị** | Muốn tập trung C#, hoàn thành MVP với nhiều form và bảng quản lý | Tương tác phức tạp trên trình duyệt có thể cần thêm JavaScript |
+| Blazor Web App | Muốn viết cả logic tương tác giao diện bằng C# | Cần học component, quản lý trạng thái và render mode; Interactive Server phụ thuộc kết nối với server |
+| ASP.NET Core Web API + React/TypeScript | Nhóm frontend đã quen React hoặc muốn tách giao diện website khỏi backend C# | Phải quản lý thêm frontend, hợp đồng API và cấu hình xác thực/triển khai giữa các phần |
+
+Các chế độ chạy của Blazor được mô tả trong [tài liệu render modes](https://learn.microsoft.com/en-us/aspnet/core/blazor/components/render-modes?view=aspnetcore-10.0). Việc chọn MVC ở đây là đề xuất theo phạm vi và mức độ phức tạp của EventFlow; nhóm vẫn có thể chọn Blazor nếu ưu tiên C# cho tương tác giao diện và đã sẵn sàng học mô hình này.
+
+## 6. Môi trường phát triển và triển khai
+
+**Sản phẩm là website dành cho một CLB duy nhất.** Người dùng mở địa chỉ website trên trình duyệt của máy tính hoặc điện thoại; backend C#/.NET và cơ sở dữ liệu chạy trên server. Giao diện thích ứng với màn hình điện thoại là một phần của website. Windows là môi trường phát triển được đề xuất cho nhóm, không phải yêu cầu đối với thiết bị của người dùng cuối.
+
+| Mục đích | Môi trường đề xuất |
+| --- | --- |
+| Viết mã và debug | Windows 11, Visual Studio 2026 Community, workload **ASP.NET and web development**, .NET 10 SDK |
+| Cơ sở dữ liệu trên máy phát triển | SQL Server 2025 Developer và SQL Server Management Studio (SSMS) |
+| Chạy và kiểm tra trong quá trình làm | ASP.NET Core chạy local qua HTTPS, mỗi thành viên dùng cơ sở dữ liệu riêng |
+| Demo online / triển khai sau khi chốt ngân sách | Azure App Service để chạy website và backend C#; Azure SQL Database cho dữ liệu |
+| Đồng bộ trong nhóm | Thống nhất SDK, migrations, dữ liệu mẫu và cách cấu hình qua README |
+
+[Visual Studio Community](https://visualstudio.microsoft.com/vs/community/) là lựa chọn phù hợp cho học tập; dùng bản tương thích .NET 10 theo [danh sách SDK cho Visual Studio](https://dotnet.microsoft.com/en-us/download/visual-studio-sdks). Nếu ưu tiên trình soạn thảo gọn hơn, có thể dùng VS Code cùng công cụ C# và .NET SDK.
+
+[SQL Server Developer](https://www.microsoft.com/en-us/sql-server/sql-server-downloads) dành cho phát triển và kiểm thử, không dùng bản này làm cơ sở dữ liệu production. Phương án [ASP.NET Core + Azure App Service + Azure SQL](https://learn.microsoft.com/en-us/azure/app-service/tutorial-dotnetcore-sqldb-app) có hướng dẫn chính thức; chi phí và ưu đãi sinh viên cần kiểm tra trước khi chọn gói. Chưa giả định dự án đã có tài khoản cloud, ngân sách hoặc hosting.
+
+Nếu ngân sách hoặc hạ tầng sau này ưu tiên PostgreSQL, nhóm có thể đánh giá EF Core với provider Npgsql thay thế. Nên chốt **một** hệ quản trị cơ sở dữ liệu trước khi tạo migrations, thay vì triển khai song song hai hệ trong MVP.
+
+### Chuẩn bị trước khi lập trình
+
+1. Xác nhận nghiệp vụ chi tiết với đại diện CLB và giảng viên trong phạm vi website cho một CLB.
+2. Thống nhất framework, công nghệ giao diện và phiên bản SDK giữa các thành viên; backend giữ C#/.NET.
+3. Chuẩn bị IDE, .NET SDK và cơ sở dữ liệu phát triển.
+4. Khởi tạo solution, dự án web, dự án kiểm thử và quản lý mã nguồn bằng Git.
+5. Thiết lập Identity, cấu hình kết nối riêng cho từng máy và dữ liệu mẫu.
+6. Cập nhật README với lệnh thiết lập môi trường, tạo database và chạy website đã được kiểm chứng.
+
+**Hiện chưa có hướng dẫn chạy website thực tế:** thư mục chưa chứa solution hoặc file `.csproj`. Không có tài khoản demo, đường dẫn API hay URL triển khai đã được xác nhận.
+
+## 7. Kiến trúc đề xuất
+
+Bắt đầu với **một website có backend C# được phân lớp, triển khai như một khối thống nhất (monolith)** và một cơ sở dữ liệu dành cho CLB. Nhóm chia chức năng theo thành viên và sự kiện, đồng thời giữ phần giao diện, nghiệp vụ và truy cập dữ liệu riêng biệt.
+
+Luồng xử lý: **Trình duyệt → backend C# (ASP.NET Core MVC) → dịch vụ nghiệp vụ → EF Core → SQL Server.** Backend trả về các trang HTML để trình duyệt hiển thị.
+
+| Phần | Trách nhiệm |
+| --- | --- |
+| Controllers, Views, ViewModels | Nhận yêu cầu, kiểm tra dữ liệu đầu vào và hiển thị kết quả |
+| Services | Xử lý quy tắc thành viên, sự kiện, đăng ký, hủy và điểm danh |
+| Entities / Models | Biểu diễn các đối tượng và trạng thái nghiệp vụ |
+| Data | DbContext, cấu hình quan hệ dữ liệu và migrations |
+| Identity và authorization | Xác thực và kiểm tra quyền thực hiện thao tác |
+
+Nghiệp vụ nên nằm trong service hoặc model phù hợp, để controller gọn và có thể kiểm thử độc lập. Nếu giao diện website cần tải hoặc cập nhật dữ liệu mà không tải lại toàn bộ trang, có thể bổ sung endpoint trên cùng backend C#.
+
+### Mô hình dữ liệu sơ bộ
+
+Đây là gợi ý thiết kế cho **một CLB duy nhất**, chưa phải schema đã có. Thông tin chung như tên, mô tả và thông tin liên hệ của CLB có thể lưu trong cấu hình website hoặc một hồ sơ CLB duy nhất. Mô hình không cần cơ chế phân tách dữ liệu giữa nhiều CLB.
+
+| Đối tượng | Thông tin chính dự kiến |
+| --- | --- |
+| ApplicationUser | Tài khoản đăng nhập, tên hiển thị, email; dùng nền tảng Identity |
+| ClubMember | Liên kết tài khoản, thông tin thành viên của CLB, ngày tham gia và trạng thái |
+| Event | Sự kiện do CLB tổ chức: tên, nội dung, địa điểm, thời gian, thời hạn đăng ký/hủy, người phụ trách, trạng thái |
+| EventRegistration | Sự kiện, tài khoản đăng ký, thời điểm đăng ký/hủy và trạng thái |
+| Attendance | Bản đăng ký, thời điểm điểm danh và người thực hiện |
+
+Một sự kiện có nhiều bản đăng ký; một tài khoản có thể đăng ký nhiều sự kiện. Mỗi bản đăng ký có tối đa một kết quả điểm danh trong mô hình MVP đề xuất. Việc liên kết ClubMember không nên ép mọi người đăng ký sự kiện đều phải là thành viên nếu khảo sát cho phép sinh viên ngoài CLB tham gia.
+
+### Quy tắc đề xuất cần xác nhận
+
+- Một tài khoản có tối đa một bản đăng ký cho mỗi sự kiện; đăng ký lại sau khi hủy cập nhật bản ghi theo chính sách được chốt.
+- Chỉ cho đăng ký vào sự kiện đang mở và chưa quá hạn; chỉ cho hủy trong thời hạn được cho phép.
+- Nếu có giới hạn chỗ, kiểm soát số lượng trong transaction phù hợp để các lượt đăng ký đồng thời không vượt sức chứa.
+- Chỉ người được phân quyền và phân công mới được sửa sự kiện, xem danh sách riêng tư hoặc điểm danh.
+- Chỉ điểm danh cho bản đăng ký hợp lệ; thao tác điểm danh lặp không tạo thêm bản ghi.
+- Phân biệt “đã đăng ký” với “đã tham gia”; thống nhất cách tính số đăng ký còn hiệu lực và tỷ lệ tham dự.
+- Kiểm tra quyền ở server, kể cả khi người dùng truy cập trực tiếp đường dẫn hoặc sửa dữ liệu gửi lên.
+- Vai trò quản lý và báo cáo thống kê áp dụng trong phạm vi CLB duy nhất của website.
+- Nếu lưu thời gian theo UTC, chuyển về múi giờ Việt Nam khi hiển thị và áp dụng nhất quán khi kiểm tra hạn.
+
+## 8. Tổ chức thư mục
+
+### Hiện có
 
 ```text
-Dia-Than-Tho/
-├── backend/
-│   ├── Controllers/
-│   ├── Services/
-│   │   ├── Interfaces/
-│   │   └── Implementations/
-│   ├── Entities/
-│   ├── Enums/
-│   ├── DTOs/
-│   │   ├── Auth/
-│   │   ├── Products/
-│   │   ├── Orders/
-│   │   └── Buyback/
-│   ├── Data/
-│   │   ├── Configurations/
-│   │   └── Seed/
-│   ├── Migrations/
-│   ├── Middleware/
-│   └── Properties/
-├── frontend/
-│   ├── pages/
-│   │   ├── auth/
-│   │   ├── customer/
-│   │   │   └── buyback/
-│   │   └── admin/
-│   └── assets/
-│       ├── css/
-│       ├── js/
-│       │   ├── api/
-│       │   ├── shared/
-│       │   ├── customer/
-│       │   └── admin/
-│       └── images/
-├── tests/
-│   ├── DiaThanTho.UnitTests/
-│   ├── DiaThanTho.IntegrationTests/
-│   └── postman/
-├── docs/
-│   ├── requirements/
-│   ├── database/
-│   ├── api/
-│   ├── testing/
-│   └── reports/
-├── .gitignore
-└── README.md
+EventFlow/
+├── README.md             # Tổng quan và định hướng triển khai
+├── ProjectChapter.pdf    # Đề xuất EventFlow và lý do lựa chọn đề tài
+└── TopicSelection.pdf    # Khung nội dung, phạm vi và tiêu chí dự kiến
 ```
 
-Các thư mục trên đã được tạo để chuẩn bị triển khai. Thư mục rỗng có file `.gitkeep` để Git lưu lại cấu trúc; cây thư mục lược bỏ các file này cho dễ đọc. Hiện chưa khởi tạo ứng dụng hoặc project kiểm thử, nên chưa có mã nguồn chạy được.
+### Cấu trúc mã nguồn gợi ý khi bắt đầu phát triển
 
-- **Backend:** `Controllers` nhận yêu cầu HTTP; `Services` xử lý nghiệp vụ qua interface; `Entities` biểu diễn dữ liệu và hành vi; `Enums` định nghĩa trạng thái; `DTOs` chia dữ liệu API theo nghiệp vụ. `Data/Configurations` chứa cấu hình ánh xạ EF Core, `Data/Seed` chứa dữ liệu mô phỏng, `Migrations` chứa lịch sử thay đổi schema, `Middleware` xử lý yêu cầu dùng chung và lỗi API, `Properties` chứa cấu hình chạy local của project.
-- **Frontend:** `pages/auth` chứa trang đăng ký/đăng nhập; `pages/customer` chứa trang khách hàng, bao gồm luồng thu mua trong `buyback`; `pages/admin` chứa trang quản trị. `assets/js/api` chứa mã gọi API, `shared` chứa mã dùng chung, các thư mục `customer` và `admin` chứa mã tương ứng từng phân hệ.
-- **Kiểm thử:** `DiaThanTho.UnitTests` dành cho kiểm thử nghiệp vụ, `DiaThanTho.IntegrationTests` dành cho kiểm thử API/database, `postman` chứa collection và environment mẫu không có thông tin bí mật.
-- **Tài liệu:** `requirements`, `database`, `api`, `testing` và `reports` lần lượt lưu yêu cầu, thiết kế dữ liệu, tài liệu API, tài liệu kiểm thử và báo cáo dự án.
+```text
+src/
+└── EventFlow.Web/
+    ├── Controllers/
+    ├── Views/
+    ├── ViewModels/
+    ├── Models/
+    ├── Services/
+    ├── Data/
+    └── wwwroot/
+tests/
+└── EventFlow.Tests/
+docs/
+```
 
-Khi khởi tạo ứng dụng, bổ sung `DiaThanTho.sln` ở thư mục gốc; `DiaThanTho.Api.csproj`, `Program.cs` và `appsettings.json` trong `backend`; `index.html` trong `frontend`; cùng các file project kiểm thử tương ứng. Frontend và backend được phát triển trong thư mục riêng, sau đó cấu hình phục vụ cùng một website local.
+Các thư mục `src`, `tests`, `docs` ở trên **chưa được tạo**. Với MVP, một dự án web và một dự án kiểm thử là điểm bắt đầu vừa sức; có thể tách thêm thư viện khi quy mô và nhu cầu thực tế yêu cầu.
 
-Ảnh giao diện và ảnh demo được quản lý trong `frontend/assets/images`. Ảnh người dùng tải lên được lưu riêng trong `backend/uploads` khi triển khai và bị loại khỏi Git; backend phải kiểm tra quyền khi cung cấp ảnh phiếu thu mua. Dữ liệu seed phải ghi rõ là dữ liệu mô phỏng.
+## 9. Kế hoạch thực hiện và phân công
 
-`.gitignore` loại trừ kết quả build, thư viện cài đặt, kết quả kiểm thử, file IDE cục bộ, log, file môi trường chứa bí mật, file database local và ảnh upload. Các file cấu hình mẫu được phép đưa vào Git nhưng không chứa mật khẩu hoặc khóa bí mật.
+Tài liệu nêu nhóm có 6 thành viên với các vai trò PM, BA, UI/UX, Backend, Frontend và Tester/Reporter. Phân công dưới đây là gợi ý; chưa có tên người phụ trách chính thức.
 
-## 8. 📊 Dữ liệu và tiêu chí hoàn thành
+| Vai trò | Trọng tâm công việc |
+| --- | --- |
+| PM | Quản lý phạm vi, kế hoạch, rủi ro và phối hợp nghiệm thu |
+| BA | Khảo sát, mô tả yêu cầu, quy tắc nghiệp vụ và tiêu chí chấp nhận |
+| UI/UX | Thiết kế luồng, bố cục và giao diện trên máy tính/điện thoại |
+| Backend | Thiết kế dữ liệu, Identity, phân quyền và nghiệp vụ C# |
+| Frontend | Xây dựng Razor Views, biểu mẫu và giao diện responsive; tích hợp với backend |
+| Tester/Reporter | Lập ca kiểm thử, ghi nhận lỗi, tổng hợp minh chứng và báo cáo |
 
-Theo Overview, mục tiêu MVP gồm:
+Lộ trình đề xuất theo đầu ra, chưa ấn định thời lượng vì tài liệu chưa xác nhận deadline toàn dự án:
 
-- Hoàn thành toàn bộ chức năng Must Have được nhóm phê duyệt.
-- Có tối thiểu 30 sản phẩm mẫu thuộc 3 danh mục, gồm ít nhất 10 sản phẩm minh họa nguồn hàng có sẵn và 10 sản phẩm minh họa nguồn hàng thu mua.
-- Đếm phiếu thu mua mẫu riêng; không dùng phiếu thay thế chỉ tiêu sản phẩm.
-- Thực hiện tối thiểu 30 test case, tỷ lệ Pass từ 90% trở lên và không còn lỗi Critical chưa xử lý.
-- Thực hiện UAT với tối thiểu 5 người tham gia, tỷ lệ hoàn thành tác vụ từ 80% trở lên.
-- Bàn giao demo local, source code, tài liệu quản lý, báo cáo kiểm thử và 6 Mini-PM Reports trong 8 tuần.
+1. **Khảo sát và chốt phạm vi:** có bằng chứng nhu cầu, danh sách chức năng ưu tiên và người phê duyệt.
+2. **Thiết kế và dựng nền:** có giao diện mẫu, mô hình dữ liệu, dự án web, đăng nhập và phân quyền ban đầu.
+3. **Hoàn thành luồng chính:** quản lý thành viên, tạo/công bố sự kiện, đăng ký/hủy, điểm danh và thống kê.
+4. **Kiểm thử và bàn giao:** sửa lỗi, demo, nghiệm thu, hoàn thiện tài liệu và hướng dẫn chạy.
 
-Đây là **mục tiêu**, chưa phải kết quả đã đạt. Việc demo local là lựa chọn triển khai hiện tại của nhóm.
+## 10. Kiểm thử và tiêu chí hoàn thành
 
-Sản phẩm, phiếu thu mua và đơn hàng được tạo để minh họa phải ghi rõ **“Dữ liệu mô phỏng (synthetic/simulated data)”**. Dữ liệu này không chứng minh giao dịch, khách hàng hoặc hoạt động thu mua thực tế. Kết quả phỏng vấn và UAT chỉ được báo cáo khi thực sự thực hiện và có minh chứng.
+Các nội dung sau là kế hoạch, chưa có kết quả kiểm thử thực tế:
+
+- Mỗi chức năng ưu tiên cao có yêu cầu rõ ràng và tiêu chí chấp nhận.
+- Luồng tạo sự kiện → công bố → đăng ký → điểm danh → thống kê hoạt động xuyên suốt.
+- Kiểm tra các trường hợp đăng ký trùng, hết hạn, hủy quá hạn, điểm danh lặp và truy cập trái quyền.
+- Nếu áp dụng giới hạn chỗ, kiểm thử đăng ký đồng thời ở thời điểm chỉ còn một chỗ.
+- Số liệu thống kê đối chiếu được với dữ liệu đăng ký và điểm danh mẫu.
+- Giao diện chính dùng được trên máy tính và điện thoại; thông báo lỗi giúp người dùng sửa thao tác.
+- Kiểm thử tích hợp các ràng buộc dữ liệu trên SQL Server test; không chỉ dựa vào database giả lập trong bộ nhớ.
+- Mật khẩu được xử lý qua Identity; thông tin kết nối và bí mật để trong cấu hình môi trường hoặc User Secrets, không đưa vào mã nguồn.
+- Có bằng chứng kiểm thử và người đại diện có thẩm quyền nghiệm thu phạm vi đã chốt.
+
+Sản phẩm bàn giao dự kiến gồm website MVP, tài liệu yêu cầu, thiết kế, mã nguồn, hướng dẫn cài đặt/sử dụng, kết quả kiểm thử và minh chứng nghiệm thu.
+
+## 11. Những điểm cần chốt tiếp
+
+- Tên CLB được phục vụ; ai là đại diện cung cấp yêu cầu và người nghiệm thu?
+- Ai được tạo tài khoản, thêm thành viên, tạo sự kiện và phân công người phụ trách?
+- Sự kiện có mở cho sinh viên ngoài CLB không? Đăng ký được xác nhận ngay hay phải duyệt?
+- Có giới hạn chỗ, hạn đăng ký, hạn hủy và yêu cầu điểm danh cụ thể nào?
+- Cách tính thống kê, dữ liệu cá nhân cần thu thập và quyền xem từng loại dữ liệu?
+- Deadline, năng lực công nghệ của nhóm, ngân sách và môi trường demo?
+- Tên PM, cơ chế phê duyệt phạm vi và các mốc kiểm tra của học phần?
+
+Các rủi ro hiện được tài liệu nêu gồm khó tiếp cận người dùng, trễ tiến độ và thay đổi phạm vi. Nhóm nên khảo sát sớm, ưu tiên luồng cốt lõi và ghi nhận thay đổi yêu cầu trước khi mở rộng chức năng.
+
+## 12. Tài liệu đầu vào
+
+| Tài liệu | Nội dung được sử dụng |
+| --- | --- |
+| [ProjectChapter.pdf](./ProjectChapter.pdf) | Đề xuất EventFlow, người dùng mục tiêu, luồng quản lý sự kiện, lý do đổi đề tài và nhu cầu khảo sát |
+| [TopicSelection.pdf](./TopicSelection.pdf) | Khung lựa chọn đề tài, hai module thành viên/sự kiện, phạm vi loại trừ, quy mô nhóm và tiêu chí thành công |
+
+README ghi nhận định hướng đã thống nhất: **website phục vụ một CLB duy nhất, backend C#/.NET**. Khi yêu cầu chi tiết và bộ công nghệ được phê duyệt, cần cập nhật tài liệu này theo quyết định thực tế và bổ sung hướng dẫn chạy website từ mã nguồn đã xây dựng.
