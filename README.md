@@ -117,19 +117,7 @@ Luồng quản lý thành viên vận hành song song, cung cấp thông tin th�
 | Kiểm thử | xUnit và kiểm thử tích hợp với SQL Server dành riêng cho test | Kiểm tra quy tắc nghiệp vụ, phân quyền và tính nhất quán dữ liệu |
 | Làm việc nhóm | Git và GitHub; GitHub Actions khi có mã nguồn | Quản lý thay đổi, review và tự động build/test |
 
-Theo [chính sách hỗ trợ .NET của Microsoft](https://dotnet.microsoft.com/en-us/platform/support/policy), tại thời điểm viết README, .NET 10 là bản LTS được hỗ trợ đến **14/11/2028**. Nên dùng bản vá 10.0.x còn được hỗ trợ và thống nhất phiên bản SDK trong nhóm. .NET 8 và .NET 9 kết thúc hỗ trợ ngày 10/11/2026, nên .NET 10 phù hợp hơn cho dự án mới lúc này.
-
 [ASP.NET Core MVC](https://learn.microsoft.com/en-us/aspnet/core/mvc/overview?view=aspnetcore-10.0) hỗ trợ Razor để tạo HTML trên server. Vì vậy C# là ngôn ngữ chính, nhưng xây dựng giao diện vẫn cần HTML/CSS và một phần JavaScript. [EF Core SQL Server provider](https://learn.microsoft.com/en-us/ef/core/providers/sql-server/) hỗ trợ SQL Server và Azure SQL; [ASP.NET Core Identity](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity?view=aspnetcore-10.0) cung cấp nền tảng quản lý tài khoản.
-
-### Khi nào chọn hướng khác?
-
-| Hướng | Khi phù hợp với nhóm | Điểm cần cân nhắc |
-| --- | --- | --- |
-| **ASP.NET Core MVC + Razor — khuyến nghị** | Muốn tập trung C#, hoàn thành MVP với nhiều form và bảng quản lý | Tương tác phức tạp trên trình duyệt có thể cần thêm JavaScript |
-| Blazor Web App | Muốn viết cả logic tương tác giao diện bằng C# | Cần học component, quản lý trạng thái và render mode; Interactive Server phụ thuộc kết nối với server |
-| ASP.NET Core Web API + React/TypeScript | Nhóm frontend đã quen React hoặc muốn tách giao diện website khỏi backend C# | Phải quản lý thêm frontend, hợp đồng API và cấu hình xác thực/triển khai giữa các phần |
-
-Các chế độ chạy của Blazor được mô tả trong [tài liệu render modes](https://learn.microsoft.com/en-us/aspnet/core/blazor/components/render-modes?view=aspnetcore-10.0). Việc chọn MVC ở đây là đề xuất theo phạm vi và mức độ phức tạp của EventFlow; nhóm vẫn có thể chọn Blazor nếu ưu tiên C# cho tương tác giao diện và đã sẵn sàng học mô hình này.
 
 ## 6. Môi trường phát triển và triển khai
 
