@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EventFlow – Tài Liệu Phân Tích & Thiết Kế Kỹ Thuật (Vibe Code Blueprint)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    code, pre { font-family: 'JetBrains Mono', monospace; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- TOP HEADER -->
+  <header class="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-30 shadow-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-teal-500 flex items-center justify-center font-extrabold text-xl text-slate-950 shadow-inner">
+          EF
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg sm:text-xl font-bold tracking-tight">EventFlow – Vibe Code Blueprint & System Design</h1>
+            <span class="bg-teal-500/20 text-teal-300 border border-teal-500/40 text-xs font-semibold px-2.5 py-0.5 rounded-full">Baseline Tuần 1-2-3</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-0.5">
+            Đề tài: Website quản lý hoạt động & thành viên cho 01 CLB Tiếng Anh sinh viên (UEH - Nhóm 8)
+          </p>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-2 text-xs">
+        <span class="px-2.5 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">Stack: <strong>PHP 8.x + PDO + Session</strong></span>
+        <span class="px-2.5 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">DB: <strong>MySQL (InnoDB - 7 Bảng)</strong></span>
+        <span class="px-2.5 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">UI: <strong>Bootstrap 5 + JS</strong></span>
+      </div>
+    </div>
+
+    <!-- NAVIGATION TABS -->
+    <div class="bg-slate-800/80 border-t border-slate-700/80">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto no-scrollbar">
+        <button onclick="switchTab('tab-overview')" id="btn-tab-overview" class="nav-btn px-4 py-3 text-xs sm:text-sm font-semibold border-b-2 border-teal-400 text-teal-300 whitespace-nowrap transition">
+          1. Tổng Quan & Kiến Trúc 3 Lớp
+        </button>
+        <button onclick="switchTab('tab-database')" id="btn-tab-database" class="nav-btn px-4 py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-300 hover:text-white whitespace-nowrap transition">
+          2. CSDL & SQL DDL (7 Bảng Chuẩn Hóa)
+        </button>
+        <button onclick="switchTab('tab-rbac')" id="btn-tab-rbac" class="nav-btn px-4 py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-300 hover:text-white whitespace-nowrap transition">
+          3. Ma Trận Phân Quyền (RBAC 2 Tầng)
+        </button>
+        <button onclick="switchTab('tab-logic')" id="btn-tab-logic" class="nav-btn px-4 py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-300 hover:text-white whitespace-nowrap transition">
+          4. Luồng Nghiệp Vụ & Ràng Buộc Code
+        </button>
+        <button onclick="switchTab('tab-screens')" id="btn-tab-screens" class="nav-btn px-4 py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-300 hover:text-white whitespace-nowrap transition">
+          5. Đặc Tả 16 Màn Hình MVP & Backlog
+        </button>
+        <button onclick="switchTab('tab-vibecode')" id="btn-tab-vibecode" class="nav-btn px-4 py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-amber-300 hover:text-amber-200 whitespace-nowrap transition">
+          6. Vibe Code Prompts & Cấu Trúc Thư Mục
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
+
+    <!-- ==========================================
+         TAB 1: TỔNG QUAN & KIẾN TRÚC 3 LỚP
+         ========================================== -->
+    <section id="tab-overview" class="tab-content active space-y-6">
+      <!-- Guardrail Alert -->
+      <div class="bg-teal-50 border-l-4 border-teal-600 p-4 rounded-r-lg shadow-sm">
+        <div class="flex items-start gap-3">
+          <div class="text-teal-700 font-bold text-lg">ℹ️</div>
+          <div>
+            <h3 class="text-sm font-bold text-teal-900 uppercase tracking-wider">Nguyên tắc Bám sát Tài liệu (Zero Hallucination Guardrail)</h3>
+            <p class="text-sm text-teal-800 mt-1">
+              Tài liệu thiết kế này được tổng hợp <strong>100% từ Hồ sơ Quản lý Dự án Tuần 1, Tuần 2 và Tuần 3</strong> của Nhóm 8. Phục vụ duy nhất <strong>01 Câu lạc bộ Tiếng Anh sinh viên</strong>. Tuyệt đối không tự sinh thêm các tính năng ngoài phạm vi MVP như: Đa CLB, QR Check-in, Gửi Email/SMS tự động, Thanh toán trực tuyến, SSO hay Ứng dụng Mobile Native.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- High-level stats -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <p class="text-xs font-medium text-slate-500 uppercase">Phạm vi Yêu cầu MVP</p>
+          <p class="text-2xl font-extrabold text-slate-900 mt-1">15 FR Must Have</p>
+          <p class="text-xs text-teal-600 mt-1">20 Backlog Items (69 SP)</p>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <p class="text-xs font-medium text-slate-500 uppercase">Mô hình Dữ liệu (3NF)</p>
+          <p class="text-2xl font-extrabold text-slate-900 mt-1">07 Bảng Cốt Lõi</p>
+          <p class="text-xs text-teal-600 mt-1">MySQL InnoDB + ACID</p>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <p class="text-xs font-medium text-slate-500 uppercase">Giao diện & Màn hình</p>
+          <p class="text-2xl font-extrabold text-slate-900 mt-1">16 Màn hình MVP</p>
+          <p class="text-xs text-teal-600 mt-1">SCR01 – SCR16 (Bootstrap 5)</p>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <p class="text-xs font-medium text-slate-500 uppercase">Mục tiêu Chất lượng</p>
+          <p class="text-2xl font-extrabold text-slate-900 mt-1">&ge; 30 Test Cases</p>
+          <p class="text-xs text-teal-600 mt-1">Pass &ge; 90%, Phản hồi &le; 2-3s</p>
+        </div>
+      </div>
+
+      <!-- Architecture Diagram Visual -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        <h2 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+          <span class="w-2.5 h-6 bg-teal-500 rounded-sm inline-block"></span>
+          Kiến Trúc Tổng Thể Hệ Thống (Three-Tier Monolith Architecture)
+        </h2>
+        <p class="text-sm text-slate-600 mb-6">
+          Theo Mục V (Hồ sơ Tuần 3), hệ thống sử dụng kiến trúc 3 lớp chạy trên một ứng dụng PHP nguyên khối (Monolith) kết hợp MySQL (InnoDB). Trình duyệt không kết nối trực tiếp CSDL mà giao tiếp hoàn toàn qua Backend PHP.
+        </p>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 relative">
+          <!-- Tier 1 -->
+          <div class="rounded-xl border-2 border-sky-200 bg-sky-50/60 p-5 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-sky-600 text-white">Lớp 1: Presentation Layer</span>
+                <span class="text-xs font-mono text-sky-700">Client-side</span>
+              </div>
+              <h3 class="font-bold text-slate-900 text-base mb-2">Giao Diện Website (Responsive)</h3>
+              <ul class="text-xs text-slate-700 space-y-2 list-disc pl-4">
+                <li><strong>Công nghệ:</strong> HTML5, CSS3, Bootstrap 5, Vanilla JavaScript.</li>
+                <li><strong>Trách nhiệm:</strong> Hiển thị giao diện theo 4 vai trò (System Admin, Club Manager, Club Member, Event Participant).</li>
+                <li>Nhận dữ liệu từ biểu mẫu (Form) hoặc gửi yêu cầu bất đồng bộ (Fetch/AJAX JSON) cho các thao tác cần phản hồi nhanh như tra cứu & check-in.</li>
+                <li>Tương thích máy tính (Windows 10/11, macOS 14+) và điện thoại (Android 10+) theo <code>NFR07</code>.</li>
+              </ul>
+            </div>
+            <div class="mt-4 pt-3 border-t border-sky-200/80 text-xs text-sky-900 font-mono">
+              Giao thức: HTTP/HTTPS (Form POST/GET &amp; JSON)
+            </div>
+          </div>
+
+          <!-- Tier 2 -->
+          <div class="rounded-xl border-2 border-teal-200 bg-teal-50/60 p-5 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-teal-600 text-white">Lớp 2: Application Layer</span>
+                <span class="text-xs font-mono text-teal-700">Server-side</span>
+              </div>
+              <h3 class="font-bold text-slate-900 text-base mb-2">Xử Lý Nghiệp Vụ (Apache &amp; PHP)</h3>
+              <ul class="text-xs text-slate-700 space-y-2 list-disc pl-4">
+                <li><strong>Xác thực &amp; Phiên:</strong> <code>PHP Session</code>, băm mật khẩu bằng <code>password_hash()</code> và kiểm tra bằng <code>password_verify()</code>.</li>
+                <li><strong>Bảo mật:</strong> Kiểm tra RBAC trên mọi request, kiểm tra <code>CSRF Token</code> cho request thay đổi dữ liệu, escape output bằng <code>htmlspecialchars()</code> chống XSS.</li>
+                <li><strong>5 Phân hệ nghiệp vụ:</strong>
+                  <ol class="list-decimal pl-4 mt-1 space-y-0.5">
+                    <li>Tài khoản &amp; Phân quyền hệ thống</li>
+                    <li>Hồ sơ CLB &amp; Thành viên</li>
+                    <li>Quản lý Sự kiện</li>
+                    <li>Đăng ký sự kiện (Transaction + Row Locking)</li>
+                    <li>Điểm danh (Check-in) &amp; Thống kê cơ bản</li>
+                  </ol>
+                </li>
+              </ul>
+            </div>
+            <div class="mt-4 pt-3 border-t border-teal-200/80 text-xs text-teal-900 font-mono">
+              Kết nối CSDL: PDO (Prepared Statements)
+            </div>
+          </div>
+
+          <!-- Tier 3 -->
+          <div class="rounded-xl border-2 border-indigo-200 bg-indigo-50/60 p-5 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-indigo-600 text-white">Lớp 3: Data Layer</span>
+                <span class="text-xs font-mono text-indigo-700">Database</span>
+              </div>
+              <h3 class="font-bold text-slate-900 text-base mb-2">Cơ Sở Dữ Liệu (MySQL InnoDB)</h3>
+              <ul class="text-xs text-slate-700 space-y-2 list-disc pl-4">
+                <li><strong>Hệ quản trị:</strong> MySQL sử dụng Storage Engine <code>InnoDB</code>.</li>
+                <li><strong>7 Bảng thực thể:</strong> <code>Role</code>, <code>Account</code>, <code>Club</code>, <code>Club_Member</code>, <code>Event</code>, <code>Event_Registration</code>, <code>Attendance</code>.</li>
+                <li><strong>Toàn vẹn dữ liệu (NFR01):</strong> Ràng buộc khóa ngoại (FK), chỉ mục duy nhất <code>UNIQUE(EventID, AccountID)</code>, <code>UNIQUE(RegID)</code>.</li>
+                <li><strong>Xử lý đồng thời:</strong> Hỗ trợ ACID Transaction và khóa bản ghi <code>SELECT ... FOR UPDATE</code>.</li>
+                <li><strong>Công cụ quản trị:</strong> <code>phpMyAdmin</code> (chỉ dành cho nhóm phát triển/vận hành).</li>
+              </ul>
+            </div>
+            <div class="mt-4 pt-3 border-t border-indigo-200/80 text-xs text-indigo-900 font-mono">
+              Engine: InnoDB · Charset: utf8mb4_unicode_ci
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Non-Functional Requirements Summary Table -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        <h2 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+          <span class="w-2.5 h-6 bg-indigo-500 rounded-sm inline-block"></span>
+          Các Yêu Cầu Phi Chức Năng &amp; Ngưỡng Kiểm Thử Bắt Buộc (NFR01 – NFR07)
+        </h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs sm:text-sm">
+            <thead>
+              <tr class="bg-slate-100 text-slate-700 border-b border-slate-200">
+                <th class="py-2.5 px-3 font-bold">Mã NFR</th>
+                <th class="py-2.5 px-3 font-bold">Tiêu chí</th>
+                <th class="py-2.5 px-3 font-bold">Ngưỡng kỹ thuật bắt buộc khi code</th>
+                <th class="py-2.5 px-3 font-bold">Giải pháp thực thi trong kiến trúc</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              <tr>
+                <td class="py-2.5 px-3 font-mono font-bold text-teal-700">NFR01</td>
+                <td class="py-2.5 px-3 font-semibold">Toàn vẹn &amp; Nhất quán</td>
+                <td class="py-2.5 px-3">Không trùng đăng ký, không trùng check-in; khớp số liệu 100% giữa Danh sách đăng ký, Check-in, Lịch sử cá nhân và Thống kê.</td>
+                <td class="py-2.5 px-3">InnoDB Foreign Keys + <code>UNIQUE(EventID, AccountID)</code> + <code>UNIQUE(RegID)</code> + Transaction Commit/Rollback.</td>
+              </tr>
+              <tr>
+                <td class="py-2.5 px-3 font-mono font-bold text-teal-700">NFR02</td>
+                <td class="py-2.5 px-3 font-semibold">Tính cập nhật</td>
+                <td class="py-2.5 px-3">Dữ liệu mới hiển thị trong <strong>&le; 3 giây</strong> sau khi lưu ở ít nhất 95% lượt kiểm tra.</td>
+                <td class="py-2.5 px-3">Truy vấn trực tiếp CSDL MySQL nội bộ, không dùng cache tĩnh làm trễ trạng thái sự kiện/đăng ký.</td>
+              </tr>
+              <tr>
+                <td class="py-2.5 px-3 font-mono font-bold text-teal-700">NFR03</td>
+                <td class="py-2.5 px-3 font-semibold">Hiệu năng tra cứu &amp; Check-in</td>
+                <td class="py-2.5 px-3">Tra cứu người đăng ký <strong>&le; 2s</strong>; Lưu check-in <strong>&le; 2s</strong>; Tải lịch sử thành viên <strong>&le; 3s</strong>.</td>
+                <td class="py-2.5 px-3">Đánh Index trên <code>Account(FullName, StudentCode, Email)</code> và <code>Event_Registration(EventID, AccountID)</code>.</td>
+              </tr>
+              <tr>
+                <td class="py-2.5 px-3 font-mono font-bold text-teal-700">NFR04</td>
+                <td class="py-2.5 px-3 font-semibold">Tính dễ sử dụng</td>
+                <td class="py-2.5 px-3">Hoàn thành tìm &amp; check-in trong <strong>30s</strong>, xem lịch sử thành viên trong <strong>30s</strong>, xem trạng thái cá nhân trong <strong>20s</strong>.</td>
+                <td class="py-2.5 px-3">Thanh điều hướng rõ ràng theo Role, ô tìm kiếm ngay đầu bảng danh sách, nút thao tác trực tiếp 1-click.</td>
+              </tr>
+              <tr>
+                <td class="py-2.5 px-3 font-mono font-bold text-teal-700">NFR05</td>
+                <td class="py-2.5 px-3 font-semibold">Rõ ràng trạng thái &amp; phản hồi</td>
+                <td class="py-2.5 px-3">Người dùng nhận biết trạng thái hiện tại và bước tiếp theo trong vòng <strong>5 giây</strong>.</td>
+                <td class="py-2.5 px-3">Sử dụng Bootstrap Badges phân biệt màu sắc rõ ràng cho từng trạng thái và Alert thông báo cụ thể từng lý do lỗi.</td>
+              </tr>
+              <tr>
+                <td class="py-2.5 px-3 font-mono font-bold text-teal-700">NFR07</td>
+                <td class="py-2.5 px-3 font-semibold">Thích nghi đa thiết bị</td>
+                <td class="py-2.5 px-3">Hiển thị chuẩn trên Windows 10/11, macOS 14+, Android 10+ (không chồng lấp chữ hoặc che nút bấm).</td>
+                <td class="py-2.5 px-3">Sử dụng Bootstrap 5 Grid (<code>col-12 col-md-6 col-lg-4</code>) và <code>.table-responsive</code> cho mọi bảng dữ liệu.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         TAB 2: CƠ SỞ DỮ LIỆU & SQL DDL (7 BẢNG)
+         ========================================== -->
+    <section id="tab-database" class="tab-content space-y-6">
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <span class="w-2.5 h-6 bg-teal-500 rounded-sm inline-block"></span>
+              Thiết Kế Cơ Sở Dữ Liệu Quan Hệ (7 Bảng Chuẩn Hóa 3NF &amp; Tiếng Anh)
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-600 mt-1">
+              Bám sát Data Dictionary (Mục VI - Hồ sơ Tuần 3) và đã chuẩn hóa 100% các giá trị Enum/Default sang Tiếng Anh để đảm bảo tính nhất quán khi lập trình.
+            </p>
+          </div>
+          <button onclick="copyCode('sql-ddl-code')" class="self-start sm:self-auto bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold px-4 py-2.5 rounded-lg shadow transition flex items-center gap-2">
+            <span>📋 Copy Toàn Bộ Script SQL (Schema + Seed)</span>
+          </button>
+        </div>
+
+        <!-- Standardized Enum Badges -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 bg-slate-50 p-4 rounded-lg border border-slate-200 text-xs">
+          <div>
+            <p class="font-bold text-slate-700 mb-1">1. Vai trò Hệ thống (<code>Role.RoleName</code>):</p>
+            <div class="flex flex-wrap gap-1.5">
+              <span class="px-2 py-0.5 bg-purple-100 text-purple-800 rounded font-mono">'System Administrator'</span>
+              <span class="px-2 py-0.5 bg-amber-100 text-amber-800 rounded font-mono">'Club Manager'</span>
+              <span class="px-2 py-0.5 bg-teal-100 text-teal-800 rounded font-mono">'Club Member'</span>
+              <span class="px-2 py-0.5 bg-sky-100 text-sky-800 rounded font-mono">'Event Participant'</span>
+            </div>
+          </div>
+          <div>
+            <p class="font-bold text-slate-700 mb-1">2. Vai trò &amp; Trạng thái CLB (<code>Club_Member</code>):</p>
+            <div class="flex flex-wrap gap-1.5">
+              <span class="px-2 py-0.5 bg-slate-200 text-slate-800 rounded font-mono">MemberRole: 'Member' | 'Board Member' | 'Event Supporter'</span>
+              <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-mono">Status: 'Active' | 'Inactive'</span>
+            </div>
+          </div>
+          <div>
+            <p class="font-bold text-slate-700 mb-1">3. Trạng thái Sự kiện, Đăng ký &amp; Điểm danh:</p>
+            <div class="flex flex-wrap gap-1.5">
+              <span class="px-2 py-0.5 bg-blue-100 text-blue-800 rounded font-mono">Event: 'Draft' | 'Published' | 'Cancelled'</span>
+              <span class="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded font-mono">Reg: 'Registered' | 'Cancelled'</span>
+              <span class="px-2 py-0.5 bg-rose-100 text-rose-800 rounded font-mono">Attendance: 1 (Present) | 0 (Absent)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Data Dictionary Tables -->
+        <div class="space-y-6">
+          <!-- Table 1 & 2 -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="border border-slate-200 rounded-lg overflow-hidden">
+              <div class="bg-slate-800 text-white px-4 py-2 text-xs font-bold flex justify-between">
+                <span>Bảng 1: Role (Vai trò hệ thống)</span>
+                <span class="text-teal-300 font-mono">PK: RoleID</span>
+              </div>
+              <table class="w-full text-xs text-left">
+                <thead class="bg-slate-100 border-b">
+                  <tr><th class="p-2">Cột</th><th class="p-2">Kiểu</th><th class="p-2">Ràng buộc / Mặc định</th></tr>
+                </thead>
+                <tbody class="divide-y">
+                  <tr><td class="p-2 font-mono font-semibold">RoleID</td><td class="p-2 font-mono">INT</td><td class="p-2">PK, AUTO_INCREMENT, NOT NULL</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">RoleName</td><td class="p-2 font-mono">VARCHAR(50)</td><td class="p-2">NOT NULL, UNIQUE (4 vai trò chuẩn)</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="border border-slate-200 rounded-lg overflow-hidden">
+              <div class="bg-slate-800 text-white px-4 py-2 text-xs font-bold flex justify-between">
+                <span>Bảng 3: Club (Thông tin Câu lạc bộ)</span>
+                <span class="text-teal-300 font-mono">PK: ClubID | FK: ManagerID</span>
+              </div>
+              <table class="w-full text-xs text-left">
+                <thead class="bg-slate-100 border-b">
+                  <tr><th class="p-2">Cột</th><th class="p-2">Kiểu</th><th class="p-2">Ràng buộc / Mặc định</th></tr>
+                </thead>
+                <tbody class="divide-y">
+                  <tr><td class="p-2 font-mono font-semibold">ClubID</td><td class="p-2 font-mono">INT</td><td class="p-2">PK, AUTO_INCREMENT, NOT NULL</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">ClubName</td><td class="p-2 font-mono">VARCHAR(150)</td><td class="p-2">NOT NULL (Tên CLB Tiếng Anh)</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">Description</td><td class="p-2 font-mono">TEXT</td><td class="p-2">NULL (Giới thiệu &amp; lĩnh vực hoạt động)</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">ContactInfo</td><td class="p-2 font-mono">VARCHAR(255)</td><td class="p-2">NULL (Email, Hotline, Fanpage)</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">ManagerID</td><td class="p-2 font-mono">INT</td><td class="p-2">FK &rarr; <code>Account(AccountID)</code>, NOT NULL</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Table 2: Account & Table 4: Club_Member -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="border border-slate-200 rounded-lg overflow-hidden">
+              <div class="bg-slate-800 text-white px-4 py-2 text-xs font-bold flex justify-between">
+                <span>Bảng 2: Account (Tài khoản người dùng)</span>
+                <span class="text-teal-300 font-mono">PK: AccountID | UK: Email, StudentCode</span>
+              </div>
+              <table class="w-full text-xs text-left">
+                <thead class="bg-slate-100 border-b">
+                  <tr><th class="p-2">Cột</th><th class="p-2">Kiểu</th><th class="p-2">Ràng buộc / Mặc định</th></tr>
+                </thead>
+                <tbody class="divide-y">
+                  <tr><td class="p-2 font-mono font-semibold">AccountID</td><td class="p-2 font-mono">INT</td><td class="p-2">PK, AUTO_INCREMENT, NOT NULL</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">Email</td><td class="p-2 font-mono">VARCHAR(100)</td><td class="p-2">NOT NULL, UNIQUE</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">PasswordHash</td><td class="p-2 font-mono">VARCHAR(255)</td><td class="p-2">NOT NULL (Băm bằng <code>password_hash()</code>)</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">FullName</td><td class="p-2 font-mono">VARCHAR(100)</td><td class="p-2">NOT NULL</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">StudentCode</td><td class="p-2 font-mono">VARCHAR(20)</td><td class="p-2">NULL, UNIQUE (MSSV; bắt buộc với SV)</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">RoleID</td><td class="p-2 font-mono">INT</td><td class="p-2">FK &rarr; <code>Role(RoleID)</code>, NOT NULL</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">IsActive</td><td class="p-2 font-mono">TINYINT(1)</td><td class="p-2">NOT NULL, DEFAULT <code>1</code> (1: Active, 0: Locked)</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">CreatedAt</td><td class="p-2 font-mono">DATETIME</td><td class="p-2">NOT NULL, DEFAULT <code>CURRENT_TIMESTAMP</code></td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="border border-slate-200 rounded-lg overflow-hidden">
+              <div class="bg-slate-800 text-white px-4 py-2 text-xs font-bold flex justify-between">
+                <span>Bảng 4: Club_Member (Thành viên CLB)</span>
+                <span class="text-teal-300 font-mono">PK: MemberID | UK: (AccountID, ClubID)</span>
+              </div>
+              <table class="w-full text-xs text-left">
+                <thead class="bg-slate-100 border-b">
+                  <tr><th class="p-2">Cột</th><th class="p-2">Kiểu</th><th class="p-2">Ràng buộc / Mặc định</th></tr>
+                </thead>
+                <tbody class="divide-y">
+                  <tr><td class="p-2 font-mono font-semibold">MemberID</td><td class="p-2 font-mono">INT</td><td class="p-2">PK, AUTO_INCREMENT, NOT NULL</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">AccountID</td><td class="p-2 font-mono">INT</td><td class="p-2">FK &rarr; <code>Account(AccountID)</code>, NOT NULL</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">ClubID</td><td class="p-2 font-mono">INT</td><td class="p-2">FK &rarr; <code>Club(ClubID)</code>, NOT NULL</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">MemberRole</td><td class="p-2 font-mono">VARCHAR(50)</td><td class="p-2">NOT NULL, DEFAULT <code>'Member'</code> (<code>'Member'</code>, <code>'Board Member'</code>, <code>'Event Supporter'</code>)</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">Status</td><td class="p-2 font-mono">VARCHAR(30)</td><td class="p-2">NOT NULL, DEFAULT <code>'Active'</code> (<code>'Active'</code>, <code>'Inactive'</code>)</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">JoinedDate</td><td class="p-2 font-mono">DATE</td><td class="p-2">NULL</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Table 5, 6, 7 -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="border border-slate-200 rounded-lg overflow-hidden">
+              <div class="bg-slate-800 text-white px-4 py-2 text-xs font-bold flex justify-between">
+                <span>Bảng 5: Event (Sự kiện)</span>
+                <span class="text-teal-300 font-mono">PK: EventID</span>
+              </div>
+              <table class="w-full text-xs text-left">
+                <thead class="bg-slate-100 border-b">
+                  <tr><th class="p-2">Cột</th><th class="p-2">Kiểu</th><th class="p-2">Ràng buộc</th></tr>
+                </thead>
+                <tbody class="divide-y">
+                  <tr><td class="p-2 font-mono font-semibold">EventID</td><td class="p-2 font-mono">INT</td><td class="p-2">PK, AUTO_INCREMENT</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">ClubID</td><td class="p-2 font-mono">INT</td><td class="p-2">FK &rarr; <code>Club(ClubID)</code></td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">EventName</td><td class="p-2 font-mono">VARCHAR(200)</td><td class="p-2">NOT NULL</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">Description</td><td class="p-2 font-mono">TEXT</td><td class="p-2">NULL (Mô tả &amp; Điều kiện)</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">Location</td><td class="p-2 font-mono">VARCHAR(255)</td><td class="p-2">NOT NULL</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">StartTime</td><td class="p-2 font-mono">DATETIME</td><td class="p-2">NOT NULL</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">EndTime</td><td class="p-2 font-mono">DATETIME</td><td class="p-2">NOT NULL</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">RegistrationDeadline</td><td class="p-2 font-mono">DATETIME</td><td class="p-2">NOT NULL (&le; StartTime)</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">MaxCapacity</td><td class="p-2 font-mono">INT</td><td class="p-2">NULL (Nếu có phải &gt; 0)</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">Status</td><td class="p-2 font-mono">VARCHAR(30)</td><td class="p-2">DEFAULT <code>'Published'</code></td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">CreatedAt</td><td class="p-2 font-mono">DATETIME</td><td class="p-2">DEFAULT CURRENT_TIMESTAMP</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="border border-slate-200 rounded-lg overflow-hidden">
+              <div class="bg-slate-800 text-white px-4 py-2 text-xs font-bold flex justify-between">
+                <span>Bảng 6: Event_Registration</span>
+                <span class="text-teal-300 font-mono">UK: (EventID, AccountID)</span>
+              </div>
+              <table class="w-full text-xs text-left">
+                <thead class="bg-slate-100 border-b">
+                  <tr><th class="p-2">Cột</th><th class="p-2">Kiểu</th><th class="p-2">Ràng buộc</th></tr>
+                </thead>
+                <tbody class="divide-y">
+                  <tr><td class="p-2 font-mono font-semibold">RegID</td><td class="p-2 font-mono">INT</td><td class="p-2">PK, AUTO_INCREMENT</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">EventID</td><td class="p-2 font-mono">INT</td><td class="p-2">FK &rarr; <code>Event(EventID)</code></td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">AccountID</td><td class="p-2 font-mono">INT</td><td class="p-2">FK &rarr; <code>Account(AccountID)</code></td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">RegDate</td><td class="p-2 font-mono">DATETIME</td><td class="p-2">DEFAULT CURRENT_TIMESTAMP</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">Status</td><td class="p-2 font-mono">VARCHAR(30)</td><td class="p-2">DEFAULT <code>'Registered'</code> (<code>'Registered'</code>, <code>'Cancelled'</code>)</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="border border-slate-200 rounded-lg overflow-hidden">
+              <div class="bg-slate-800 text-white px-4 py-2 text-xs font-bold flex justify-between">
+                <span>Bảng 7: Attendance (Điểm danh)</span>
+                <span class="text-teal-300 font-mono">UK: RegID (1-1)</span>
+              </div>
+              <table class="w-full text-xs text-left">
+                <thead class="bg-slate-100 border-b">
+                  <tr><th class="p-2">Cột</th><th class="p-2">Kiểu</th><th class="p-2">Ràng buộc</th></tr>
+                </thead>
+                <tbody class="divide-y">
+                  <tr><td class="p-2 font-mono font-semibold">AttendanceID</td><td class="p-2 font-mono">INT</td><td class="p-2">PK, AUTO_INCREMENT</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">RegID</td><td class="p-2 font-mono">INT</td><td class="p-2">FK &rarr; <code>Event_Registration</code>, UNIQUE</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">AttendanceStatus</td><td class="p-2 font-mono">TINYINT(1)</td><td class="p-2">DEFAULT <code>1</code> (1: Present, 0: Absent)</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">CheckInAt</td><td class="p-2 font-mono">DATETIME</td><td class="p-2">DEFAULT CURRENT_TIMESTAMP</td></tr>
+                  <tr><td class="p-2 font-mono font-semibold">CheckedInBy</td><td class="p-2 font-mono">INT</td><td class="p-2">FK &rarr; <code>Account(AccountID)</code></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ready-to-run SQL Script -->
+        <div class="mt-6">
+          <div class="bg-slate-900 text-slate-200 px-4 py-2.5 rounded-t-lg flex items-center justify-between text-xs font-mono">
+            <span>database/schema_and_seed.sql (MySQL 8.0+ / InnoDB)</span>
+            <span class="text-teal-400">Chuẩn hóa 100% Enum Tiếng Anh + Dữ liệu mẫu Figma Prototype</span>
+          </div>
+          <pre id="sql-ddl-code" class="bg-slate-950 text-slate-100 p-4 rounded-b-lg overflow-x-auto text-xs leading-relaxed"><code>-- ============================================================================
+-- EVENTFLOW DATABASE SCHEMA & SEED DATA (MYSQL INNODB)
+-- Phạm vi: MVP 01 CLB Tiếng Anh Sinh Viên (7 Bảng Chuẩn Hóa 3NF)
+-- ============================================================================
+
+CREATE DATABASE IF NOT EXISTS eventflow_db
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+USE eventflow_db;
+
+-- 1. Bảng Role (Vai trò hệ thống)
+CREATE TABLE IF NOT EXISTS Role (
+    RoleID INT AUTO_INCREMENT PRIMARY KEY,
+    RoleName VARCHAR(50) NOT NULL UNIQUE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 2. Bảng Account (Tài khoản người dùng)
+CREATE TABLE IF NOT EXISTS Account (
+    AccountID INT AUTO_INCREMENT PRIMARY KEY,
+    Email VARCHAR(100) NOT NULL UNIQUE,
+    PasswordHash VARCHAR(255) NOT NULL,
+    FullName VARCHAR(100) NOT NULL,
+    StudentCode VARCHAR(20) NULL UNIQUE,
+    RoleID INT NOT NULL,
+    IsActive TINYINT(1) NOT NULL DEFAULT 1,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_account_role FOREIGN KEY (RoleID) REFERENCES Role(RoleID)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    INDEX idx_account_search (FullName, StudentCode, Email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 3. Bảng Club (Thông tin Câu lạc bộ)
+CREATE TABLE IF NOT EXISTS Club (
+    ClubID INT AUTO_INCREMENT PRIMARY KEY,
+    ClubName VARCHAR(150) NOT NULL,
+    Description TEXT NULL,
+    ContactInfo VARCHAR(255) NULL,
+    ManagerID INT NOT NULL,
+    CONSTRAINT fk_club_manager FOREIGN KEY (ManagerID) REFERENCES Account(AccountID)
+        ON UPDATE CASCADE ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 4. Bảng Club_Member (Thành viên Câu lạc bộ)
+-- MemberRole chuẩn hóa: 'Member', 'Board Member', 'Event Supporter'
+-- Status chuẩn hóa: 'Active', 'Inactive'
+CREATE TABLE IF NOT EXISTS Club_Member (
+    MemberID INT AUTO_INCREMENT PRIMARY KEY,
+    AccountID INT NOT NULL,
+    ClubID INT NOT NULL,
+    MemberRole VARCHAR(50) NOT NULL DEFAULT 'Member',
+    Status VARCHAR(30) NOT NULL DEFAULT 'Active',
+    JoinedDate DATE NULL,
+    CONSTRAINT uq_club_member UNIQUE (AccountID, ClubID),
+    CONSTRAINT fk_member_account FOREIGN KEY (AccountID) REFERENCES Account(AccountID)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_member_club FOREIGN KEY (ClubID) REFERENCES Club(ClubID)
+        ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 5. Bảng Event (Sự kiện)
+-- Status chuẩn hóa: 'Draft', 'Published', 'Cancelled'
+CREATE TABLE IF NOT EXISTS Event (
+    EventID INT AUTO_INCREMENT PRIMARY KEY,
+    ClubID INT NOT NULL,
+    EventName VARCHAR(200) NOT NULL,
+    Description TEXT NULL,
+    Location VARCHAR(255) NOT NULL,
+    StartTime DATETIME NOT NULL,
+    EndTime DATETIME NOT NULL,
+    RegistrationDeadline DATETIME NOT NULL,
+    MaxCapacity INT NULL,
+    Status VARCHAR(30) NOT NULL DEFAULT 'Published',
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_event_club FOREIGN KEY (ClubID) REFERENCES Club(ClubID)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    INDEX idx_event_status_time (Status, StartTime)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 6. Bảng Event_Registration (Đăng ký sự kiện)
+-- Status chuẩn hóa: 'Registered', 'Cancelled'
+CREATE TABLE IF NOT EXISTS Event_Registration (
+    RegID INT AUTO_INCREMENT PRIMARY KEY,
+    EventID INT NOT NULL,
+    AccountID INT NOT NULL,
+    RegDate DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    Status VARCHAR(30) NOT NULL DEFAULT 'Registered',
+    CONSTRAINT uq_event_account UNIQUE (EventID, AccountID),
+    CONSTRAINT fk_reg_event FOREIGN KEY (EventID) REFERENCES Event(EventID)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_reg_account FOREIGN KEY (AccountID) REFERENCES Account(AccountID)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    INDEX idx_reg_event_status (EventID, Status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 7. Bảng Attendance (Điểm danh / Check-in)
+-- AttendanceStatus chuẩn hóa: 1 (Present), 0 (Absent)
+CREATE TABLE IF NOT EXISTS Attendance (
+    AttendanceID INT AUTO_INCREMENT PRIMARY KEY,
+    RegID INT NOT NULL UNIQUE,
+    AttendanceStatus TINYINT(1) NOT NULL DEFAULT 1,
+    CheckInAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CheckedInBy INT NOT NULL,
+    CONSTRAINT fk_att_reg FOREIGN KEY (RegID) REFERENCES Event_Registration(RegID)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_att_checker FOREIGN KEY (CheckedInBy) REFERENCES Account(AccountID)
+        ON UPDATE CASCADE ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================================
+-- DỮ LIỆU KHỞI TẠO MẪU (SEED DATA BÁM SÁT PROTOTYPE TUẦN 3)
+-- Mật khẩu mặc định của tất cả tài khoản demo: Password@123
+-- ============================================================================
+
+INSERT INTO Role (RoleID, RoleName) VALUES
+(1, 'System Administrator'),
+(2, 'Club Manager'),
+(3, 'Club Member'),
+(4, 'Event Participant');
+
+-- Hash bcrypt mẫu cho 'Password@123': $2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi
+INSERT INTO Account (AccountID, Email, PasswordHash, FullName, StudentCode, RoleID, IsActive) VALUES
+(1, 'admin@ueh.edu.vn', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'System Admin EventFlow', NULL, 1, 1),
+(2, 'manager@st.ueh.edu.vn', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Dương Hoàng Sâm', '31241020001', 2, 1),
+(3, 'supporter@st.ueh.edu.vn', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Trần Yến Phượng', '31241022663', 3, 1),
+(4, 'minhan@st.ueh.edu.vn', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Nguyễn Minh An', '31241020123', 3, 1),
+(5, 'student@st.ueh.edu.vn', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Lê Hoàng Nam', '31241020999', 4, 1);
+
+INSERT INTO Club (ClubID, ClubName, Description, ContactInfo, ManagerID) VALUES
+(1, 'UEH English Club (Bell Club)', 'Câu lạc bộ Tiếng Anh sinh viên trực thuộc Đại học Kinh tế TP. Hồ Chí Minh (UEH). Lĩnh vực hoạt động: Học thuật, Giao lưu văn hóa, Rèn luyện kỹ năng giao tiếp và Tranh biện tiếng Anh.', 'Email: englishclub@ueh.edu.vn | Fanpage: fb.com/uehenglishclub | Cơ sở B - 279 Nguyễn Tri Phương', 2);
+
+INSERT INTO Club_Member (MemberID, AccountID, ClubID, MemberRole, Status, JoinedDate) VALUES
+(1, 2, 1, 'Board Member', 'Active', '2025-09-01'),
+(2, 3, 1, 'Event Supporter', 'Active', '2025-10-15'),
+(3, 4, 1, 'Member', 'Active', '2026-01-10');
+
+-- 3 Sự kiện mẫu theo đúng Bảng 7.1 (Hồ sơ Tuần 3)
+INSERT INTO Event (EventID, ClubID, EventName, Description, Location, StartTime, EndTime, RegistrationDeadline, MaxCapacity, Status) VALUES
+(1, 1, 'English Speaking Circle', 'Buổi sinh hoạt giao tiếp tiếng Anh định kỳ theo chủ đề dành cho thành viên CLB và sinh viên UEH.', 'UEH Cơ sở B - 279 Nguyễn Tri Phương (Phòng B1.302)', '2026-11-15 18:00:00', '2026-11-15 20:30:00', '2026-11-14 23:59:00', 40, 'Published'),
+(2, 1, 'Debate Lab: Speak Up', 'Workshop hướng dẫn kỹ năng tranh biện tiếng Anh theoformat Nghị viện Anh (British Parliamentary).', 'UEH Cơ sở B - Hội trường B1.302', '2026-11-20 14:00:00', '2026-11-20 17:00:00', '2026-11-19 23:59:00', 60, 'Published'),
+(3, 1, 'Cultural Exchange Day', 'Ngày hội giao lưu văn hóa và thực hành ngôn ngữ dành cho toàn thể sinh viên.', 'Sảnh B1 - UEH Nguyễn Tri Phương', '2026-11-28 08:30:00', '2026-11-28 11:30:00', '2026-11-26 23:59:00', NULL, 'Published');
+</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         TAB 3: MA TRẬN PHÂN QUYỀN (RBAC 2 TẦNG)
+         ========================================== -->
+    <section id="tab-rbac" class="tab-content space-y-6">
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        <h2 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+          <span class="w-2.5 h-6 bg-teal-500 rounded-sm inline-block"></span>
+          Thiết Kế Phân Quyền Truy Cập 2 Tầng (Two-Layer RBAC Matrix)
+        </h2>
+        <p class="text-sm text-slate-600 mb-4">
+          Để đáp ứng chính xác yêu cầu <code>FR02</code>, <code>FR08</code>, <code>FR14 (PB17)</code>, <code>FR15 (PB18)</code> và <code>FR17</code> trên đúng 7 bảng của ERD Tuần 3, hệ thống kiểm tra quyền truy cập tại Backend PHP theo <strong>2 tầng</strong>:
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div class="p-4 rounded-lg bg-slate-50 border border-slate-200">
+            <span class="text-xs font-bold uppercase px-2 py-0.5 rounded bg-slate-800 text-white">Tầng 1: Vai trò Hệ thống (Account.RoleID)</span>
+            <p class="text-xs text-slate-700 mt-2 leading-relaxed">
+              Được quản lý bởi <strong>System Administrator</strong> tại màn hình <code>SCR16 (FR17)</code>. Xác định quyền truy cập cấp hệ thống: <code>'System Administrator'</code>, <code>'Club Manager'</code>, <code>'Club Member'</code>, <code>'Event Participant'</code>.
+            </p>
+          </div>
+          <div class="p-4 rounded-lg bg-teal-50 border border-teal-200">
+            <span class="text-xs font-bold uppercase px-2 py-0.5 rounded bg-teal-700 text-white">Tầng 2: Vai trò Nội bộ CLB (Club_Member.MemberRole)</span>
+            <p class="text-xs text-teal-900 mt-2 leading-relaxed">
+              Được quản lý bởi <strong>Club Manager</strong> tại màn hình <code>SCR07 (FR08 / PB10)</code>. Thành viên có <code>Status = 'Active'</code> và <code>MemberRole IN ('Board Member', 'Event Supporter')</code> được công nhận là <strong>"Club Member được ủy quyền"</strong> để truy cập <code>SCR13</code> (Danh sách đăng ký) và <code>SCR14</code> (Điểm danh). Thành viên thường (<code>'Member'</code>) bị chặn <code>403 Forbidden</code>.
+            </p>
+          </div>
+        </div>
+
+        <!-- RBAC Matrix Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs sm:text-sm border-collapse text-left">
+            <thead>
+              <tr class="bg-slate-800 text-white">
+                <th class="p-3">Nhóm Chức Năng / Màn Hình</th>
+                <th class="p-3 text-center">Guest (Chưa Login)</th>
+                <th class="p-3 text-center">Event Participant (A2)</th>
+                <th class="p-3 text-center">Club Member Thường (A1 - 'Member')</th>
+                <th class="p-3 text-center bg-teal-900">Club Member Ủy Quyền ('Event Supporter' / 'Board Member')</th>
+                <th class="p-3 text-center">Club Manager (A3)</th>
+                <th class="p-3 text-center">System Admin (A4)</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              <tr>
+                <td class="p-3 font-medium">Đăng ký tài khoản (<code>SCR01</code> - FR01)</td>
+                <td class="p-3 text-center text-emerald-600 font-bold">✔ Allow</td>
+                <td class="p-3 text-center text-slate-400">Redirect Home</td>
+                <td class="p-3 text-center text-slate-400">Redirect Home</td>
+                <td class="p-3 text-center text-slate-400">Redirect Home</td>
+                <td class="p-3 text-center text-slate-400">Redirect Home</td>
+                <td class="p-3 text-center text-slate-400">Redirect Home</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-medium">Đăng nhập / Đăng xuất (<code>SCR02</code> - FR02)</td>
+                <td class="p-3 text-center text-emerald-600 font-bold">✔ Allow</td>
+                <td class="p-3 text-center text-emerald-600 font-bold">✔ Allow</td>
+                <td class="p-3 text-center text-emerald-600 font-bold">✔ Allow</td>
+                <td class="p-3 text-center text-emerald-600 font-bold">✔ Allow</td>
+                <td class="p-3 text-center text-emerald-600 font-bold">✔ Allow</td>
+                <td class="p-3 text-center text-emerald-600 font-bold">✔ Allow</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-medium">Xem thông tin CLB &amp; Sự kiện (<code>SCR04, SCR08, SCR09</code>)</td>
+                <td class="p-3 text-center text-emerald-600 font-bold">✔ Xem</td>
+                <td class="p-3 text-center text-emerald-600 font-bold">✔ Xem</td>
+                <td class="p-3 text-center text-emerald-600 font-bold">✔ Xem</td>
+                <td class="p-3 text-center text-emerald-600 font-bold">✔ Xem</td>
+                <td class="p-3 text-center text-emerald-600 font-bold">✔ Xem</td>
+                <td class="p-3 text-center text-emerald-600 font-bold">✔ Xem</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-medium">Hồ sơ cá nhân &amp; Tư cách thành viên (<code>SCR03</code> - FR04)</td>
+                <td class="p-3 text-center text-rose-600">✖ Login</td>
+                <td class="p-3 text-center text-emerald-600 font-bold">✔ Hồ sơ</td>
+                <td class="p-3 text-center text-emerald-600 font-bold">✔ Hồ sơ + Tư cách TV</td>
+                <td class="p-3 text-center text-emerald-600 font-bold">✔ Hồ sơ + Tư cách TV</td>
+                <td class="p-3 text-center text-emerald-600 font-bold">✔ Hồ sơ + Tư cách TV</td>
+                <td class="p-3 text-center text-emerald-600 font-bold">✔ Hồ sơ</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-medium">Đăng ký / Hủy đăng ký sự kiện &amp; Lịch sử cá nhân (<code>SCR09, SCR12</code>)</td>
+                <td class="p-3 text-center text-rose-600">✖ Login</td>
+                <td class="p-3 text-center text-emerald-600 font-bold">✔ Allow</td>
+                <td class="p-3 text-center text-emerald-600 font-bold">✔ Allow</td>
+                <td class="p-3 text-center text-emerald-600 font-bold">✔ Allow</td>
+                <td class="p-3 text-center text-slate-400">Quản lý</td>
+                <td class="p-3 text-center text-rose-600">✖ 403</td>
+              </tr>
+              <tr class="bg-teal-50/40">
+                <td class="p-3 font-semibold text-teal-950">Xem Danh sách đăng ký &amp; Điểm danh (<code>SCR13, SCR14</code> - FR14, FR15)</td>
+                <td class="p-3 text-center text-rose-600">✖ Login</td>
+                <td class="p-3 text-center text-rose-600 font-bold">✖ 403</td>
+                <td class="p-3 text-center text-rose-600 font-bold">✖ 403 (Chặn URL trực tiếp)</td>
+                <td class="p-3 text-center text-teal-700 font-extrabold bg-teal-100/70">✔ Allow (Được ủy quyền)</td>
+                <td class="p-3 text-center text-emerald-600 font-bold">✔ Allow</td>
+                <td class="p-3 text-center text-rose-600 font-bold">✖ 403</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-medium">Cập nhật CLB, Quản lý Thành viên, Tạo/Sửa/Hủy Sự kiện, Thống kê (<code>SCR05, 06, 07, 10, 11, 15</code>)</td>
+                <td class="p-3 text-center text-rose-600">✖ Login</td>
+                <td class="p-3 text-center text-rose-600 font-bold">✖ 403</td>
+                <td class="p-3 text-center text-rose-600 font-bold">✖ 403</td>
+                <td class="p-3 text-center text-rose-600 font-bold">✖ 403</td>
+                <td class="p-3 text-center text-emerald-600 font-bold">✔ Full Access</td>
+                <td class="p-3 text-center text-rose-600 font-bold">✖ 403</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-medium">Quản trị Tài khoản &amp; Quyền hệ thống (<code>SCR16</code> - FR17)</td>
+                <td class="p-3 text-center text-rose-600">✖ Login</td>
+                <td class="p-3 text-center text-rose-600 font-bold">✖ 403</td>
+                <td class="p-3 text-center text-rose-600 font-bold">✖ 403</td>
+                <td class="p-3 text-center text-rose-600 font-bold">✖ 403</td>
+                <td class="p-3 text-center text-rose-600 font-bold">✖ 403</td>
+                <td class="p-3 text-center text-purple-700 font-extrabold">✔ System Admin Only</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         TAB 4: LUỒNG NGHIỆP VỤ & RÀNG BUỘC CODE
+         ========================================== -->
+    <section id="tab-logic" class="tab-content space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- UC09: Registration Transaction -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
+          <div>
+            <span class="text-xs font-bold uppercase px-2.5 py-1 rounded bg-teal-100 text-teal-800">Luồng Cốt Lõi 1 · UC09 / FR12 / PB15</span>
+            <h3 class="text-base font-bold text-slate-900 mt-2">Đăng Ký &amp; Hủy Đăng Ký Sự Kiện (Chống Vượt Chỗ &amp; Chống Trùng)</h3>
+            <p class="text-xs text-slate-600 mt-1 mb-4">
+              Theo Mục 5.1 (Hồ sơ Tuần 3) và BPMN Tuần 2, luồng đăng ký bắt buộc sử dụng <code>PDO Transaction</code> và khóa dòng <code>SELECT ... FOR UPDATE</code> trên bảng <code>Event</code>.
+            </p>
+            <ol class="text-xs text-slate-700 space-y-2 list-decimal pl-4">
+              <li><strong>Xác thực:</strong> Kiểm tra phiên đăng nhập (lấy <code>AccountID</code> từ <code>$_SESSION</code>, tuyệt đối không lấy từ input của client) và kiểm tra <code>CSRF Token</code>.</li>
+              <li><strong>Mở Transaction:</strong> Gọi <code>$pdo-&gt;beginTransaction()</code>.</li>
+              <li><strong>Khóa bản ghi sự kiện:</strong> Thực thi <code>SELECT * FROM Event WHERE EventID = :eventId FOR UPDATE</code>.</li>
+              <li><strong>Kiểm tra điều kiện:</strong>
+                <ul class="list-disc pl-4 mt-1 space-y-1">
+                  <li>Nếu sự kiện không tồn tại hoặc <code>Status != 'Published'</code> &rarr; Rollback &amp; báo lỗi.</li>
+                  <li>Nếu thời gian hiện tại <code>NOW() &gt; RegistrationDeadline</code> &rarr; Rollback &amp; báo <em>"Sự kiện đã quá hạn đăng ký"</em>.</li>
+                  <li>Kiểm tra bản ghi trong <code>Event_Registration</code> của <code>(EventID, AccountID)</code>: Nếu đã có và <code>Status = 'Registered'</code> &rarr; Rollback &amp; báo <em>"Bạn đã đăng ký sự kiện này trước đó"</em>.</li>
+                  <li>Nếu <code>MaxCapacity IS NOT NULL</code>: Đếm số lượt <code>SELECT COUNT(*) FROM Event_Registration WHERE EventID = :eventId AND Status = 'Registered'</code>. Nếu <code>CurrentCount &gt;= MaxCapacity</code> &rarr; Rollback &amp; báo <em>"Sự kiện đã hết chỗ"</em>.</li>
+                </ul>
+              </li>
+              <li><strong>Ghi dữ liệu:</strong> Nếu chưa có bản ghi thì <code>INSERT INTO Event_Registration</code>; nếu đã có bản ghi ở trạng thái <code>'Cancelled'</code> thì <code>UPDATE Status = 'Registered', RegDate = NOW()</code>.</li>
+              <li><strong>Hoàn tất:</strong> Gọi <code>$pdo-&gt;commit()</code> và hiển thị trạng thái <code>Registered</code>.</li>
+            </ol>
+          </div>
+          <div class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900">
+            <strong>Quy tắc Hủy đăng ký (BPMN Tuần 2 &amp; AC06):</strong> Người tham gia chỉ được hủy khi còn trong hạn đăng ký (<code>NOW() &lt;= RegistrationDeadline</code>) và chưa điểm danh. Khi hủy, cập nhật <code>Event_Registration.Status = 'Cancelled'</code> để nhường chỗ trống.
+          </div>
+        </div>
+
+        <!-- UC12: Check-in Flow -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
+          <div>
+            <span class="text-xs font-bold uppercase px-2.5 py-1 rounded bg-indigo-100 text-indigo-800">Luồng Cốt Lõi 2 · UC12 / FR15 / PB18-PB19</span>
+            <h3 class="text-base font-bold text-slate-900 mt-2">Điểm Danh Sự Kiện (Check-in) &amp; Xử Lý 3 Tình Huống</h3>
+            <p class="text-xs text-slate-600 mt-1 mb-4">
+              Theo Đặc tả UC12 và Tiêu chí nghiệm thu <code>PB18, PB19</code>, màn hình Điểm danh (<code>SCR14</code>) phải phản hồi kết quả tìm kiếm trong vòng <strong>&le; 2–3 giây</strong> và xử lý chính xác 3 trường hợp:
+            </p>
+            <div class="space-y-3 text-xs">
+              <div class="p-3 rounded-lg bg-rose-50 border border-rose-200">
+                <p class="font-bold text-rose-900">Trường hợp 1: Người tham gia chưa đăng ký hợp lệ (PB19 - Mục 1)</p>
+                <p class="text-rose-800 mt-1">
+                  Khi tra cứu theo Họ tên hoặc MSSV (<code>StudentCode</code>) mà không khớp bản ghi nào có <code>Status = 'Registered'</code> trong sự kiện: Hệ thống hiển thị đúng thông báo <strong>"Không tìm thấy thông tin đăng ký cho người tham gia này"</strong> và không tự động ghi nhận điểm danh.
+                </p>
+              </div>
+              <div class="p-3 rounded-lg bg-amber-50 border border-amber-200">
+                <p class="font-bold text-amber-900">Trường hợp 2: Người tham gia đã được điểm danh trước đó (PB19 - Mục 2)</p>
+                <p class="text-amber-800 mt-1">
+                  Khi bản ghi <code>RegID</code> đã tồn tại trong bảng <code>Attendance</code> với <code>AttendanceStatus = 1</code>: Hệ thống thông báo <strong>"Người tham gia đã được điểm danh"</strong> (kèm thời điểm <code>CheckInAt</code>) và chặn tạo bản ghi điểm danh trùng (nhờ ràng buộc <code>UNIQUE(RegID)</code>).
+                </p>
+              </div>
+              <div class="p-3 rounded-lg bg-emerald-50 border border-emerald-200">
+                <p class="font-bold text-emerald-900">Trường hợp 3: Đã đăng ký hợp lệ &amp; Chưa điểm danh (PB19 - Mục 3)</p>
+                <p class="text-emerald-800 mt-1">
+                  Người có quyền (Club Manager hoặc Authorized Club Member) nhấn xác nhận có mặt &rarr; Hệ thống <code>INSERT INTO Attendance (RegID, AttendanceStatus, CheckInAt, CheckedInBy) VALUES (:regId, 1, NOW(), :checkerAccountId)</code> và cập nhật ngay bộ đếm số người có mặt trên giao diện.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="mt-4 p-3 bg-slate-100 border border-slate-200 rounded-lg text-xs text-slate-700">
+            <strong>Lưu ý phân biệt trùng tên (UC12 - 3b):</strong> Kết quả tra cứu luôn hiển thị đầy đủ <code>FullName + StudentCode + Email</code> để người điểm danh phân biệt chính xác khi có 2 sinh viên trùng họ tên.
+          </div>
+        </div>
+      </div>
+
+      <!-- UC07 & Other Business Rules -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        <h3 class="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
+          <span class="w-2.5 h-6 bg-amber-500 rounded-sm inline-block"></span>
+          Các Quy Tắc Nghiệp Vụ Bắt Buộc Khác (Business Rules Từ Backlog Tuần 2)
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
+          <div class="p-3.5 rounded-lg border border-slate-200 bg-slate-50">
+            <p class="font-bold text-slate-900">BR01 · Đăng ký tài khoản (PB01)</p>
+            <p class="text-slate-600 mt-1">Mật khẩu phải từ <strong>8 ký tự trở lên</strong>. Email và MSSV (<code>StudentCode</code>) không được trùng với tài khoản đã tồn tại. Tài khoản sinh viên tự đăng ký mặc định gán vai trò <code>'Event Participant'</code>.</p>
+          </div>
+          <div class="p-3.5 rounded-lg border border-slate-200 bg-slate-50">
+            <p class="font-bold text-slate-900">BR02 · Khóa tài khoản (PB04)</p>
+            <p class="text-slate-600 mt-1">Khi System Admin khóa tài khoản (<code>IsActive = 0</code>), tài khoản đó không thể đăng nhập và nếu đang có phiên hoạt động thì bị từ chối ở request kế tiếp. Không cho phép Admin tự khóa chính mình.</p>
+          </div>
+          <div class="p-3.5 rounded-lg border border-slate-200 bg-slate-50">
+            <p class="font-bold text-slate-900">BR03 · Bảo vệ Club Manager cuối cùng (PB10)</p>
+            <p class="text-slate-600 mt-1">Khi cập nhật vai trò/trạng thái thành viên trong CLB, hệ thống chặn thao tác tự gỡ quyền hoặc vô hiệu hóa người giữ quyền quản lý CLB duy nhất còn lại.</p>
+          </div>
+          <div class="p-3.5 rounded-lg border border-slate-200 bg-slate-50">
+            <p class="font-bold text-slate-900">BR04 · Ràng buộc Tạo/Sửa sự kiện (UC07 / PB11)</p>
+            <p class="text-slate-600 mt-1"><code>RegistrationDeadline &lt;= StartTime &lt; EndTime</code>. Nếu có nhập <code>MaxCapacity</code> thì phải <code>&gt; 0</code>. Khi sửa sự kiện, không được giảm <code>MaxCapacity</code> xuống thấp hơn số người đang ở trạng thái <code>'Registered'</code>.</p>
+          </div>
+          <div class="p-3.5 rounded-lg border border-slate-200 bg-slate-50">
+            <p class="font-bold text-slate-900">BR05 · Hủy sự kiện bảo toàn dữ liệu (UC07 / PB12)</p>
+            <p class="text-slate-600 mt-1">Khi Club Manager hủy sự kiện, hệ thống chuyển <code>Event.Status = 'Cancelled'</code> (không xóa vật lý dòng dữ liệu) và giữ nguyên toàn bộ lịch sử <code>Event_Registration</code> liên quan.</p>
+          </div>
+          <div class="p-3.5 rounded-lg border border-slate-200 bg-slate-50">
+            <p class="font-bold text-slate-900">BR06 · Công thức Thống kê cơ bản (PB20 / FR16)</p>
+            <p class="text-slate-600 mt-1">
+              Theo từng sự kiện: <br/>
+              • <strong>Số đăng ký:</strong> <code>COUNT(RegID WHERE Status='Registered')</code><br/>
+              • <strong>Số tham dự:</strong> <code>COUNT(AttendanceID WHERE AttendanceStatus=1)</code><br/>
+              • <strong>Vắng mặt:</strong> <code>Số đăng ký - Số tham dự</code> (Tỷ lệ = <code>Tham dự / Đăng ký * 100%</code>).
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         TAB 5: ĐẶC TẢ 16 MÀN HÌNH MVP & BACKLOG
+         ========================================== -->
+    <section id="tab-screens" class="tab-content space-y-6">
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <span class="w-2.5 h-6 bg-teal-500 rounded-sm inline-block"></span>
+              Danh Mục 16 Màn Hình MVP (SCR01 – SCR16) &amp; Đối Chiếu Prototype Figma
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-600 mt-1">
+              Đã hợp nhất bảng mã màn hình của Tuần 2 (<code>SCR01–SCR16</code>) với các màn hình Prototype của Tuần 3 (Bảng 7.1 &amp; Mục VIII Kiểm tra tính nhất quán).
+            </p>
+          </div>
+          <div>
+            <input type="text" id="screen-search" oninput="filterScreens()" placeholder="Tìm theo mã SCR, FR, PB hoặc tên..." class="border border-slate-300 rounded-lg px-3 py-2 text-xs w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-teal-500" />
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left border-collapse" id="screens-table">
+            <thead>
+              <tr class="bg-slate-100 text-slate-700 border-b border-slate-200">
+                <th class="p-2.5 font-bold">Mã SCR (Chuẩn Tuần 2)</th>
+                <th class="p-2.5 font-bold">Tên Màn Hình</th>
+                <th class="p-2.5 font-bold">Liên kết Prototype Tuần 3</th>
+                <th class="p-2.5 font-bold">FR / UC / Backlog</th>
+                <th class="p-2.5 font-bold">Thành phần UI &amp; Xử lý chính cần xây dựng</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              <tr class="screen-row">
+                <td class="p-2.5 font-mono font-bold text-teal-700">SCR01</td>
+                <td class="p-2.5 font-semibold">Đăng ký tài khoản</td>
+                <td class="p-2.5 text-slate-500">—</td>
+                <td class="p-2.5 font-mono">FR01 · UC01 · PB01</td>
+                <td class="p-2.5">Form nhập: Họ tên (<code>FullName</code>), Email, MSSV (<code>StudentCode</code>), Mật khẩu (&ge; 8 ký tự), Xác nhận mật khẩu. Kiểm tra trùng Email/MSSV.</td>
+              </tr>
+              <tr class="screen-row">
+                <td class="p-2.5 font-mono font-bold text-teal-700">SCR02</td>
+                <td class="p-2.5 font-semibold">Đăng nhập</td>
+                <td class="p-2.5"><span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded font-mono">Figma: 01 · Đăng nhập</span></td>
+                <td class="p-2.5 font-mono">FR02 · UC02 · PB02, PB03</td>
+                <td class="p-2.5">Bố cục 2 cột: Cột trái giới thiệu EventFlow &amp; sự kiện nổi bật; cột phải nhập Email/MSSV + Mật khẩu. Kiểm tra <code>IsActive = 1</code>, khởi tạo Session và điều hướng theo Role.</td>
+              </tr>
+              <tr class="screen-row">
+                <td class="p-2.5 font-mono font-bold text-teal-700">SCR03</td>
+                <td class="p-2.5 font-semibold">Hồ sơ cá nhân</td>
+                <td class="p-2.5 text-slate-500">—</td>
+                <td class="p-2.5 font-mono">FR04 · UC04 · PB05</td>
+                <td class="p-2.5">Xem và cập nhật Họ tên, MSSV. Hiển thị thẻ "Tư cách thành viên CLB" (lấy từ bảng <code>Club_Member</code>: Vai trò <code>MemberRole</code>, Trạng thái <code>Status</code>, Ngày vào <code>JoinedDate</code>).</td>
+              </tr>
+              <tr class="screen-row">
+                <td class="p-2.5 font-mono font-bold text-teal-700">SCR04</td>
+                <td class="p-2.5 font-semibold">Thông tin CLB (Công khai)</td>
+                <td class="p-2.5 text-slate-500">—</td>
+                <td class="p-2.5 font-mono">FR06 · UC05 · PB06</td>
+                <td class="p-2.5">Hiển thị hồ sơ công khai của CLB Tiếng Anh: Tên CLB (<code>ClubName</code>), Giới thiệu &amp; Lĩnh vực hoạt động (<code>Description</code>), Liên hệ (<code>ContactInfo</code>), Chủ nhiệm CLB.</td>
+              </tr>
+              <tr class="screen-row">
+                <td class="p-2.5 font-mono font-bold text-teal-700">SCR05</td>
+                <td class="p-2.5 font-semibold">Quản lý hồ sơ CLB</td>
+                <td class="p-2.5 text-slate-500">—</td>
+                <td class="p-2.5 font-mono">FR05 · UC17 · PB07</td>
+                <td class="p-2.5">Dành cho <code>Club Manager</code>: Form chỉnh sửa <code>ClubName</code>, <code>Description</code>, <code>ContactInfo</code>. Lưu xong cập nhật ngay lên <code>SCR04</code>.</td>
+              </tr>
+              <tr class="screen-row">
+                <td class="p-2.5 font-mono font-bold text-teal-700">SCR06</td>
+                <td class="p-2.5 font-semibold">Danh sách thành viên CLB</td>
+                <td class="p-2.5 text-slate-500">—</td>
+                <td class="p-2.5 font-mono">FR07 · UC06 · PB08</td>
+                <td class="p-2.5">Dành cho <code>Club Manager</code>: Bảng danh sách thành viên có phân trang, thanh tìm kiếm theo Họ tên, MSSV hoặc Email; kèm nút mở <code>SCR07</code> và xem lịch sử tham gia của thành viên.</td>
+              </tr>
+              <tr class="screen-row">
+                <td class="p-2.5 font-mono font-bold text-teal-700">SCR07</td>
+                <td class="p-2.5 font-semibold">Thêm / Sửa thành viên (Vai trò &amp; Trạng thái)</td>
+                <td class="p-2.5 text-slate-500">—</td>
+                <td class="p-2.5 font-mono">FR07, FR08 · UC06 · PB09, PB10</td>
+                <td class="p-2.5">Form thêm thành viên vào CLB hoặc cập nhật <code>MemberRole</code> (<code>'Member'</code>, <code>'Board Member'</code>, <code>'Event Supporter'</code> - dùng để ủy quyền check-in) và <code>Status</code> (<code>'Active'</code>, <code>'Inactive'</code>).</td>
+              </tr>
+              <tr class="screen-row">
+                <td class="p-2.5 font-mono font-bold text-teal-700">SCR08</td>
+                <td class="p-2.5 font-semibold">Danh sách sự kiện</td>
+                <td class="p-2.5"><span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded font-mono">Figma: 02 · Danh sách SK</span></td>
+                <td class="p-2.5 font-mono">FR10 · UC08 · PB13</td>
+                <td class="p-2.5">Hiển thị lưới thẻ sự kiện (ví dụ: <em>English Speaking Circle, Debate Lab: Speak Up, Cultural Exchange Day</em>) kèm thời gian, địa điểm, số chỗ còn lại, badge trạng thái và nút Xem chi tiết.</td>
+              </tr>
+              <tr class="screen-row">
+                <td class="p-2.5 font-mono font-bold text-teal-700">SCR09</td>
+                <td class="p-2.5 font-semibold">Chi tiết sự kiện, Đăng ký &amp; Hủy đăng ký</td>
+                <td class="p-2.5"><span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded font-mono">Figma: 03, 04 &amp; Popup OV1</span></td>
+                <td class="p-2.5 font-mono">FR10, FR12 · UC08, UC09 · PB14, PB15</td>
+                <td class="p-2.5">Hiển thị đầy đủ mô tả, thời gian, địa điểm, hạn đăng ký, tiến độ chỗ (VD: 22/40), trạng thái đăng ký hiện tại của người dùng; nút xác nhận Đăng ký hoặc Hủy đăng ký (nếu còn hạn).</td>
+              </tr>
+              <tr class="screen-row">
+                <td class="p-2.5 font-mono font-bold text-teal-700">SCR10</td>
+                <td class="p-2.5 font-semibold">Biểu mẫu Tạo / Sửa sự kiện</td>
+                <td class="p-2.5 text-slate-500">—</td>
+                <td class="p-2.5 font-mono">FR09 · UC07 · PB11, PB12</td>
+                <td class="p-2.5">Dành cho <code>Club Manager</code>: Form nhập Tên, Mô tả/Điều kiện, Địa điểm, StartTime, EndTime, RegistrationDeadline, MaxCapacity (tùy chọn), Status. Kiểm tra chặt chẽ điều kiện ngày giờ và số chỗ.</td>
+              </tr>
+              <tr class="screen-row">
+                <td class="p-2.5 font-mono font-bold text-teal-700">SCR11</td>
+                <td class="p-2.5 font-semibold">Quản lý sự kiện (Nội bộ CLB)</td>
+                <td class="p-2.5 text-slate-500">—</td>
+                <td class="p-2.5 font-mono">FR09 · UC07 · PB11, PB12</td>
+                <td class="p-2.5">Bảng quản trị tất cả sự kiện của CLB (Draft, Published, Cancelled) kèm nút Tạo mới (<code>SCR10</code>), Sửa, Hủy sự kiện (giữ nguyên dữ liệu đăng ký), dẫn nhanh tới Danh sách đăng ký (<code>SCR13</code>) và Điểm danh (<code>SCR14</code>).</td>
+              </tr>
+              <tr class="screen-row">
+                <td class="p-2.5 font-mono font-bold text-teal-700">SCR12</td>
+                <td class="p-2.5 font-semibold">Hoạt động của tôi (Trạng thái &amp; Lịch sử)</td>
+                <td class="p-2.5"><span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded font-mono">Figma: 05, 06, 05B</span></td>
+                <td class="p-2.5 font-mono">FR12, FR13 · UC10 · PB16</td>
+                <td class="p-2.5">Hiển thị danh sách các sự kiện người dùng đã đăng ký kèm trạng thái đăng ký (<code>Registered</code> / <code>Cancelled</code>) và trạng thái điểm danh thực tế (<code>Present</code> / <code>Not Checked-in</code>), thông tin định danh cá nhân để đối chiếu khi check-in.</td>
+              </tr>
+              <tr class="screen-row">
+                <td class="p-2.5 font-mono font-bold text-teal-700">SCR13</td>
+                <td class="p-2.5 font-semibold">Danh sách đăng ký theo sự kiện</td>
+                <td class="p-2.5 text-slate-500">—</td>
+                <td class="p-2.5 font-mono">FR14 · UC11 · PB17</td>
+                <td class="p-2.5">Dành cho <code>Club Manager</code> &amp; <code>Authorized Club Member</code>: Xem danh sách người đăng ký của sự kiện, bộ đếm Tổng số đăng ký &amp; Số chỗ còn lại (khi có giới hạn chỗ), tìm kiếm theo tên/MSSV.</td>
+              </tr>
+              <tr class="screen-row">
+                <td class="p-2.5 font-mono font-bold text-teal-700">SCR14</td>
+                <td class="p-2.5 font-semibold">Điểm danh (Check-in) sự kiện</td>
+                <td class="p-2.5 text-slate-500">—</td>
+                <td class="p-2.5 font-mono">FR15 · UC12 · PB18, PB19</td>
+                <td class="p-2.5">Ô tra cứu nhanh theo Họ tên hoặc MSSV (&le; 2s); hiển thị thông tin người đăng ký khớp; nút "Xác nhận có mặt" (1-click); cảnh báo rõ nếu chưa đăng ký hoặc đã điểm danh rồi.</td>
+              </tr>
+              <tr class="screen-row">
+                <td class="p-2.5 font-mono font-bold text-teal-700">SCR15</td>
+                <td class="p-2.5 font-semibold">Thống kê hoạt động cơ bản</td>
+                <td class="p-2.5 text-slate-500">—</td>
+                <td class="p-2.5 font-mono">FR16 · UC13 · PB20</td>
+                <td class="p-2.5">Dành cho <code>Club Manager</code>: Tổng hợp số lượng thành viên CLB, tổng số sự kiện, và bảng thống kê chi tiết từng sự kiện (Số đăng ký, Số có mặt, Số vắng mặt, Tỷ lệ tham dự %).</td>
+              </tr>
+              <tr class="screen-row">
+                <td class="p-2.5 font-mono font-bold text-teal-700">SCR16</td>
+                <td class="p-2.5 font-semibold">Quản trị tài khoản &amp; Quyền hệ thống</td>
+                <td class="p-2.5 text-slate-500">—</td>
+                <td class="p-2.5 font-mono">FR17 · UC14 · PB04</td>
+                <td class="p-2.5">Dành riêng cho <code>System Administrator</code>: Danh sách tài khoản hệ thống, tạo tài khoản mới, đổi vai trò hệ thống (<code>RoleID</code>) và Khóa / Mở khóa tài khoản (<code>IsActive</code>).</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         TAB 6: VIBE CODE PROMPTS & CẤU TRÚC THƯ MỤC
+         ========================================== -->
+    <section id="tab-vibecode" class="tab-content space-y-6">
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        <h2 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+          <span class="w-2.5 h-6 bg-amber-500 rounded-sm inline-block"></span>
+          Cấu Trúc Thư Mục Đề Xuất Cho PHP Monolith (Bám Sát Kiến Trúc Tuần 3)
+        </h2>
+        <p class="text-xs sm:text-sm text-slate-600 mb-4">
+          Cấu trúc gọn nhẹ, phân tách rõ 3 lớp (Config/Database &rarr; Helpers/Middleware &rarr; Modules theo đúng 16 màn hình SCR), không phụ thuộc framework nặng để bất kỳ AI Coding Agent nào cũng có thể sửa code chính xác:
+        </p>
+
+        <pre class="bg-slate-950 text-slate-100 p-4 rounded-lg overflow-x-auto text-xs leading-relaxed"><code>EventFlow/
+├── config/
+│   └── database.php          # Kết nối PDO MySQL (utf8mb4, ERRMODE_EXCEPTION)
+├── includes/
+│   ├── session_auth.php      # Quản lý PHP Session, CSRF Token, hàm kiểm tra RBAC 2 tầng
+│   ├── header.php            # Navbar Bootstrap 5 hiển thị menu động theo Role
+│   └── footer.php            # Footer & nạp Bootstrap 5 JS + script chung
+├── database/
+│   └── schema_and_seed.sql   # Script khởi tạo 7 bảng InnoDB & dữ liệu mẫu
+├── assets/
+│   ├── css/style.css         # Custom CSS bổ trợ Bootstrap 5
+│   └── js/app.js             # Fetch/AJAX hỗ trợ tra cứu nhanh & check-in (<= 2s)
+├── auth/
+│   ├── register.php          # [SCR01] Đăng ký tài khoản (FR01 - PB01)
+│   ├── login.php             # [SCR02] Đăng nhập (FR02 - PB02)
+│   └── logout.php            # Hủy phiên đăng nhập
+├── profile/
+│   └── index.php             # [SCR03] Hồ sơ cá nhân & xem tư cách thành viên (FR04 - PB05)
+├── club/
+│   ├── info.php              # [SCR04] Xem thông tin công khai của CLB (FR06 - PB06)
+│   ├── edit.php              # [SCR05] Cập nhật hồ sơ CLB - Club Manager (FR05 - PB07)
+│   ├── members.php           # [SCR06] Danh sách & tìm kiếm thành viên CLB (FR07 - PB08)
+│   └── member_form.php       # [SCR07] Thêm/Sửa thành viên, đổi MemberRole & Status (FR07, FR08 - PB09, PB10)
+├── events/
+│   ├── index.php             # [SCR08] Danh sách sự kiện công bố (FR10 - PB13)
+│   ├── detail.php            # [SCR09] Chi tiết sự kiện + Nút Đăng ký / Hủy đăng ký (FR10, FR12 - PB14, PB15)
+│   ├── manage.php            # [SCR11] Quản lý danh sách sự kiện nội bộ - Club Manager (FR09 - PB11, PB12)
+│   ├── form.php              # [SCR10] Biểu mẫu Tạo / Sửa / Hủy sự kiện (FR09 - PB11, PB12)
+│   └── my_events.php         # [SCR12] Hoạt động của tôi: Trạng thái & Lịch sử tham gia (FR12, FR13 - PB16)
+├── attendance/
+│   ├── registrations.php     # [SCR13] Danh sách đăng ký theo sự kiện (FR14 - PB17)
+│   ├── checkin.php           # [SCR14] Màn hình Điểm danh (Check-in) & xử lý ngoại lệ (FR15 - PB18, PB19)
+│   └── stats.php             # [SCR15] Thống kê hoạt động cơ bản theo sự kiện (FR16 - PB20)
+├── admin/
+│   └── accounts.php          # [SCR16] Quản trị tài khoản & quyền hệ thống - System Admin (FR17 - PB04)
+└── index.php                 # Điều hướng mặc định về trang Danh sách sự kiện (events/index.php) hoặc Thông tin CLB
+</code></pre>
+      </div>
+
+      <!-- Vibe Coding Master Prompt -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <span class="w-2.5 h-6 bg-teal-500 rounded-sm inline-block"></span>
+              Master Prompt Cho AI Coding Agent (Cursor / Windsurf / Claude Code / Copilot)
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-600 mt-1">
+              Copy khối Prompt dưới đây dán vào AI Agent trong IDE của bạn để Agent tự động chuyển đổi repo hiện tại sang đúng chuẩn thiết kế Tuần 3 mà không bịa thêm tính năng:
+            </p>
+          </div>
+          <button onclick="copyCode('vibe-master-prompt')" class="self-start sm:self-auto bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold px-4 py-2.5 rounded-lg shadow transition flex items-center gap-2">
+            <span>⚡ Copy Master Prompt Cho Agent</span>
+          </button>
+        </div>
+
+        <pre id="vibe-master-prompt" class="bg-slate-950 text-amber-100 p-4 rounded-lg overflow-x-auto text-xs leading-relaxed whitespace-pre-wrap"><code>Bạn là Senior Full-Stack Developer thực hiện dự án "EventFlow – Website quản lý hoạt động và thành viên của một Câu lạc bộ Tiếng Anh sinh viên".
+Hãy tuân thủ TUYỆT ĐỐI các quy tắc thiết kế sau đây (không tự ý bịa thêm yêu cầu hoặc bảng dữ liệu ngoài đặc tả):
+
+1. CÔNG NGHỆ & KIẾN TRÚC BẮT BUỘC (THREE-TIER MONOLITH):
+- Frontend: HTML5, CSS3, Bootstrap 5, Vanilla JavaScript (Responsive cho PC & Mobile theo NFR07).
+- Backend: PHP 8.x thuần (Monolith), sử dụng PDO với Prepared Statements 100%, quản lý phiên bằng PHP Session, mật khẩu dùng password_hash() và password_verify(), mọi form POST phải kiểm tra CSRF Token, mọi dữ liệu in ra HTML phải bọc htmlspecialchars().
+- Database: MySQL (InnoDB Engine) gồm đúng 7 bảng chuẩn hóa 3NF:
+  + Role (RoleID, RoleName) -> Giá trị: 'System Administrator', 'Club Manager', 'Club Member', 'Event Participant'
+  + Account (AccountID, Email UNIQUE, PasswordHash, FullName, StudentCode UNIQUE, RoleID FK, IsActive TINYINT(1) DEFAULT 1, CreatedAt)
+  + Club (ClubID, ClubName, Description, ContactInfo, ManagerID FK)
+  + Club_Member (MemberID, AccountID FK, ClubID FK, MemberRole DEFAULT 'Member' ['Member', 'Board Member', 'Event Supporter'], Status DEFAULT 'Active' ['Active', 'Inactive'], JoinedDate)
+  + Event (EventID, ClubID FK, EventName, Description, Location, StartTime, EndTime, RegistrationDeadline, MaxCapacity NULLABLE, Status DEFAULT 'Published' ['Draft', 'Published', 'Cancelled'], CreatedAt)
+  + Event_Registration (RegID, EventID FK, AccountID FK, RegDate, Status DEFAULT 'Registered' ['Registered', 'Cancelled']) -> UNIQUE(EventID, AccountID)
+  + Attendance (AttendanceID, RegID FK UNIQUE, AttendanceStatus TINYINT(1) DEFAULT 1, CheckInAt, CheckedInBy FK)
+
+2. CƠ CHẾ PHÂN QUYỀN 2 TẦNG (RBAC):
+- System Administrator: Chỉ truy cập SCR16 (Quản trị tài khoản & quyền hệ thống: tạo, khóa/mở khóa IsActive, đổi RoleID).
+- Club Manager: Toàn quyền quản lý CLB (SCR05), Thành viên (SCR06, SCR07), Sự kiện (SCR10, SCR11), Danh sách đăng ký (SCR13), Điểm danh (SCR14) và Thống kê (SCR15).
+- Club Member được ủy quyền: Tài khoản có Role='Club Member' VÀ bản ghi Club_Member có Status='Active' VÀ MemberRole IN ('Board Member', 'Event Supporter') được quyền truy cập SCR13 (Danh sách đăng ký) và SCR14 (Điểm danh).
+- Club Member thường (MemberRole='Member') và Event Participant: Chỉ được xem thông tin CLB/Sự kiện, đăng ký/hủy đăng ký sự kiện (SCR09) và xem hoạt động cá nhân (SCR12). Bị chặn 403 Forbidden nếu truy cập trực tiếp URL của SCR13, SCR14.
+
+3. LOGIC NGHIỆP VỤ TRỌNG TÂM:
+- Đăng ký sự kiện (UC09 / FR12 / PB15): Bắt buộc dùng PDO Transaction + `SELECT * FROM Event WHERE EventID = ? FOR UPDATE` để kiểm tra sự kiện đang 'Published', còn hạn (`NOW() <= RegistrationDeadline`), chưa đăng ký trùng và còn chỗ (`CurrentRegistered < MaxCapacity` nếu MaxCapacity khác NULL). Nếu hợp lệ thì INSERT hoặc UPDATE lại bản ghi 'Cancelled' thành 'Registered'.
+- Điểm danh (UC12 / FR15 / PB18-PB19): Tra cứu theo FullName hoặc StudentCode trong <= 2 giây. Xử lý rõ 3 trường hợp:
+  (1) Không có trong danh sách đăng ký -> Báo "Không tìm thấy thông tin đăng ký cho người tham gia này" và không tự động điểm danh.
+  (2) Đã điểm danh rồi -> Báo "Người tham gia đã được điểm danh" và chặn ghi trùng.
+  (3) Hợp lệ -> Lưu vào bảng Attendance và cập nhật số lượng có mặt.
+- Hủy sự kiện (UC07 / PB12): Chuyển Event.Status = 'Cancelled', giữ nguyên dữ liệu trong Event_Registration.
+
+4. PHẠM VI LOẠI TRỪ (OUT OF SCOPE):
+- Không làm đa CLB, không làm QR Check-in, không gửi Email/SMS tự động, không tích hợp thanh toán hay SSO.
+
+Hãy triển khai theo từng Phase:
+- Phase 1: Tạo `database/schema_and_seed.sql`, `config/database.php`, `includes/session_auth.php`, `includes/header.php`, `includes/footer.php`.
+- Phase 2: Xây dựng `auth/register.php` (SCR01), `auth/login.php` (SCR02), `profile/index.php` (SCR03) và `admin/accounts.php` (SCR16).
+- Phase 3: Xây dựng `club/info.php` (SCR04), `club/edit.php` (SCR05), `club/members.php` (SCR06), `club/member_form.php` (SCR07).
+- Phase 4: Xây dựng `events/index.php` (SCR08), `events/detail.php` (SCR09), `events/form.php` (SCR10), `events/manage.php` (SCR11), `events/my_events.php` (SCR12).
+- Phase 5: Xây dựng `attendance/registrations.php` (SCR13), `attendance/checkin.php` (SCR14), `attendance/stats.php` (SCR15).</code></pre>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="bg-white border-t border-slate-200 mt-12 py-4">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
+      <span>EventFlow Project – Nhóm 8 (UEH) · Tài liệu Đặc tả Thiết kế phục vụ Vibe Code</span>
+      <span>Đối chiếu nhất quán: Hồ sơ Tuần 1, Tuần 2 &amp; Tuần 3 (100% Verified)</span>
+    </div>
+  </footer>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white text-xs font-semibold px-4 py-3 rounded-lg shadow-lg border border-teal-500/40 hidden items-center gap-2 z-50">
+    <span class="text-teal-400">✔</span>
+    <span id="toast-msg">Đã sao chép vào bộ nhớ tạm!</span>
+  </div>
+
+  <script>
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('border-teal-400', 'text-teal-300', 'font-semibold');
+        btn.classList.add('border-transparent', 'text-slate-300', 'font-medium');
+      });
+
+      document.getElementById(tabId).classList.add('active');
+      const activeBtn = document.getElementById('btn-' + tabId);
+      activeBtn.classList.remove('border-transparent', 'text-slate-300', 'font-medium');
+      activeBtn.classList.add('border-teal-400', 'text-teal-300', 'font-semibold');
+    }
+
+    function copyCode(elementId) {
+      const text = document.getElementById(elementId).innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const toast = document.getElementById('toast');
+        toast.classList.remove('hidden');
+        toast.classList.add('flex');
+        setTimeout(() => {
+          toast.classList.add('hidden');
+          toast.classList.remove('flex');
+        }, 2500);
+      });
+    }
+
+    function filterScreens() {
+      const q = document.getElementById('screen-search').value.toLowerCase();
+      document.querySelectorAll('.screen-row').forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(q) ? '' : 'none';
+      });
+    }
+  </script>
+</body>
+</html>

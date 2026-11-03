@@ -1,278 +1,248 @@
-# EventFlow
+# EventFlow – Website Quản Lý Hoạt Động và Thành Viên Câu Lạc Bộ Tiếng Anh Sinh Viên
 
-**Website quản lý thành viên và sự kiện cho một câu lạc bộ duy nhất trong môi trường đại học.**
+> **Môn học:** Quản lý Dự án Công nghệ Thông tin – Khoa Công nghệ Thông tin Kinh doanh, Trường Công nghệ và Thiết kế, Đại học Kinh tế TP. Hồ Chí Minh (UEH)  
+> **Nhóm thực hiện:** Nhóm 8  
+> **Project Sponsor:** TS. Nguyễn Mạnh Tuấn  
+> **Phạm vi sản phẩm:** Minimum Viable Product (MVP) phục vụ nội bộ **01 Câu lạc bộ Tiếng Anh sinh viên**
 
-Nhóm thực hiện:
-- Dương Hoàng Sâm (Leader - PM)
-- Phạm Thiên Long (UI/UX Designer)
-- Phùng Cẩm Tân (Backend Lead)
-- Nguyễn Duy Thành Tài (Business analyst)
-- Tiêu Lâm Định Quốc (Tester & Reporter)
-- Trần Yến Phượng (Frontend Lead)
+---
 
-🧭 Project Coordinator(PC): Định Thị Anh Thư
+## Mục Lục
+1. [Tổng Quan Dự Án & Bối Cảnh](#1-tổng-quan-dự-án--bối-cảnh)
+2. [Mục Tiêu Dự Án (Project Objectives)](#2-mục-tiêu-dự-án-project-objectives)
+3. [Nhóm Người Dùng & Phân Quyền (Target Users & RBAC)](#3-nhóm-người-dùng--phân-quyền-target-users--rbac)
+4. [Phạm Vi Sản Phẩm (MoSCoW & MVP Scope)](#4-phạm-vi-sản-phẩm-moscow--mvp-scope)
+5. [Kiến Trúc Hệ Thống & Công Nghệ Sử Dụng (Tech Stack)](#5-kiến-trúc-hệ-thống--công-nghệ-sử-dụng-tech-stack)
+6. [Thiết Kế Cơ Sở Dữ Liệu (Database Schema)](#6-thiết-kế-cơ-sở-dữ-liệu-database-schema)
+7. [Danh Sách Màn Hình & Truy Vết Yêu Cầu](#7-danh-sách-màn-hình--truy-vết-yêu-cầu)
+8. [Hướng Dẫn Cài Đặt & Chạy Dự Án (Localhost XAMPP)](#8-hướng-dẫn-cài-đặt--chạy-dự-án-localhost-xampp)
+9. [Tiêu Chí Nghiệm Thu & Kiểm Thử (QA & UAT)](#9-tiêu-chí-nghiệm-thu--kiểm-thử-qa--uat)
+10. [Đội Ngũ Phát Triển (Team Charter)](#10-đội-ngũ-phát-triển-team-charter)
+11. [Tài Liệu & Liên Kết Dự Án](#11-tài-liệu--liên-kết-dự-án)
 
-EventFlow phục vụ hoạt động quản lý của **một câu lạc bộ** theo quy trình tập trung: quản lý thông tin thành viên, công bố sự kiện, tiếp nhận đăng ký, điểm danh và theo dõi kết quả tham gia. Ban chủ nhiệm, người tổ chức và người tham gia truy cập website qua trình duyệt trên máy tính hoặc điện thoại. **Backend sử dụng C# trên nền tảng .NET.**
+---
 
-> **Trạng thái tại ngày 18/10/2026:** Dự án đang ở giai đoạn xác định yêu cầu. Định hướng đã chốt là **website cho một CLB duy nhất, backend C#/.NET**. Thư mục hiện có hai tài liệu PDF, chưa có mã nguồn website, cơ sở dữ liệu, cấu hình triển khai hoặc kết quả kiểm thử. Các chức năng chi tiết, framework, công nghệ giao diện, cơ sở dữ liệu và kiến trúc dưới đây vẫn là đề xuất để nhóm thảo luận.
+## 1. Tổng Quan Dự Án & Bối Cảnh
 
-## 1. Bối cảnh và mục tiêu
+### Bài toán thực tế (Problem Statement)
+Qua kết quả khảo sát định tính ban đầu (5 cuộc phỏng vấn sâu `P01–P05` với Ban chủ nhiệm, Thành viên CLB và Sinh viên tham gia sự kiện), quy trình vận hành hoạt động tại CLB đang bị phân mảnh trên nhiều công cụ rời rạc (`Google Forms`, `Google Sheets`, `Facebook Fanpage`, `Messenger`, `Danh sách giấy`), dẫn đến **5 Pain Points chính**:
+1. **Thông tin đăng ký bị phân tán và cập nhật thủ công (`P01`):** Người tham gia thay đổi thông tin (như MSSV) qua Fanpage nhưng bảng tính check-in chưa kịp đồng bộ, gây tắc nghẽn khi đối chiếu.
+2. **Thành viên dễ bỏ lỡ thông báo thay đổi sự kiện (`P02`):** Thay đổi địa điểm/thời gian trao đổi qua nhóm chat dễ bị trôi tin nhắn, dẫn đến sai sót khi truyền thông.
+3. **Khó tra cứu lịch sử tham gia của thành viên (`P03`):** Ban chủ nhiệm phải mở đối chiếu 4–5 file danh sách rời rạc để tổng hợp lịch sử hoạt động của một thành viên trong học kỳ.
+4. **Quá trình Check-in mất nhiều thời gian xác minh (`P04`):** Tra cứu thủ công trên Google Sheets hoặc giấy dễ xảy ra sai sót, điểm danh trùng hoặc khó xử lý nhanh người chưa đăng ký.
+5. **Người tham gia không chắc chắn về trạng thái đăng ký (`P05`):** Sau khi điền Google Forms, sinh viên không rõ mình đã được ghi nhận giữ chỗ thành công hay chưa.
 
-Các nhu cầu cần kiểm chứng gồm:
+### Giải pháp đề xuất (Proposed Solution)
+**EventFlow** là nền tảng website quản lý tập trung dành riêng cho **một Câu lạc bộ Tiếng Anh sinh viên**, giúp đồng bộ hóa xuyên suốt quy trình: **Quản lý thông tin CLB & Thành viên $\rightarrow$ Tạo & Công bố sự kiện $\rightarrow$ Đăng ký tham gia (kiểm soát hạn & số chỗ) $\rightarrow$ Điểm danh (Check-in) $\rightarrow$ Thống kê hoạt động cơ bản**.
 
-- Ban chủ nhiệm cần theo dõi thông tin và tình trạng thành viên.
-- Người tổ chức cần quản lý thông tin sự kiện, danh sách đăng ký và kết quả điểm danh.
-- Sinh viên cần tìm thông tin sự kiện, đăng ký hoặc hủy trong thời hạn cho phép và biết trạng thái đăng ký của mình.
-- Người phụ trách cần số liệu cơ bản để tổng kết hoạt động.
+---
 
-**Những khó khăn này chưa được xác nhận bằng khảo sát trong tài liệu hiện có.** Việc CLB được phục vụ đang dùng biểu mẫu, bảng tính, nhóm chat hoặc danh sách giấy mới là giả định cần tìm hiểu. Nhóm dự kiến phỏng vấn 5–10 người tổ chức/người tham gia hoạt động của CLB, khảo sát và quan sát quy trình thực tế; lưu ngày thực hiện, câu trả lời và ghi chú ẩn danh.
+## 2. Mục Tiêu Dự Án (Project Objectives)
 
-Mục tiêu MVP, tức phiên bản tối thiểu có thể dùng và nghiệm thu, là hoàn thành luồng nghiệp vụ cốt lõi đã được xác nhận, có tiêu chí nghiệm thu và minh chứng kiểm thử. Chưa đặt chỉ tiêu như “giảm 50% thời gian quản lý” khi chưa có số liệu ban đầu và cách đo.
+| Mã | Mục tiêu dự án | Chỉ số đánh giá (KPI) & Mốc thời gian |
+| :--- | :--- | :--- |
+| **OBJ01** | Xác định và phân tích yêu cầu nghiệp vụ quản lý CLB sinh viên | Hoàn thiện phỏng vấn `P01–P05`, Requirement List (`FR01–FR20`, `NFR01–NFR07`), Use Case, BPMN và Product Backlog (`29 items`). **Mốc: M2 (22/10/2026)**. |
+| **OBJ02** | Thiết kế và phát triển website quản lý CLB với các phân hệ MVP | Sign-off thiết kế Kiến trúc, ERD 7 bảng và Prototype (**M3: 25/10/2026**). Hoàn thành 100% chức năng `Must Have` (**M4: 05/11/2026**). |
+| **OBJ03** | Đảm bảo chất lượng và khả năng sử dụng của hệ thống | Thực thi tối thiểu **30 Test Cases**, tỷ lệ Pass mục tiêu **$\ge 90\%$**, **0 lỗi Critical** tồn đọng; tổ chức UAT với tối thiểu **5 người dùng** (**M5: 12/11/2026**). |
+| **OBJ04** | Hoàn thành triển khai demo và bàn giao hồ sơ dự án | Bàn giao mã nguồn, website demo, tài liệu phân tích - thiết kế - kiểm thử và hồ sơ đóng dự án (**M6: 26/11/2026**). |
 
-## 2. Người dùng và các bên liên quan
+---
 
-| Nhóm | Nhu cầu chính |
-| --- | --- |
-| Ban chủ nhiệm / người phụ trách thành viên | Quản lý thông tin thành viên và theo dõi hoạt động CLB |
-| Người được phân công tổ chức sự kiện | Tạo, cập nhật, công bố sự kiện; theo dõi đăng ký; điểm danh; xem thống kê |
-| Sinh viên / thành viên tham gia | Xem sự kiện, đăng ký, hủy đăng ký trong hạn và kiểm tra trạng thái |
-| Giảng viên / người có thẩm quyền phê duyệt | Xác nhận đề tài, phạm vi và tiêu chí đánh giá theo học phần |
-| Nhóm phát triển | Khảo sát, thiết kế, xây dựng, kiểm thử và bàn giao sản phẩm |
+## 3. Nhóm Người Dùng & Phân Quyền (Target Users & RBAC)
 
-Một người có thể đồng thời là người tổ chức và người tham gia. **Có tài khoản hoặc đăng ký một sự kiện không mặc nhiên đồng nghĩa với là thành viên CLB.** Cần xác nhận sự kiện có cho phép sinh viên ngoài CLB tham gia hay không trước khi chốt phân quyền.
+Hệ thống phân quyền truy cập theo **4 vai trò hệ thống (`Role`)** kết hợp với **vai trò nghiệp vụ nội bộ CLB (`Club_Member.MemberRole`)**:
 
-## 3. Phạm vi MVP dự kiến
+| Mã Actor | Vai trò (`RoleName`) | Mô tả & Quyền hạn chính trong MVP |
+| :--- | :--- | :--- |
+| **A4** | `System Administrator` | Quản trị tài khoản hệ thống: tạo mới, khóa/mở khóa tài khoản (`IsActive`), cấp/đổi vai trò hệ thống (`FR17`). Không can thiệp nghiệp vụ nội bộ CLB. |
+| **A3** | `Club Manager` | Ban chủ nhiệm CLB: cập nhật hồ sơ CLB (`FR05`), quản lý danh sách/vai trò/trạng thái thành viên (`FR07, FR08`), tạo/sửa/hủy sự kiện (`FR09`), xem danh sách đăng ký (`FR14`), thực hiện điểm danh (`FR15`) và xem thống kê cơ bản (`FR16`). |
+| **A1** | `Club Member` | Thành viên CLB: kế thừa toàn bộ quyền của `Event Participant`; xem tư cách thành viên cá nhân (`FR04`). Nếu được cấp quyền ủy quyền hỗ trợ (`MemberRole` là `'Board Member'` hoặc `'Event Supporter'`), được phép xem danh sách đăng ký (`FR14`) và điểm danh (`FR15`). |
+| **A2** | `Event Participant` | Sinh viên / Người tham gia: đăng ký tài khoản (`FR01`), đăng nhập (`FR02`), quản lý hồ sơ cá nhân (`FR04`), xem thông tin CLB (`FR06`) & sự kiện (`FR10`), đăng ký/hủy đăng ký sự kiện (`FR12`) và theo dõi trạng thái đăng ký/lịch sử tham gia của bản thân (`FR13`). |
 
-Website phục vụ một CLB duy nhất. Danh sách thành viên, sự kiện, phân quyền và thống kê đều thuộc phạm vi hoạt động của CLB này.
+---
 
-### Module quản lý thành viên
+## 4. Phạm Vi Sản Phẩm (MoSCoW & MVP Scope)
 
-Tài liệu hiện mới xác định module này ở mức tổng quát. Các thao tác chi tiết sau là **đề xuất cần xác nhận**:
+### Phân loại Yêu cầu Chức năng (Functional Requirements)
 
-- Xem và tìm kiếm danh sách thành viên.
-- Thêm, cập nhật thông tin thành viên và trạng thái hoạt động.
-- Xem hồ sơ cơ bản và lịch sử tham gia sự kiện của thành viên theo quyền truy cập.
+| Mức ưu tiên | Mã FR | Tên chức năng | Backlog ID | Thuộc MVP |
+| :---: | :---: | :--- | :---: | :---: |
+| **Must Have** | `FR01` | Đăng ký tài khoản | `PB01` | Có |
+| **Must Have** | `FR02` | Đăng nhập, đăng xuất và kiểm soát truy cập theo vai trò (RBAC) | `PB02, PB03` | Có |
+| **Must Have** | `FR04` | Hồ sơ cá nhân và xem tư cách thành viên | `PB05` | Có |
+| **Must Have** | `FR05` | Cập nhật thông tin CLB | `PB07` | Có |
+| **Must Have** | `FR06` | Xem thông tin công khai của CLB | `PB06` | Có |
+| **Must Have** | `FR07` | Quản lý thông tin thành viên (xem, tìm kiếm, thêm, sửa) | `PB08, PB09` | Có |
+| **Must Have** | `FR08` | Quản lý vai trò và trạng thái thành viên trong CLB | `PB10` | Có |
+| **Must Have** | `FR09` | Quản lý sự kiện (tạo, sửa, hủy; bảo toàn dữ liệu đăng ký) | `PB11, PB12` | Có |
+| **Must Have** | `FR10` | Xem danh sách và chi tiết sự kiện | `PB13, PB14` | Có |
+| **Must Have** | `FR12` | Đăng ký tham gia sự kiện (kiểm tra hạn, số chỗ, chống trùng) | `PB15` | Có |
+| **Must Have** | `FR13` | Xem trạng thái đăng ký và lịch sử tham gia cá nhân | `PB16` | Có |
+| **Must Have** | `FR14` | Quản lý danh sách đăng ký theo sự kiện | `PB17` | Có |
+| **Must Have** | `FR15` | Điểm danh (Check-in) và xử lý ngoại lệ (chưa đăng ký / trùng) | `PB18, PB19` | Có |
+| **Must Have** | `FR16` | Xem thống kê hoạt động cơ bản theo sự kiện | `PB20` | Có |
+| **Must Have** | `FR17` | Quản trị tài khoản và quyền truy cập hệ thống | `PB04` | Có |
+| **Should Have** | `FR03` | Đặt lại mật khẩu | `PB21` | Giai đoạn sau |
+| **Should Have** | `FR11` | Tìm kiếm và lọc sự kiện theo từ khóa / thời gian | `PB22` | Giai đoạn sau |
+| **Should Have** | `FR18` | Thông báo nội bộ trong hệ thống | `PB23` | Giai đoạn sau |
+| **Could Have** | `FR19` | Xuất danh sách đăng ký và điểm danh ra Excel | `PB24` | Giai đoạn sau |
+| **Could Have** | `FR20` | Quản lý và phân công nhiệm vụ thành viên | `PB25` | Giai đoạn sau |
 
-Quy trình xin gia nhập, duyệt thành viên và tự đăng ký tài khoản cần được làm rõ qua khảo sát.
+### Yêu cầu Phi chức năng Trọng tâm (Non-Functional Requirements)
+* **`NFR01` (Toàn vẹn & Nhất quán dữ liệu):** Dữ liệu đăng ký, check-in và lịch sử tham gia đồng nhất 100% giữa các màn hình; không phát sinh bản ghi trùng lặp hoặc vượt quá sức chứa (`MaxCapacity`).
+* **`NFR02` (Tính cập nhật):** Thay đổi sau khi lưu hiển thị trên màn hình liên quan trong vòng **$\le 3\text{ giây}$** (đạt $\ge 95\%$ lượt kiểm tra).
+* **`NFR03` (Hiệu năng tra cứu & Check-in):** Tra cứu người đăng ký **$\le 2\text{ giây}$**, lưu kết quả check-in **$\le 2\text{ giây}$**, tải lịch sử tham gia **$\le 3\text{ giây}$**.
+* **`NFR04` (Tính dễ sử dụng):** Người dùng tự hoàn thành thao tác cốt lõi trong **30–45 giây** không cần trợ giúp ($\ge 4/5$ người dùng UAT).
+* **`NFR05` (Rõ ràng trạng thái):** Hiển thị tường minh các nhãn trạng thái (`Registered`, `Cancelled`, `Present`, `Absent`) và lý do từ chối thao tác.
+* **`NFR07` (Thích nghi đa thiết bị):** Giao diện Responsive hoạt động tốt trên Desktop (Windows 10/11, macOS 14+) và Mobile (Android 10+).
 
-### Module quản lý sự kiện
+### Ngoài phạm vi MVP (Out of Scope / Won't Have)
+* Quản lý nhiều CLB độc lập trên cùng hệ thống (Multi-tenant).
+* Ứng dụng di động Native (iOS/Android).
+* Thu quỹ, cổng thanh toán trực tuyến, quản lý tài chính/nhà tài trợ.
+* Tích hợp SSO hoặc cơ sở dữ liệu sinh viên nội bộ của trường.
+* Check-in bằng mã QR (`PB26`) và gửi thông báo tự động qua Email/SMS (`PB27`) khi chưa có Change Request được phê duyệt.
 
-Các nhóm chức năng đã được nêu trong tài liệu đề tài:
+---
 
-| Chức năng | Kết quả mong muốn |
-| --- | --- |
-| Tạo và cập nhật sự kiện | Người tổ chức quản lý nội dung và thông tin sự kiện |
-| Công bố và xem sự kiện | Người tham gia tiếp cận thông tin sự kiện được công bố |
-| Đăng ký tham gia | Sinh viên đăng ký và kiểm tra được trạng thái của mình |
-| Hủy đăng ký | Người tham gia hủy trong thời hạn được cho phép |
-| Theo dõi danh sách đăng ký | Người phụ trách biết ai đã đăng ký sự kiện |
-| Điểm danh | Người phụ trách ghi nhận người thực tế tham gia |
-| Thống kê cơ bản | Người tổ chức xem kết quả đăng ký và tham gia |
+## 5. Kiến Trúc Hệ Thống & Công Nghệ Sử Dụng (Tech Stack)
 
-**Chi tiết triển khai đề xuất:** sự kiện có tên, mô tả, địa điểm, thời gian bắt đầu/kết thúc và hạn đăng ký/hủy. Số lượng chỗ tối đa, quy trình duyệt đăng ký, trạng thái sự kiện và công thức thống kê cần được nhóm xác nhận. Bản đầu có thể điểm danh thủ công trên danh sách; QR là phương án mở rộng nếu có nhu cầu.
-
-### Chức năng nền tảng đề xuất
-
-- Đăng nhập, đăng xuất và quản lý tài khoản bằng ASP.NET Core Identity.
-- Phân quyền theo vai trò, kết hợp kiểm tra người được phân công phụ trách từng sự kiện.
-- Giao diện thích ứng với màn hình máy tính và điện thoại.
-- Kiểm tra dữ liệu nhập, thông báo lỗi rõ ràng và bảo vệ thông tin cá nhân.
-
-### Ngoài phạm vi
-
-Theo TopicSelection: quản lý tài chính, nhà tài trợ, ứng dụng di động riêng, AI nâng cao và chức năng ngoài phạm vi đã duyệt.
-
-Theo phạm vi đã chốt, hệ thống không bao gồm quản lý nhiều CLB, tạo/chuyển đổi giữa các CLB, quản trị liên CLB hoặc phát triển app cài đặt riêng trên máy tính/điện thoại.
-
-Đề xuất có thể cân nhắc sau cho chính CLB này: bán vé/thanh toán, chat, tích hợp hệ thống của trường, gửi thông báo tự động và điểm danh QR. Đây chưa phải cam kết của MVP.
-
-## 4. Luồng sử dụng chính
-
-1. Người tổ chức đăng nhập và tạo sự kiện.
-2. Người tổ chức kiểm tra thông tin, thiết lập các thời hạn đã thống nhất và công bố sự kiện.
-3. Sinh viên xem thông tin và đăng ký tham gia.
-4. Sinh viên kiểm tra trạng thái hoặc hủy đăng ký trong hạn.
-5. Người phụ trách theo dõi danh sách đăng ký.
-6. Khi sự kiện diễn ra, người được phân công thực hiện điểm danh.
-7. Sau sự kiện, người tổ chức xem thống kê và tổng kết.
-
-Luồng quản lý thành viên vận hành song song, cung cấp thông tin thành viên cho các nghiệp vụ liên quan sau khi quy tắc liên kết tài khoản và thành viên được xác nhận.
-
-## 5. Công nghệ đề xuất
-
-**Backend đã xác định: C#/.NET. Bộ công nghệ khuyến nghị cho website: ASP.NET Core MVC trên .NET 10 LTS + Razor Views/Bootstrap + Entity Framework Core + SQL Server.**
-
-Đây là lựa chọn phù hợp với phạm vi quản lý dữ liệu, biểu mẫu, phân quyền và báo cáo cơ bản của một CLB. Backend C# xử lý đăng nhập, quyền truy cập và nghiệp vụ trên server; giao diện website được xây bằng Razor Views, HTML/CSS và JavaScript khi cần. Nhóm có thể tổ chức hai phần trong cùng dự án web và chia việc theo chức năng.
-
-### Bộ công nghệ chính
-
-| Thành phần | Đề xuất | Lý do lựa chọn |
-| --- | --- | --- |
-| Ngôn ngữ và nền tảng backend | C#, .NET 10 LTS | Giữ backend bằng C# theo yêu cầu; phiên bản .NET được đề xuất có thời gian hỗ trợ dài |
-| Framework backend và kết xuất trang | ASP.NET Core MVC | Xử lý yêu cầu tại server và tạo các trang HTML cho website quản lý |
-| Giao diện | Razor Views, HTML/CSS, Bootstrap 5; JavaScript khi cần | Xây dựng form, bảng, bộ lọc và giao diện responsive trong cùng dự án |
-| Truy cập dữ liệu | Entity Framework Core 10, SQL Server provider và migrations | Ánh xạ dữ liệu bằng C#, quản lý thay đổi cấu trúc cơ sở dữ liệu |
-| Cơ sở dữ liệu | SQL Server | Phù hợp dữ liệu quan hệ như thành viên, sự kiện, đăng ký và điểm danh |
-| Tài khoản và phân quyền | ASP.NET Core Identity, cookie authentication, authorization policies | Có nền tảng quản lý người dùng; bổ sung kiểm tra quyền trên từng tài nguyên |
-| Kiểm thử | xUnit và kiểm thử tích hợp với SQL Server dành riêng cho test | Kiểm tra quy tắc nghiệp vụ, phân quyền và tính nhất quán dữ liệu |
-| Làm việc nhóm | Git và GitHub; GitHub Actions khi có mã nguồn | Quản lý thay đổi, review và tự động build/test |
-
-[ASP.NET Core MVC](https://learn.microsoft.com/en-us/aspnet/core/mvc/overview?view=aspnetcore-10.0) hỗ trợ Razor để tạo HTML trên server. Vì vậy C# là ngôn ngữ chính, nhưng xây dựng giao diện vẫn cần HTML/CSS và một phần JavaScript. [EF Core SQL Server provider](https://learn.microsoft.com/en-us/ef/core/providers/sql-server/) hỗ trợ SQL Server và Azure SQL; [ASP.NET Core Identity](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity?view=aspnetcore-10.0) cung cấp nền tảng quản lý tài khoản.
-
-## 6. Môi trường phát triển và triển khai
-
-**Sản phẩm là website dành cho một CLB duy nhất.** Người dùng mở địa chỉ website trên trình duyệt của máy tính hoặc điện thoại; backend C#/.NET và cơ sở dữ liệu chạy trên server. Giao diện thích ứng với màn hình điện thoại là một phần của website. Windows là môi trường phát triển được đề xuất cho nhóm, không phải yêu cầu đối với thiết bị của người dùng cuối.
-
-| Mục đích | Môi trường đề xuất |
-| --- | --- |
-| Viết mã và debug | Windows 11, Visual Studio 2026 Community, workload **ASP.NET and web development**, .NET 10 SDK |
-| Cơ sở dữ liệu trên máy phát triển | SQL Server 2025 Developer và SQL Server Management Studio (SSMS) |
-| Chạy và kiểm tra trong quá trình làm | ASP.NET Core chạy local qua HTTPS, mỗi thành viên dùng cơ sở dữ liệu riêng |
-| Demo online / triển khai sau khi chốt ngân sách | Azure App Service để chạy website và backend C#; Azure SQL Database cho dữ liệu |
-| Đồng bộ trong nhóm | Thống nhất SDK, migrations, dữ liệu mẫu và cách cấu hình qua README |
-
-[Visual Studio Community](https://visualstudio.microsoft.com/vs/community/) là lựa chọn phù hợp cho học tập; dùng bản tương thích .NET 10 theo [danh sách SDK cho Visual Studio](https://dotnet.microsoft.com/en-us/download/visual-studio-sdks). Nếu ưu tiên trình soạn thảo gọn hơn, có thể dùng VS Code cùng công cụ C# và .NET SDK.
-
-[SQL Server Developer](https://www.microsoft.com/en-us/sql-server/sql-server-downloads) dành cho phát triển và kiểm thử, không dùng bản này làm cơ sở dữ liệu production. Phương án [ASP.NET Core + Azure App Service + Azure SQL](https://learn.microsoft.com/en-us/azure/app-service/tutorial-dotnetcore-sqldb-app) có hướng dẫn chính thức; chi phí và ưu đãi sinh viên cần kiểm tra trước khi chọn gói. Chưa giả định dự án đã có tài khoản cloud, ngân sách hoặc hosting.
-
-Nếu ngân sách hoặc hạ tầng sau này ưu tiên PostgreSQL, nhóm có thể đánh giá EF Core với provider Npgsql thay thế. Nên chốt **một** hệ quản trị cơ sở dữ liệu trước khi tạo migrations, thay vì triển khai song song hai hệ trong MVP.
-
-### Chuẩn bị trước khi lập trình
-
-1. Xác nhận nghiệp vụ chi tiết với đại diện CLB và giảng viên trong phạm vi website cho một CLB.
-2. Thống nhất framework, công nghệ giao diện và phiên bản SDK giữa các thành viên; backend giữ C#/.NET.
-3. Chuẩn bị IDE, .NET SDK và cơ sở dữ liệu phát triển.
-4. Khởi tạo solution, dự án web, dự án kiểm thử và quản lý mã nguồn bằng Git.
-5. Thiết lập Identity, cấu hình kết nối riêng cho từng máy và dữ liệu mẫu.
-6. Cập nhật README với lệnh thiết lập môi trường, tạo database và chạy website đã được kiểm chứng.
-
-**Hiện chưa có hướng dẫn chạy website thực tế:** thư mục chưa chứa solution hoặc file `.csproj`. Không có tài khoản demo, đường dẫn API hay URL triển khai đã được xác nhận.
-
-## 7. Kiến trúc đề xuất
-
-Bắt đầu với **một website có backend C# được phân lớp, triển khai như một khối thống nhất (monolith)** và một cơ sở dữ liệu dành cho CLB. Nhóm chia chức năng theo thành viên và sự kiện, đồng thời giữ phần giao diện, nghiệp vụ và truy cập dữ liệu riêng biệt.
-
-Luồng xử lý: **Trình duyệt → backend C# (ASP.NET Core MVC) → dịch vụ nghiệp vụ → EF Core → SQL Server.** Backend trả về các trang HTML để trình duyệt hiển thị.
-
-| Phần | Trách nhiệm |
-| --- | --- |
-| Controllers, Views, ViewModels | Nhận yêu cầu, kiểm tra dữ liệu đầu vào và hiển thị kết quả |
-| Services | Xử lý quy tắc thành viên, sự kiện, đăng ký, hủy và điểm danh |
-| Entities / Models | Biểu diễn các đối tượng và trạng thái nghiệp vụ |
-| Data | DbContext, cấu hình quan hệ dữ liệu và migrations |
-| Identity và authorization | Xác thực và kiểm tra quyền thực hiện thao tác |
-
-Nghiệp vụ nên nằm trong service hoặc model phù hợp, để controller gọn và có thể kiểm thử độc lập. Nếu giao diện website cần tải hoặc cập nhật dữ liệu mà không tải lại toàn bộ trang, có thể bổ sung endpoint trên cùng backend C#.
-
-### Mô hình dữ liệu sơ bộ
-
-Đây là gợi ý thiết kế cho **một CLB duy nhất**, chưa phải schema đã có. Thông tin chung như tên, mô tả và thông tin liên hệ của CLB có thể lưu trong cấu hình website hoặc một hồ sơ CLB duy nhất. Mô hình không cần cơ chế phân tách dữ liệu giữa nhiều CLB.
-
-| Đối tượng | Thông tin chính dự kiến |
-| --- | --- |
-| ApplicationUser | Tài khoản đăng nhập, tên hiển thị, email; dùng nền tảng Identity |
-| ClubMember | Liên kết tài khoản, thông tin thành viên của CLB, ngày tham gia và trạng thái |
-| Event | Sự kiện do CLB tổ chức: tên, nội dung, địa điểm, thời gian, thời hạn đăng ký/hủy, người phụ trách, trạng thái |
-| EventRegistration | Sự kiện, tài khoản đăng ký, thời điểm đăng ký/hủy và trạng thái |
-| Attendance | Bản đăng ký, thời điểm điểm danh và người thực hiện |
-
-Một sự kiện có nhiều bản đăng ký; một tài khoản có thể đăng ký nhiều sự kiện. Mỗi bản đăng ký có tối đa một kết quả điểm danh trong mô hình MVP đề xuất. Việc liên kết ClubMember không nên ép mọi người đăng ký sự kiện đều phải là thành viên nếu khảo sát cho phép sinh viên ngoài CLB tham gia.
-
-### Quy tắc đề xuất cần xác nhận
-
-- Một tài khoản có tối đa một bản đăng ký cho mỗi sự kiện; đăng ký lại sau khi hủy cập nhật bản ghi theo chính sách được chốt.
-- Chỉ cho đăng ký vào sự kiện đang mở và chưa quá hạn; chỉ cho hủy trong thời hạn được cho phép.
-- Nếu có giới hạn chỗ, kiểm soát số lượng trong transaction phù hợp để các lượt đăng ký đồng thời không vượt sức chứa.
-- Chỉ người được phân quyền và phân công mới được sửa sự kiện, xem danh sách riêng tư hoặc điểm danh.
-- Chỉ điểm danh cho bản đăng ký hợp lệ; thao tác điểm danh lặp không tạo thêm bản ghi.
-- Phân biệt “đã đăng ký” với “đã tham gia”; thống nhất cách tính số đăng ký còn hiệu lực và tỷ lệ tham dự.
-- Kiểm tra quyền ở server, kể cả khi người dùng truy cập trực tiếp đường dẫn hoặc sửa dữ liệu gửi lên.
-- Vai trò quản lý và báo cáo thống kê áp dụng trong phạm vi CLB duy nhất của website.
-- Nếu lưu thời gian theo UTC, chuyển về múi giờ Việt Nam khi hiển thị và áp dụng nhất quán khi kiểm tra hạn.
-
-## 8. Tổ chức thư mục
-
-### Hiện có
+Hệ thống được thiết kế theo mô hình **Three-Tier Architecture (Kiến trúc 3 lớp)** trên một ứng dụng **PHP Monolith**:
 
 ```text
-EventFlow/
-├── README.md             # Tổng quan và định hướng triển khai
-├── ProjectChapter.pdf    # Đề xuất EventFlow và lý do lựa chọn đề tài
-└── TopicSelection.pdf    # Khung nội dung, phạm vi và tiêu chí dự kiến
+[ Người dùng (Trình duyệt PC / Mobile) ]
+                  │
+                  ▼  (HTTP/HTTPS - Form Submit / Fetch JSON)
+┌──────────────────────────────────────────────────────────┐
+│ 1. PRESENTATION LAYER (Giao diện Website)                │
+│    HTML5 · CSS3 · Bootstrap 5 · Vanilla JavaScript       │
+└──────────────────────────────────────────────────────────┘
+                  │
+                  ▼  (Xác thực PHP Session, CSRF Token, RBAC)
+┌──────────────────────────────────────────────────────────┐
+│ 2. APPLICATION LAYER (Backend Nghiệp vụ - Apache & PHP)  │
+│    - Auth & RBAC Module     - Club & Member Module       │
+│    - Event & Registration   - Check-in & Stats Module    │
+└──────────────────────────────────────────────────────────┘
+                  │
+                  ▼  (PDO Prepared Statements / ACID Transactions)
+┌──────────────────────────────────────────────────────────┐
+│ 3. DATA LAYER (Cơ sở dữ liệu Quan hệ)                    │
+│    MySQL (Storage Engine: InnoDB) · Quản trị: phpMyAdmin │
+└──────────────────────────────────────────────────────────┘
 ```
 
-### Cấu trúc mã nguồn gợi ý khi bắt đầu phát triển
+### Bảng Công Nghệ Chi Tiết
 
-```text
-src/
-└── EventFlow.Web/
-    ├── Controllers/
-    ├── Views/
-    ├── ViewModels/
-    ├── Models/
-    ├── Services/
-    ├── Data/
-    └── wwwroot/
-tests/
-└── EventFlow.Tests/
-docs/
-```
+| Thành phần | Lựa chọn Công nghệ | Lý do lựa chọn & Giải pháp kỹ thuật |
+| :--- | :--- | :--- |
+| **Frontend** | `HTML5`, `CSS3`, `JavaScript`, `Bootstrap 5` | Đảm bảo giao diện Responsive (`NFR07`); hệ thống Grid/Form/Table của Bootstrap 5 giúp chuẩn hóa UI nhanh; JS hỗ trợ thao tác tra cứu & check-in mượt mà. |
+| **Backend & Web Server** | `PHP 8.x`, `Apache Server` | Kiến trúc Monolith gọn nhẹ, phù hợp phạm vi 1 CLB; kiểm soát chặt chẽ logic nghiệp vụ và phân quyền phía Server trước khi chạm tới CSDL. |
+| **Data Access** | `PHP Data Objects (PDO)` | Sử dụng 100% **Prepared Statements** (truy vấn tham số hóa) để ngăn chặn triệt để lỗ hổng SQL Injection. |
+| **Database** | `MySQL` (`InnoDB` Engine) | Đảm bảo toàn vẹn khóa ngoại (`FK`), chỉ mục duy nhất (`UNIQUE`), hỗ trợ **ACID Transaction** và khóa dòng **`SELECT ... FOR UPDATE`** chống vượt số chỗ khi nhiều người đăng ký cùng lúc. |
+| **Authentication & Security** | `PHP Session`, `password_hash()`, `CSRF Token` | Băm mật khẩu bằng `password_hash()` / `password_verify()`; bảo vệ phiên với cookie `HttpOnly`, `SameSite`; chống CSRF cho mọi biểu mẫu thay đổi dữ liệu và dùng `htmlspecialchars()` chống XSS. |
+| **Môi trường & Công cụ** | `XAMPP`, `phpMyAdmin`, `Git/GitHub`, `Jira`, `Figma` | Chi phí triển khai 0 VNĐ (phù hợp ràng buộc ngân sách dự án), dễ dàng thiết lập môi trường phát triển và kiểm thử cục bộ. |
 
-Các thư mục `src`, `tests`, `docs` ở trên **chưa được tạo**. Với MVP, một dự án web và một dự án kiểm thử là điểm bắt đầu vừa sức; có thể tách thêm thư viện khi quy mô và nhu cầu thực tế yêu cầu.
+---
 
-## 9. Kế hoạch thực hiện và phân công
+## 6. Thiết Kế Cơ Sở Dữ Liệu (Database Schema)
 
-Tài liệu nêu nhóm có 6 thành viên với các vai trò PM, BA, UI/UX, Backend, Frontend và Tester/Reporter. Phân công dưới đây là gợi ý; chưa có tên người phụ trách chính thức.
+Cơ sở dữ liệu đạt chuẩn **3NF**, gồm **7 bảng thực thể cốt lõi** với toàn bộ giá trị trạng thái/vai trò được chuẩn hóa bằng **Tiếng Anh**:
 
-| Vai trò | Trọng tâm công việc |
-| --- | --- |
-| PM | Quản lý phạm vi, kế hoạch, rủi ro và phối hợp nghiệm thu |
-| BA | Khảo sát, mô tả yêu cầu, quy tắc nghiệp vụ và tiêu chí chấp nhận |
-| UI/UX | Thiết kế luồng, bố cục và giao diện trên máy tính/điện thoại |
-| Backend | Thiết kế dữ liệu, Identity, phân quyền và nghiệp vụ C# |
-| Frontend | Xây dựng Razor Views, biểu mẫu và giao diện responsive; tích hợp với backend |
-| Tester/Reporter | Lập ca kiểm thử, ghi nhận lỗi, tổng hợp minh chứng và báo cáo |
+1. **`Role`**: Lưu trữ 4 vai trò hệ thống (`'System Administrator'`, `'Club Manager'`, `'Club Member'`, `'Event Participant'`).
+2. **`Account`**: Lưu thông tin định danh và đăng nhập (`AccountID`, `Email UNIQUE`, `PasswordHash`, `FullName`, `StudentCode`, `RoleID`, `IsActive`, `CreatedAt`).
+3. **`Club`**: Lưu hồ sơ CLB Tiếng Anh (`ClubID`, `ClubName`, `Description`, `ContactInfo`, `ManagerID`).
+4. **`Club_Member`**: Lưu danh sách thành viên thuộc CLB (`MemberID`, `AccountID`, `ClubID`, `MemberRole` [`'Member'`, `'Board Member'`, `'Event Supporter'`], `Status` [`'Active'`, `'Inactive'`], `JoinedDate`).
+5. **`Event`**: Lưu thông tin sự kiện (`EventID`, `ClubID`, `EventName`, `Description`, `Location`, `StartTime`, `EndTime`, `RegistrationDeadline`, `MaxCapacity`, `Status` [`'Draft'`, `'Published'`, `'Cancelled'`], `CreatedAt`).
+6. **`Event_Registration`**: Lưu lượt đăng ký tham gia (`RegID`, `EventID`, `AccountID`, `RegDate`, `Status` [`'Registered'`, `'Cancelled'`]). Ràng buộc **`UNIQUE(EventID, AccountID)`**.
+7. **`Attendance`**: Lưu kết quả điểm danh thực tế (`AttendanceID`, `RegID UNIQUE`, `AttendanceStatus` [`1`: Present, `0`: Absent], `CheckInAt`, `CheckedInBy`).
 
-Lộ trình đề xuất theo đầu ra, chưa ấn định thời lượng vì tài liệu chưa xác nhận deadline toàn dự án:
+---
 
-1. **Khảo sát và chốt phạm vi:** có bằng chứng nhu cầu, danh sách chức năng ưu tiên và người phê duyệt.
-2. **Thiết kế và dựng nền:** có giao diện mẫu, mô hình dữ liệu, dự án web, đăng nhập và phân quyền ban đầu.
-3. **Hoàn thành luồng chính:** quản lý thành viên, tạo/công bố sự kiện, đăng ký/hủy, điểm danh và thống kê.
-4. **Kiểm thử và bàn giao:** sửa lỗi, demo, nghiệm thu, hoàn thiện tài liệu và hướng dẫn chạy.
+## 7. Danh Sách Màn Hình & Truy Vết Yêu Cầu
 
-## 10. Kiểm thử và tiêu chí hoàn thành
+Hệ thống bao gồm **16 màn hình thuộc phạm vi MVP (`SCR01–SCR16`)** và 3 màn hình mở rộng (`SCR17–SCR19`):
 
-Các nội dung sau là kế hoạch, chưa có kết quả kiểm thử thực tế:
+| Mã SCR | Tên màn hình | Yêu cầu (FR) | Use Case | Backlog ID | Vai trò truy cập |
+| :---: | :--- | :---: | :---: | :---: | :--- |
+| `SCR01` | Đăng ký tài khoản | `FR01` | `UC01` | `PB01` | Khách (Chưa đăng nhập) |
+| `SCR02` | Đăng nhập | `FR02` | `UC02` | `PB02, PB03` | Mọi vai trò |
+| `SCR03` | Hồ sơ cá nhân & Tư cách thành viên | `FR04` | `UC04` | `PB05` | `Club Member`, `Event Participant`, `Club Manager` |
+| `SCR04` | Thông tin CLB (Xem công khai) | `FR06` | `UC05` | `PB06` | Mọi vai trò |
+| `SCR05` | Quản lý hồ sơ CLB | `FR05` | `UC17` | `PB07` | `Club Manager` |
+| `SCR06` | Danh sách thành viên CLB | `FR07` | `UC06` | `PB08` | `Club Manager` |
+| `SCR07` | Thêm / Sửa thành viên (Vai trò & Trạng thái) | `FR07, FR08` | `UC06` | `PB09, PB10` | `Club Manager` |
+| `SCR08` | Danh sách sự kiện | `FR10` | `UC08` | `PB13` | Mọi vai trò |
+| `SCR09` | Chi tiết sự kiện, Đăng ký & Hủy đăng ký | `FR10, FR12` | `UC08, UC09` | `PB14, PB15` | Mọi vai trò (Đăng ký/Hủy: `Member`, `Participant`) |
+| `SCR10` | Biểu mẫu Tạo / Sửa sự kiện | `FR09` | `UC07` | `PB11, PB12` | `Club Manager` |
+| `SCR11` | Quản lý danh sách sự kiện (Nội bộ) | `FR09` | `UC07` | `PB11, PB12` | `Club Manager` |
+| `SCR12` | Hoạt động của tôi (Trạng thái & Lịch sử) | `FR12, FR13` | `UC10` | `PB16` | `Club Member`, `Event Participant` |
+| `SCR13` | Danh sách đăng ký theo sự kiện | `FR14` | `UC11` | `PB17` | `Club Manager`, `Authorized Club Member` |
+| `SCR14` | Điểm danh (Check-in) sự kiện | `FR15` | `UC12` | `PB18, PB19` | `Club Manager`, `Authorized Club Member` |
+| `SCR15` | Thống kê hoạt động cơ bản | `FR16` | `UC13` | `PB20` | `Club Manager` |
+| `SCR16` | Quản trị tài khoản & Quyền hệ thống | `FR17` | `UC14` | `PB04` | `System Administrator` |
 
-- Mỗi chức năng ưu tiên cao có yêu cầu rõ ràng và tiêu chí chấp nhận.
-- Luồng tạo sự kiện → công bố → đăng ký → điểm danh → thống kê hoạt động xuyên suốt.
-- Kiểm tra các trường hợp đăng ký trùng, hết hạn, hủy quá hạn, điểm danh lặp và truy cập trái quyền.
-- Nếu áp dụng giới hạn chỗ, kiểm thử đăng ký đồng thời ở thời điểm chỉ còn một chỗ.
-- Số liệu thống kê đối chiếu được với dữ liệu đăng ký và điểm danh mẫu.
-- Giao diện chính dùng được trên máy tính và điện thoại; thông báo lỗi giúp người dùng sửa thao tác.
-- Kiểm thử tích hợp các ràng buộc dữ liệu trên SQL Server test; không chỉ dựa vào database giả lập trong bộ nhớ.
-- Mật khẩu được xử lý qua Identity; thông tin kết nối và bí mật để trong cấu hình môi trường hoặc User Secrets, không đưa vào mã nguồn.
-- Có bằng chứng kiểm thử và người đại diện có thẩm quyền nghiệm thu phạm vi đã chốt.
+---
 
-Sản phẩm bàn giao dự kiến gồm website MVP, tài liệu yêu cầu, thiết kế, mã nguồn, hướng dẫn cài đặt/sử dụng, kết quả kiểm thử và minh chứng nghiệm thu.
+## 8. Hướng Dẫn Cài Đặt & Chạy Dự Án (Localhost XAMPP)
 
-## 11. Những điểm cần chốt tiếp
+### Yêu cầu môi trường
+* **XAMPP** (hỗ trợ `Apache` + `PHP >= 8.0` + `MySQL 8.0` với `InnoDB` Engine).
+* Trình duyệt web hiện đại (Chrome, Edge, Safari).
 
-- Tên CLB được phục vụ; ai là đại diện cung cấp yêu cầu và người nghiệm thu?
-- Ai được tạo tài khoản, thêm thành viên, tạo sự kiện và phân công người phụ trách?
-- Sự kiện có mở cho sinh viên ngoài CLB không? Đăng ký được xác nhận ngay hay phải duyệt?
-- Có giới hạn chỗ, hạn đăng ký, hạn hủy và yêu cầu điểm danh cụ thể nào?
-- Cách tính thống kê, dữ liệu cá nhân cần thu thập và quyền xem từng loại dữ liệu?
-- Deadline, năng lực công nghệ của nhóm, ngân sách và môi trường demo?
-- Tên PM, cơ chế phê duyệt phạm vi và các mốc kiểm tra của học phần?
+### Các bước thiết lập
+1. **Clone mã nguồn về thư mục `htdocs` của XAMPP:**
+   ```bash
+   cd C:\xampp\htdocs
+   git clone https://github.com/Phungcamtann/EventFlow.git
+   ```
+2. **Khởi động dịch vụ:**
+   * Mở **XAMPP Control Panel**, nhấn **Start** tại module `Apache` và `MySQL`.
+3. **Khởi tạo Cơ sở dữ liệu:**
+   * Truy cập `http://localhost/phpmyadmin`.
+   * Tạo cơ sở dữ liệu mới tên `eventflow_db` (Collation: `utf8mb4_unicode_ci`).
+   * Import tệp kịch bản SQL khởi tạo bảng và dữ liệu mẫu (`database/schema_and_seed.sql`).
+4. **Cấu hình kết nối CSDL:**
+   * Kiểm tra thông tin kết nối PDO trong tệp cấu hình (`config/database.php`):
+     ```php
+     $host = '127.0.0.1';
+     $db   = 'eventflow_db';
+     $user = 'root';
+     $pass = '';
+     ```
+5. **Truy cập ứng dụng:**
+   * Mở trình duyệt tại địa chỉ: `http://localhost/EventFlow/`
 
-Các rủi ro hiện được tài liệu nêu gồm khó tiếp cận người dùng, trễ tiến độ và thay đổi phạm vi. Nhóm nên khảo sát sớm, ưu tiên luồng cốt lõi và ghi nhận thay đổi yêu cầu trước khi mở rộng chức năng.
+---
 
-## 12. Tài liệu đầu vào
+## 9. Tiêu Chí Nghiệm Thu & Kiểm Thử (QA & UAT)
 
-| Tài liệu | Nội dung được sử dụng |
-| --- | --- |
-| [ProjectChapter.pdf](./ProjectChapter.pdf) | Đề xuất EventFlow, người dùng mục tiêu, luồng quản lý sự kiện, lý do đổi đề tài và nhu cầu khảo sát |
-| [TopicSelection.pdf](./TopicSelection.pdf) | Khung lựa chọn đề tài, hai module thành viên/sự kiện, phạm vi loại trừ, quy mô nhóm và tiêu chí thành công |
+* **Kiểm thử chức năng (Functional Testing):** Thiết kế và thực thi tối thiểu **30 Test Cases** bao phủ toàn bộ 15 yêu cầu `Must Have` (bao gồm các ca hợp lệ, không hợp lệ, điều kiện biên và đồng thời); tỷ lệ Pass đạt **$\ge 90\%$**, không còn lỗi mức `Critical`.
+* **Kiểm thử phi chức năng (Performance & Responsive):**
+  * Kiểm tra đồng nhất dữ liệu giữa bảng đăng ký, điểm danh và thống kê (`NFR01`).
+  * Đo thời gian phản hồi tra cứu & check-in bằng Chrome DevTools đạt ngưỡng **$\le 2-3\text{ giây}$** (`NFR02`, `NFR03`).
+  * Kiểm thử hiển thị trên màn hình Desktop và Mobile Android/iOS (`NFR07`).
+* **Kiểm thử chấp nhận người dùng (UAT):** Thực hiện với tối thiểu **5 người dùng thực tế** thuộc các nhóm vai trò của CLB Tiếng Anh.
 
-README ghi nhận định hướng đã thống nhất: **website phục vụ một CLB duy nhất, backend C#/.NET**. Khi yêu cầu chi tiết và bộ công nghệ được phê duyệt, cần cập nhật tài liệu này theo quyết định thực tế và bổ sung hướng dẫn chạy website từ mã nguồn đã xây dựng.
+---
+
+## 10. Đội Ngũ Phát Triển (Team Charter)
+
+| Họ và Tên | Vai trò (Role) | Trách nhiệm chính | Liên hệ |
+| :--- | :--- | :--- | :--- |
+| **Dương Hoàng Sâm** | Project Manager (PM) | Lập kế hoạch dự án (Charter, WBS, Gantt); điều phối Sprint trên Jira; quản lý rủi ro, thay đổi và tổng hợp báo cáo tuần. | `hssamd27@gmail.com` |
+| **Nguyễn Duy Thành Tài** | Business Analyst (BA) | Phỏng vấn người dùng; xây dựng FR/NFR, Use Case, BPMN, Scope Statement, Product Backlog và ma trận truy vết. | `tainguyen.31241020132@st.ueh.edu.vn` |
+| **Phạm Thiên Long** | UI/UX Designer | Thiết kế User Flow, Wireframe (`SCR01–SCR19`), Design System và Interactive Prototype trên Figma. | `longpham17.works@gmail.com` |
+| **Trần Yến Phượng** | Frontend Lead | Phát triển giao diện Responsive (HTML5, CSS3, Bootstrap 5, JS) cho 4 vai trò; tích hợp dữ liệu hiển thị và xử lý tương tác. | `phuongtran.31241022663@st.ueh.edu.vn` |
+| **Phùng Cẩm Tân** | Backend Lead | Thiết kế ERD & MySQL Schema; xây dựng Backend PHP (PDO, Session Auth, RBAC, Transaction xử lý đăng ký, check-in, thống kê). | `tanphung.31241020320@st.ueh.edu.vn` |
+| **Tiêu Lâm Định Quốc** | Tester & Reporter (QA) | Xây dựng Test Plan, Test Cases ($\ge 30$ ca); thực thi kiểm thử chức năng/hiệu năng, quản lý Defect Log và tổ chức UAT. | `dinhquoc.31241025304@st.ueh.edu.vn` |
+
+---
+
+## 11. Tài Liệu & Liên Kết Dự Án
+
+* **GitHub Repository:** [https://github.com/Phungcamtann/EventFlow](https://github.com/Phungcamtann/EventFlow)
+* **Figma Wireframe & Prototype:** [Thiết kế UI/UX EventFlow trên Figma](https://www.figma.com/design/8yt3gM5gUk5y43TXyy7DSa/QLDA?node-id=0-1&p=f&t=pbqrU5BoQNC9mIQ2-0)
+* **Sơ đồ Use Case, BPMN & ERD (Draw.io):** [Tài liệu Sơ đồ Hệ thống Nhóm 8](https://app.diagrams.net/#G1CEjQ70BKB_PwUnkaPdCWKMmkTB-bJEgL)
+* **WBS & Kế hoạch Tiến độ (Google Sheets):** [Bảng WBS & Gantt Chart Nhóm 8](https://docs.google.com/spreadsheets/d/1DCLJRxN7x6FoUHaaXYfCKyY90hSTmsj8iEtdFLiiFAM/edit?usp=sharing)
+* **Hồ sơ Minh chứng Phỏng vấn (Google Drive):** [Thư mục Phỏng vấn P01–P05](https://drive.google.com/drive/folders/1_HhO3_SpBOi02RXDMmmbp6-_0basH2VW?usp=drive_link)
