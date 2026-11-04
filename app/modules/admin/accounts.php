@@ -4,8 +4,8 @@
  * Dành riêng cho System Administrator (Actor A4)
  * Đáp ứng: FR17, UC14, PB04
  */
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/session_auth.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/session_auth.php';
 
 // Kiểm tra quyền nghiêm ngặt: Chỉ System Administrator mới được phép truy cập
 require_role('System Administrator');
@@ -23,7 +23,7 @@ $roles = $pdo->query('SELECT * FROM Role ORDER BY RoleID ASC')->fetchAll();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token()) {
         set_flash('danger', 'Mã bảo mật CSRF không hợp lệ hoặc đã hết hạn.');
-        header('Location: ' . base_url('admin/accounts.php'));
+        header('Location: ' . base_url('app/modules/admin/accounts.php'));
         exit;
     }
 
@@ -81,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
 
                 set_flash('success', "Đã tạo mới thành công tài khoản [{$fullName}].");
-                header('Location: ' . base_url('admin/accounts.php'));
+                header('Location: ' . base_url('app/modules/admin/accounts.php'));
                 exit;
             }
         }
@@ -95,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Quy tắc BR02: Chặn Admin tự giáng quyền của chính mình
         if ($accountId === current_user_id() && $newRoleId !== 1) {
             set_flash('danger', 'Quy tắc BR02: Bạn không thể tự hạ quyền Quản trị viên của chính tài khoản mình đang đăng nhập.');
-            header('Location: ' . base_url('admin/accounts.php'));
+            header('Location: ' . base_url('app/modules/admin/accounts.php'));
             exit;
         }
 
@@ -104,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute(['roleId' => $newRoleId, 'accountId' => $accountId]);
 
             set_flash('success', "Đã cập nhật vai trò hệ thống cho tài khoản #{$accountId}.");
-            header('Location: ' . base_url('admin/accounts.php'));
+            header('Location: ' . base_url('app/modules/admin/accounts.php'));
             exit;
         }
     }
@@ -118,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Quy tắc BR02: Tuyệt đối không cho phép Admin tự khóa tài khoản của chính mình
         if ($accountId === current_user_id()) {
             set_flash('danger', 'Quy tắc BR02: Bạn không thể tự khóa tài khoản Quản trị viên của chính mình.');
-            header('Location: ' . base_url('admin/accounts.php'));
+            header('Location: ' . base_url('app/modules/admin/accounts.php'));
             exit;
         }
 
@@ -128,7 +128,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $statusText = ($newStatus === 1) ? 'Mở khóa' : 'Khóa';
             set_flash('success', "Đã {$statusText} thành công tài khoản #{$accountId}.");
-            header('Location: ' . base_url('admin/accounts.php'));
+            header('Location: ' . base_url('app/modules/admin/accounts.php'));
             exit;
         }
     }
@@ -178,7 +178,7 @@ $stats = [
 ];
 
 $pageTitle = 'Quản trị tài khoản & Quyền hệ thống';
-require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="container py-4">
@@ -247,7 +247,7 @@ require_once __DIR__ . '/../includes/header.php';
 
     <!-- FILTER & SEARCH BAR CARD -->
     <div class="card p-3 border-0 shadow-sm mb-4">
-        <form method="GET" action="<?= base_url('admin/accounts.php') ?>" class="row g-2 align-items-center">
+        <form method="GET" action="<?= base_url('app/modules/admin/accounts.php') ?>" class="row g-2 align-items-center">
             <div class="col-md-6 col-lg-7">
                 <div class="input-group">
                     <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
@@ -269,7 +269,7 @@ require_once __DIR__ . '/../includes/header.php';
                     Lọc
                 </button>
                 <?php if ($search !== '' || $filterRole > 0): ?>
-                    <a href="<?= base_url('admin/accounts.php') ?>" class="btn btn-outline-secondary" title="Xóa bộ lọc">
+                    <a href="<?= base_url('app/modules/admin/accounts.php') ?>" class="btn btn-outline-secondary" title="Xóa bộ lọc">
                         <i class="bi bi-x-lg"></i>
                     </a>
                 <?php endif; ?>
@@ -370,7 +370,7 @@ require_once __DIR__ . '/../includes/header.php';
                                                 <i class="bi bi-lock-fill"></i>
                                             </button>
                                         <?php else: ?>
-                                            <form method="POST" action="<?= base_url('admin/accounts.php') ?>" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn <?= ((int)$acc['IsActive'] === 1) ? 'KHÓA' : 'MỞ KHÓA' ?> tài khoản này không?');">
+                                            <form method="POST" action="<?= base_url('app/modules/admin/accounts.php') ?>" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn <?= ((int)$acc['IsActive'] === 1) ? 'KHÓA' : 'MỞ KHÓA' ?> tài khoản này không?');">
                                                 <?= csrf_field() ?>
                                                 <input type="hidden" name="action" value="toggle_status">
                                                 <input type="hidden" name="account_id" value="<?= $acc['AccountID'] ?>">
@@ -404,7 +404,7 @@ require_once __DIR__ . '/../includes/header.php';
 <div class="modal fade" id="createAccountModal" tabindex="-1" aria-labelledby="createAccountModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
-            <form method="POST" action="<?= base_url('admin/accounts.php') ?>">
+            <form method="POST" action="<?= base_url('app/modules/admin/accounts.php') ?>">
                 <?= csrf_field() ?>
                 <input type="hidden" name="action" value="create">
 
@@ -456,7 +456,7 @@ require_once __DIR__ . '/../includes/header.php';
 <div class="modal fade" id="editRoleModal" tabindex="-1" aria-labelledby="editRoleModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
-            <form method="POST" action="<?= base_url('admin/accounts.php') ?>">
+            <form method="POST" action="<?= base_url('app/modules/admin/accounts.php') ?>">
                 <?= csrf_field() ?>
                 <input type="hidden" name="action" value="update_role">
                 <input type="hidden" name="account_id" id="editRoleAccountId" value="">
@@ -511,4 +511,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
-<?php require_once __DIR__ . '/../includes/footer.php'; ?>
+<?php require_once __DIR__ . '/../../includes/footer.php'; ?>

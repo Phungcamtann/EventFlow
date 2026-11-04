@@ -5,8 +5,8 @@
  * Phân quyền: Dành riêng cho Club Manager (RoleID = 2)
  */
 
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/session_auth.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/session_auth.php';
 
 // Kiểm tra quyền Club Manager
 require_role('Club Manager');
@@ -69,14 +69,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
 
             set_flash('success', 'Cập nhật thông tin Câu lạc bộ thành công!');
-            header('Location: ' . base_url('club/info.php'));
+            header('Location: ' . base_url('app/modules/club/info.php'));
             exit;
         }
     }
 }
 
 $pageTitle = "Chỉnh sửa thông tin CLB — EventFlow";
-require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="container py-4">
@@ -84,7 +84,7 @@ require_once __DIR__ . '/../includes/header.php';
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="<?= base_url('index.php') ?>" class="text-decoration-none text-muted">Trang chủ</a></li>
-            <li class="breadcrumb-item"><a href="<?= base_url('club/info.php') ?>" class="text-decoration-none text-muted">Thông tin CLB</a></li>
+            <li class="breadcrumb-item"><a href="<?= base_url('app/modules/club/info.php') ?>" class="text-decoration-none text-muted">Thông tin CLB</a></li>
             <li class="breadcrumb-item active text-dark fw-semibold" aria-current="page">Chỉnh sửa hồ sơ</li>
         </ol>
     </nav>
@@ -190,7 +190,7 @@ require_once __DIR__ . '/../includes/header.php';
 
                         <!-- Action Buttons -->
                         <div class="d-flex align-items-center justify-content-end gap-2 pt-2 border-top">
-                            <a href="<?= base_url('club/info.php') ?>" class="btn btn-outline-secondary">
+                            <a href="<?= base_url('app/modules/club/info.php') ?>" class="btn btn-outline-secondary">
                                 Hủy bỏ
                             </a>
                             <button type="submit" class="btn btn-primary px-4">
@@ -204,4 +204,4 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
-<?php require_once __DIR__ . '/../includes/footer.php'; ?>
+<?php require_once __DIR__ . '/../../includes/footer.php'; ?>

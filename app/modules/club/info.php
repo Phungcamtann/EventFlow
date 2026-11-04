@@ -5,8 +5,8 @@
  * Thiết kế giao diện: Bootstrap 5.3 chuẩn Figma, font Inter, màu chủ đạo Indigo/Emerald
  */
 
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/session_auth.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/session_auth.php';
 
 $pdo = get_db_connection();
 
@@ -53,7 +53,7 @@ $boardStmt->execute([':clubId' => $club['ClubID']]);
 $boardMembers = $boardStmt->fetchAll();
 
 $pageTitle = htmlspecialchars($club['ClubName']) . " — EventFlow";
-require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="container py-4">
@@ -89,10 +89,10 @@ require_once __DIR__ . '/../includes/header.php';
                 <div class="col-md-auto text-md-end">
                     <?php if (is_club_manager()): ?>
                         <div class="d-flex flex-wrap gap-2 justify-content-md-end">
-                            <a href="<?= base_url('club/edit.php') ?>" class="btn btn-light shadow-sm fw-semibold">
+                            <a href="<?= base_url('app/modules/club/edit.php') ?>" class="btn btn-light shadow-sm fw-semibold">
                                 <i class="bi bi-pencil-square me-1 text-primary"></i> Chỉnh sửa thông tin
                             </a>
-                            <a href="<?= base_url('club/members.php') ?>" class="btn btn-outline-light fw-semibold">
+                            <a href="<?= base_url('app/modules/club/members.php') ?>" class="btn btn-outline-light fw-semibold">
                                 <i class="bi bi-people me-1"></i> Quản lý thành viên
                             </a>
                         </div>
@@ -142,7 +142,7 @@ require_once __DIR__ . '/../includes/header.php';
                             <i class="bi bi-award-fill text-warning"></i> Ban Điều Hành CLB
                         </h3>
                         <?php if (is_club_manager()): ?>
-                            <a href="<?= base_url('club/members.php') ?>" class="text-decoration-none small fw-semibold text-primary">
+                            <a href="<?= base_url('app/modules/club/members.php') ?>" class="text-decoration-none small fw-semibold text-primary">
                                 Xem tất cả thành viên <i class="bi bi-arrow-right"></i>
                             </a>
                         <?php endif; ?>
@@ -251,4 +251,4 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
-<?php require_once __DIR__ . '/../includes/footer.php'; ?>
+<?php require_once __DIR__ . '/../../includes/footer.php'; ?>

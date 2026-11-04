@@ -5,8 +5,8 @@
  * Phân quyền: Dành riêng cho Club Manager
  */
 
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/session_auth.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/session_auth.php';
 
 // Kiểm tra quyền Club Manager
 require_role('Club Manager');
@@ -44,7 +44,7 @@ if ($isEditMode) {
 
     if (!$memberData) {
         set_flash('danger', 'Không tìm thấy thông tin thành viên cần chỉnh sửa.');
-        header('Location: ' . base_url('club/members.php'));
+        header('Location: ' . base_url('app/modules/club/members.php'));
         exit;
     }
 
@@ -112,7 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 set_flash('success', "Cập nhật thành viên '{$memberData['FullName']}' thành công!");
-                header('Location: ' . base_url('club/members.php'));
+                header('Location: ' . base_url('app/modules/club/members.php'));
                 exit;
             }
         } else {
@@ -156,7 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $pdo->commit();
 
                     set_flash('success', 'Thêm thành viên mới vào CLB thành công!');
-                    header('Location: ' . base_url('club/members.php'));
+                    header('Location: ' . base_url('app/modules/club/members.php'));
                     exit;
                 } catch (Exception $e) {
                     $pdo->rollBack();
@@ -168,7 +168,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $pageTitle = ($isEditMode ? "Chỉnh sửa thành viên" : "Thêm thành viên mới") . " — EventFlow";
-require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="container py-4">
@@ -176,7 +176,7 @@ require_once __DIR__ . '/../includes/header.php';
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="<?= base_url('index.php') ?>" class="text-decoration-none text-muted">Trang chủ</a></li>
-            <li class="breadcrumb-item"><a href="<?= base_url('club/members.php') ?>" class="text-decoration-none text-muted">Danh sách thành viên</a></li>
+            <li class="breadcrumb-item"><a href="<?= base_url('app/modules/club/members.php') ?>" class="text-decoration-none text-muted">Danh sách thành viên</a></li>
             <li class="breadcrumb-item active text-dark fw-semibold" aria-current="page">
                 <?= $isEditMode ? 'Chỉnh sửa thành viên' : 'Thêm thành viên mới' ?>
             </li>
@@ -346,7 +346,7 @@ require_once __DIR__ . '/../includes/header.php';
 
                         <!-- Buttons -->
                         <div class="d-flex align-items-center justify-content-end gap-2 pt-3 border-top">
-                            <a href="<?= base_url('club/members.php') ?>" class="btn btn-outline-secondary">
+                            <a href="<?= base_url('app/modules/club/members.php') ?>" class="btn btn-outline-secondary">
                                 Quay lại danh sách
                             </a>
                             <button 
@@ -365,4 +365,4 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
-<?php require_once __DIR__ . '/../includes/footer.php'; ?>
+<?php require_once __DIR__ . '/../../includes/footer.php'; ?>

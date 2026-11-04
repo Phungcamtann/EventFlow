@@ -3,8 +3,8 @@
  * EventFlow — Màn hình Đăng ký tài khoản [SCR01]
  * Đáp ứng: FR01, UC01, PB01
  */
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/session_auth.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/session_auth.php';
 
 // Nếu người dùng đã đăng nhập, chuyển hướng về trang chủ
 if (is_logged_in()) {
@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ]);
 
                     set_flash('success', 'Đăng ký tài khoản thành công! Bạn có thể đăng nhập ngay bây giờ.');
-                    header('Location: ' . base_url('auth/login.php'));
+                    header('Location: ' . base_url('app/modules/auth/login.php'));
                     exit;
                 }
             } catch (PDOException $e) {
@@ -111,7 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $pageTitle = 'Đăng ký tài khoản';
 $hideNavbar = true;
-require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="container py-4 py-md-5">
@@ -249,7 +249,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <!-- Chuyển sang đăng nhập -->
                     <div class="text-center text-muted small pb-2">
                         Đã có tài khoản? 
-                        <a href="<?= base_url('auth/login.php') ?>" class="text-primary fw-semibold ms-1">Đăng nhập ngay</a>
+                        <a href="<?= base_url('app/modules/auth/login.php') ?>" class="text-primary fw-semibold ms-1">Đăng nhập ngay</a>
                     </div>
                 </form>
             </div>
@@ -257,4 +257,4 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
-<?php require_once __DIR__ . '/../includes/footer.php'; ?>
+<?php require_once __DIR__ . '/../../includes/footer.php'; ?>

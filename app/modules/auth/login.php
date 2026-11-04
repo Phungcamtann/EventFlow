@@ -4,8 +4,8 @@
  * Đáp ứng: FR02, UC02, PB02, PB03
  * Thiết kế bám sát chuẩn Prototype Figma (Màn hình 01 · Đăng nhập)
  */
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/session_auth.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/session_auth.php';
 
 // Thông tin tài khoản hiện tại (nếu đang có phiên đăng nhập)
 $loggedInUser = is_logged_in() ? current_user() : null;
@@ -75,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                             // 7. Điều hướng theo vai trò người dùng
                             if ($account['RoleName'] === 'System Administrator') {
-                                header('Location: ' . base_url('admin/accounts.php'));
+                                header('Location: ' . base_url('app/modules/admin/accounts.php'));
                             } else {
                                 header('Location: ' . base_url('index.php'));
                             }
@@ -93,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $pageTitle = 'Đăng nhập';
 $hideNavbar = true;
-require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="container py-5">
@@ -162,7 +162,7 @@ require_once __DIR__ . '/../includes/header.php';
                         <div>
                             <i class="bi bi-person-check-fill me-1"></i> Đang đăng nhập: <strong><?= htmlspecialchars($loggedInUser['FullName']) ?></strong> (<?= htmlspecialchars($loggedInUser['RoleName']) ?>)
                         </div>
-                        <a href="<?= base_url('auth/logout.php') ?>" class="btn btn-sm btn-outline-danger py-0 px-2 text-nowrap ms-2" style="font-size: 0.75rem;">
+                        <a href="<?= base_url('app/modules/auth/logout.php') ?>" class="btn btn-sm btn-outline-danger py-0 px-2 text-nowrap ms-2" style="font-size: 0.75rem;">
                             Đăng xuất
                         </a>
                     </div>
@@ -183,7 +183,7 @@ require_once __DIR__ . '/../includes/header.php';
                     </div>
                 <?php endif; ?>
 
-                <form method="POST" action="<?= base_url('auth/login.php') ?>" novalidate>
+                <form method="POST" action="<?= base_url('app/modules/auth/login.php') ?>" novalidate>
                     <?= csrf_field() ?>
 
                     <!-- Email hoặc Mã sinh viên -->
@@ -215,7 +215,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <!-- Link Đăng ký tài khoản (Figma 01 footer) -->
                     <div class="text-center text-muted small">
                         Chưa có tài khoản? 
-                        <a href="<?= base_url('auth/register.php') ?>" class="text-primary fw-semibold ms-1">Đăng ký tài khoản</a>
+                        <a href="<?= base_url('app/modules/auth/register.php') ?>" class="text-primary fw-semibold ms-1">Đăng ký tài khoản</a>
                     </div>
                 </form>
 
@@ -234,4 +234,4 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
-<?php require_once __DIR__ . '/../includes/footer.php'; ?>
+<?php require_once __DIR__ . '/../../includes/footer.php'; ?>

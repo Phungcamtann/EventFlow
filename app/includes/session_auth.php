@@ -34,15 +34,10 @@ function base_url(string $path = ''): string {
         $basePath = '/' . $m[1];
     } else {
         // Fallback: tính toán từ thư mục của script hiện tại
-        $dir = dirname($scriptName);
-        $subfolders = ['/auth', '/club', '/events', '/attendance', '/admin', '/profile', '/includes', '/config'];
-        foreach ($subfolders as $sub) {
-            if (str_ends_with($dir, $sub)) {
-                $dir = substr($dir, 0, -strlen($sub));
-                break;
-            }
-        }
-        $dir = rtrim(str_replace('\\', '/', $dir), '/');
+        $dir = str_replace('\\', '/', dirname($scriptName));
+        // Cắt bỏ phần đường dẫn con thuộc kiến trúc app/modules/...
+        $dir = preg_replace('#/app(/modules)?(/[a-zA-Z0-9_-]+)?$#', '', $dir);
+        $dir = rtrim($dir, '/');
         $basePath = ($dir === '' || $dir === '.' || $dir === '/') ? '' : $dir;
     }
 
@@ -219,14 +214,14 @@ function is_authorized_club_member(): bool {
 function require_login(): void {
     if (!is_logged_in()) {
         set_flash('warning', 'Vui lòng đăng nhập để tiếp tục.');
-        header('Location: ' . base_url('auth/login.php'));
+        header('Location: ' . base_url('app/modules/auth/login.php'));
         exit;
     }
     // Kiểm tra xem tài khoản có bị Admin khóa không
     if (empty($_SESSION['user']['IsActive'])) {
         logout_user();
         set_flash('danger', 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ Quản trị viên hệ thống.');
-        header('Location: ' . base_url('auth/login.php'));
+        header('Location: ' . base_url('app/modules/auth/login.php'));
         exit;
     }
 }

@@ -3,17 +3,17 @@
  * EventFlow — Trang chủ / Khám phá sự kiện
  * Bám sát Thiết kế Prototype Figma 02 (Danh sách sự kiện)
  */
-require_once __DIR__ . '/config/database.php';
-require_once __DIR__ . '/includes/session_auth.php';
+require_once __DIR__ . '/app/config/database.php';
+require_once __DIR__ . '/app/includes/session_auth.php';
 
 // Yêu cầu đăng nhập trước khi vào trang chủ
 if (!is_logged_in()) {
-    header('Location: ' . base_url('auth/login.php'));
+    header('Location: ' . base_url('app/modules/auth/login.php'));
     exit;
 }
 
 $pageTitle = 'Khám phá sự kiện';
-require_once __DIR__ . '/includes/header.php';
+require_once __DIR__ . '/app/includes/header.php';
 
 // Lấy danh sách sự kiện từ CSDL (nếu có kết nối)
 $events = [];
@@ -95,7 +95,7 @@ try {
                 <p class="text-secondary small mb-0">Theo dõi thông tin và đăng ký tham gia các hoạt động giao lưu tiếng Anh.</p>
             </div>
             <div class="d-flex gap-2">
-                <a href="<?= base_url('club/info.php') ?>" class="btn btn-outline-primary btn-sm">
+                <a href="<?= base_url('app/modules/club/info.php') ?>" class="btn btn-outline-primary btn-sm">
                     <i class="bi bi-info-circle me-1"></i> Về CLB
                 </a>
             </div>
@@ -144,7 +144,7 @@ try {
                             </div>
 
                             <div class="pt-3 border-top d-flex justify-content-end">
-                                <a href="<?= base_url('events/detail.php?id=' . (int)$evt['EventID']) ?>" class="btn btn-outline-primary btn-sm px-3">
+                                <a href="<?= base_url('app/modules/events/detail.php?id=' . (int)$evt['EventID']) ?>" class="btn btn-outline-primary btn-sm px-3">
                                     Xem chi tiết <i class="bi bi-arrow-right ms-1"></i>
                                 </a>
                             </div>
@@ -156,4 +156,4 @@ try {
     </div>
 </div>
 
-<?php require_once __DIR__ . '/includes/footer.php'; ?>
+<?php require_once __DIR__ . '/app/includes/footer.php'; ?>

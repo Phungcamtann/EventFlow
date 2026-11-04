@@ -5,8 +5,8 @@
  * Phân quyền: Dành riêng cho Club Manager
  */
 
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/session_auth.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/session_auth.php';
 
 // Kiểm tra quyền Club Manager
 require_role('Club Manager');
@@ -78,7 +78,7 @@ $statStmt = $pdo->query("
 $stats = $statStmt->fetch();
 
 $pageTitle = "Danh sách thành viên CLB — EventFlow";
-require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="container py-4">
@@ -86,7 +86,7 @@ require_once __DIR__ . '/../includes/header.php';
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="<?= base_url('index.php') ?>" class="text-decoration-none text-muted">Trang chủ</a></li>
-            <li class="breadcrumb-item"><a href="<?= base_url('club/info.php') ?>" class="text-decoration-none text-muted">Thông tin CLB</a></li>
+            <li class="breadcrumb-item"><a href="<?= base_url('app/modules/club/info.php') ?>" class="text-decoration-none text-muted">Thông tin CLB</a></li>
             <li class="breadcrumb-item active text-dark fw-semibold" aria-current="page">Danh sách thành viên</li>
         </ol>
     </nav>
@@ -98,7 +98,7 @@ require_once __DIR__ . '/../includes/header.php';
             <p class="text-muted small mb-0">Theo dõi danh sách, phân vai trò nội bộ và ủy quyền cán bộ hỗ trợ sự kiện.</p>
         </div>
         <div>
-            <a href="<?= base_url('club/member_form.php?action=add') ?>" class="btn btn-primary shadow-sm fw-semibold">
+            <a href="<?= base_url('app/modules/club/member_form.php?action=add') ?>" class="btn btn-primary shadow-sm fw-semibold">
                 <i class="bi bi-person-plus-fill me-1"></i> Thêm thành viên mới
             </a>
         </div>
@@ -173,7 +173,7 @@ require_once __DIR__ . '/../includes/header.php';
                         Lọc
                     </button>
                     <?php if ($search !== '' || $filterRole !== '' || $filterStatus !== ''): ?>
-                        <a href="<?= base_url('club/members.php') ?>" class="btn btn-outline-secondary">
+                        <a href="<?= base_url('app/modules/club/members.php') ?>" class="btn btn-outline-secondary">
                             Đặt lại
                         </a>
                     <?php endif; ?>
@@ -273,7 +273,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 </td>
                                 <td class="text-end pe-4">
                                     <a 
-                                        href="<?= base_url('club/member_form.php?id=' . $m['MemberID']) ?>" 
+                                        href="<?= base_url('app/modules/club/member_form.php?id=' . $m['MemberID']) ?>" 
                                         class="btn btn-sm btn-outline-primary fw-semibold"
                                         title="Chỉnh sửa vai trò & trạng thái"
                                     >
@@ -289,4 +289,4 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
-<?php require_once __DIR__ . '/../includes/footer.php'; ?>
+<?php require_once __DIR__ . '/../../includes/footer.php'; ?>
