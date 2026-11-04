@@ -13,28 +13,44 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 /**
- * Trả về đường dẫn gốc của ứng dụng (Base URL)
- * Hỗ trợ linh hoạt chạy ở localhost/EventFlow hoặc domain gốc
+ * Trả về đường dẫn tuyệt đối đầy đủ của ứng dụng (Full Base URL)
+ * Đảm bảo trình duyệt luôn giữ đúng scheme, host và thư mục dự án (/EventFlow/)
+ * Không bao giờ bị mất tiền tố hay biến dạng URL khi click chuyển trang
  */
 function base_url(string $path = ''): string {
-    // Tự động nhận diện thư mục gốc của project
+    // 1. Xác định giao thức và host hiện tại của trình duyệt
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    
+    // 2. Xác định base path trong URL
     $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
-    $docRoot = str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT'] ?? '');
+    $requestUri = str_replace('\\', '/', $_SERVER['REQUEST_URI'] ?? '');
     
-    // Tìm thư mục chứa project
-    $baseDir = dirname($scriptName);
-    // Nếu file đang nằm trong thư mục con (ví dụ auth, club, admin), lùi về thư mục gốc
-    $subfolders = ['/auth', '/club', '/events', '/attendance', '/admin', '/profile', '/includes', '/config'];
-    foreach ($subfolders as $sub) {
-        if (str_ends_with($baseDir, $sub)) {
-            $baseDir = substr($baseDir, 0, -strlen($sub));
-            break;
+    $basePath = '';
+    // Kiểm tra tiền tố thư mục dự án EventFlow (không phân biệt hoa thường)
+    if (preg_match('#/(EventFlow|eventflow)#i', $scriptName, $m)) {
+        $basePath = '/' . $m[1];
+    } elseif (preg_match('#/(EventFlow|eventflow)#i', $requestUri, $m)) {
+        $basePath = '/' . $m[1];
+    } else {
+        // Fallback: tính toán từ thư mục của script hiện tại
+        $dir = dirname($scriptName);
+        $subfolders = ['/auth', '/club', '/events', '/attendance', '/admin', '/profile', '/includes', '/config'];
+        foreach ($subfolders as $sub) {
+            if (str_ends_with($dir, $sub)) {
+                $dir = substr($dir, 0, -strlen($sub));
+                break;
+            }
         }
+        $dir = rtrim(str_replace('\\', '/', $dir), '/');
+        $basePath = ($dir === '' || $dir === '.' || $dir === '/') ? '' : $dir;
     }
-    
-    $baseDir = rtrim($baseDir, '/');
+
     $cleanPath = ltrim($path, '/');
-    return ($baseDir === '' ? '' : $baseDir) . ($cleanPath !== '' ? '/' . $cleanPath : '');
+    $relUrl = $basePath . ($cleanPath !== '' ? '/' . $cleanPath : '');
+    
+    // Trả về URL tuyệt đối đầy đủ (Full URL: http://localhost/EventFlow/...)
+    return "{$scheme}://{$host}{$relUrl}";
 }
 
 /**

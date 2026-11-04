@@ -4,6 +4,14 @@
  * Bám sát Thiết kế Prototype Figma 02 (Danh sách sự kiện)
  */
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/includes/session_auth.php';
+
+// Yêu cầu đăng nhập trước khi vào trang chủ
+if (!is_logged_in()) {
+    header('Location: ' . base_url('auth/login.php'));
+    exit;
+}
+
 $pageTitle = 'Khám phá sự kiện';
 require_once __DIR__ . '/includes/header.php';
 

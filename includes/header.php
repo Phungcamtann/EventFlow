@@ -27,6 +27,7 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
 <body>
 
     <!-- TOP NAVBAR -->
+    <?php if (empty($hideNavbar)): ?>
     <nav class="navbar navbar-expand-lg ef-navbar sticky-top">
         <div class="container">
             <!-- Brand Logo -->
@@ -94,9 +95,15 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
                 <!-- Right Action Bar -->
                 <div class="d-flex align-items-center gap-3 mt-3 mt-lg-0">
                     <?php if (is_logged_in()): ?>
-                        <!-- Role Badge Pill -->
+                        <!-- Role Badge Pill (Hiển thị rõ cả vai trò ủy quyền Tầng 2 nếu có) -->
                         <span class="ef-role-pill">
-                            <?= htmlspecialchars($currentUser['RoleName']) ?>
+                            <?php
+                            if ($currentUser['RoleName'] === 'Club Member' && !empty($currentUser['MemberRole'])) {
+                                echo htmlspecialchars($currentUser['MemberRole']);
+                            } else {
+                                echo htmlspecialchars($currentUser['RoleName']);
+                            }
+                            ?>
                         </span>
 
                         <!-- User Profile Dropdown -->
@@ -116,16 +123,28 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
                                     ?>
                                 </div>
                             </button>
-                            <ul class="dropdown-menu dropdown-menu-end border-0 shadow-md rounded-3 mt-2 py-2" style="min-width: 220px;">
+                            <ul class="dropdown-menu dropdown-menu-end border-0 shadow-md rounded-3 mt-2 py-2" style="min-width: 240px;">
                                 <li class="px-3 py-2 border-bottom mb-1">
                                     <div class="fw-bold text-dark text-truncate"><?= htmlspecialchars($currentUser['FullName']) ?></div>
-                                    <small class="text-secondary text-truncate d-block"><?= htmlspecialchars($currentUser['Email']) ?></small>
+                                    <small class="text-secondary text-truncate d-block">
+                                        <?= htmlspecialchars($currentUser['Email']) ?>
+                                    </small>
+                                    <small class="badge bg-light text-primary border rounded-pill mt-1 font-mono">
+                                        <?= htmlspecialchars($currentUser['MemberRole'] ?? $currentUser['RoleName']) ?>
+                                    </small>
                                 </li>
                                 <li>
                                     <a class="dropdown-item py-2" href="<?= base_url('profile/index.php') ?>">
                                         <i class="bi bi-person me-2 text-primary"></i> Hồ sơ cá nhân
                                     </a>
                                 </li>
+                                <?php if (is_system_admin()): ?>
+                                    <li>
+                                        <a class="dropdown-item py-2 text-danger" href="<?= base_url('admin/accounts.php') ?>">
+                                            <i class="bi bi-shield-lock me-2"></i> Quản trị tài khoản
+                                        </a>
+                                    </li>
+                                <?php endif; ?>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
                                     <a class="dropdown-item py-2 text-danger" href="<?= base_url('auth/logout.php') ?>">
@@ -147,6 +166,7 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
             </div>
         </div>
     </nav>
+    <?php endif; ?>
 
     <!-- FLASH MESSAGES ALERT -->
     <?php if ($flash): ?>

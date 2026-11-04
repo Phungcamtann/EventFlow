@@ -120,13 +120,13 @@ INSERT INTO Role (RoleID, RoleName) VALUES
 (4, 'Event Participant')
 ON DUPLICATE KEY UPDATE RoleName = VALUES(RoleName);
 
--- Bcrypt hash cho 'Password@123': $2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi
+-- Hash bcrypt chuẩn cho 'Password@123': $2y$10$vjmH8REt.69lxZv/JKtIMeVzgRkOOJU6jJzJIBOGi/JwMYgJHyPVm
 INSERT INTO Account (AccountID, Email, PasswordHash, FullName, StudentCode, RoleID, IsActive) VALUES
-(1, 'admin@ueh.edu.vn', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'System Admin EventFlow', NULL, 1, 1),
-(2, 'manager@st.ueh.edu.vn', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Dương Hoàng Sâm', '31241020001', 2, 1),
-(3, 'supporter@st.ueh.edu.vn', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Trần Yến Phượng', '31241022663', 3, 1),
-(4, 'minhan@st.ueh.edu.vn', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Nguyễn Minh An', '31241020123', 3, 1),
-(5, 'student@st.ueh.edu.vn', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Lê Hoàng Nam', '31241020999', 4, 1)
+(1, 'admin@ueh.edu.vn', '$2y$10$vjmH8REt.69lxZv/JKtIMeVzgRkOOJU6jJzJIBOGi/JwMYgJHyPVm', 'System Admin EventFlow', NULL, 1, 1),
+(2, 'manager@st.ueh.edu.vn', '$2y$10$vjmH8REt.69lxZv/JKtIMeVzgRkOOJU6jJzJIBOGi/JwMYgJHyPVm', 'Dương Hoàng Sâm', '31241020001', 2, 1),
+(3, 'supporter@st.ueh.edu.vn', '$2y$10$vjmH8REt.69lxZv/JKtIMeVzgRkOOJU6jJzJIBOGi/JwMYgJHyPVm', 'Trần Yến Phượng', '31241022663', 3, 1),
+(4, 'minhan@st.ueh.edu.vn', '$2y$10$vjmH8REt.69lxZv/JKtIMeVzgRkOOJU6jJzJIBOGi/JwMYgJHyPVm', 'Nguyễn Minh An', '31241020123', 3, 1),
+(5, 'student@st.ueh.edu.vn', '$2y$10$vjmH8REt.69lxZv/JKtIMeVzgRkOOJU6jJzJIBOGi/JwMYgJHyPVm', 'Lê Hoàng Nam', '31241020999', 4, 1)
 ON DUPLICATE KEY UPDATE FullName = VALUES(FullName);
 
 INSERT INTO Club (ClubID, ClubName, Description, ContactInfo, ManagerID) VALUES

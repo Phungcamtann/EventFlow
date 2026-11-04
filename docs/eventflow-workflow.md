@@ -133,12 +133,12 @@ Cách hỏi:
 
 ### Bước 1 — Phân tích yêu cầu
 
-| Hành động | Chi tiết |
-|-----------|---------|
-| Đọc kỹ toàn bộ tài liệu | Đọc hết yêu cầu, use case, thiết kế, ERD, wireframe... đã được cung cấp |
-| Liệt kê những gì ĐÃ RÕ | Các tính năng, entity, flow đã có đủ thông tin |
-| Liệt kê những gì CHƯA RÕ | Thiếu gì? Mâu thuẫn gì? Cần quyết định gì? |
-| **Hỏi user nếu cần** | Gửi danh sách câu hỏi → **Chờ trả lời** trước khi đi tiếp |
+| Hành động                | Chi tiết                                                                |
+| ------------------------ | ----------------------------------------------------------------------- |
+| Đọc kỹ toàn bộ tài liệu  | Đọc hết yêu cầu, use case, thiết kế, ERD, wireframe... đã được cung cấp |
+| Liệt kê những gì ĐÃ RÕ   | Các tính năng, entity, flow đã có đủ thông tin                          |
+| Liệt kê những gì CHƯA RÕ | Thiếu gì? Mâu thuẫn gì? Cần quyết định gì?                              |
+| **Hỏi user nếu cần**     | Gửi danh sách câu hỏi → **Chờ trả lời** trước khi đi tiếp               |
 
 ### Bước 2 — Chia pha
 
@@ -184,10 +184,10 @@ Pha 3: [Tên pha] — [Mô tả ngắn]
 
 Trước khi viết **bất kỳ dòng code nào**, phải tạo 2 file documentation:
 
-| File | Nội dung | Thời điểm tạo |
-|------|---------|---------------|
-| `docs/pha-X/plan.md` | Kế hoạch chi tiết: mục tiêu, tasks, cấu trúc file, flow logic | **TRƯỚC** khi code |
-| `docs/pha-X/files.md` | Danh sách file sẽ tạo/sửa (dự kiến) | **TRƯỚC** khi code, cập nhật **SAU** khi hoàn thành |
+| File                  | Nội dung                                                      | Thời điểm tạo                                       |
+| --------------------- | ------------------------------------------------------------- | --------------------------------------------------- |
+| `docs/pha-X/plan.md`  | Kế hoạch chi tiết: mục tiêu, tasks, cấu trúc file, flow logic | **TRƯỚC** khi code                                  |
+| `docs/pha-X/files.md` | Danh sách file sẽ tạo/sửa (dự kiến)                           | **TRƯỚC** khi code, cập nhật **SAU** khi hoàn thành |
 
 ### Bước 4 — Thực hiện pha
 
@@ -196,17 +196,17 @@ Quy trình thực hiện trong 1 pha:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   ① Đọc lại plan.md của pha hiện tại
-  
+
   ② Thực hiện từng task theo thứ tự trong plan
      → Code theo đúng yêu cầu đã phân tích
      → Tham chiếu tài liệu gốc khi cần
      → GẶP VẤN ĐỀ → HỎI, không tự suy diễn
-  
+
   ③ Sau mỗi task:
      → Kiểm tra code vừa viết
      → Đảm bảo không break code cũ
      → Cập nhật files.md (đánh dấu đã hoàn thành)
-  
+
   ④ Hoàn thành tất cả tasks trong pha
      → Chạy thử toàn bộ luồng
      → Fix bugs nếu có
@@ -284,12 +284,12 @@ Dưới đây là template chuẩn cho `files.md` của mỗi pha:
 
 ## Tổng kết
 
-| Loại | Số lượng |
-|------|---------|
-| File tạo mới | X |
-| File chỉnh sửa | X |
-| File xóa | X |
-| **Tổng** | **X** |
+| Loại           | Số lượng |
+| -------------- | -------- |
+| File tạo mới   | X        |
+| File chỉnh sửa | X        |
+| File xóa       | X        |
+| **Tổng**       | **X**    |
 
 ---
 
@@ -297,26 +297,27 @@ Dưới đây là template chuẩn cho `files.md` của mỗi pha:
 
 ### Tạo mới
 
-| # | Đường dẫn file | Mô tả | Trạng thái |
-|---|---------------|-------|-----------|
-| 1 | `src/path/to/file.ext` | Mô tả ngắn chức năng | ✅ / ⬜ |
-| 2 | `src/path/to/file.ext` | Mô tả ngắn chức năng | ✅ / ⬜ |
+| #   | Đường dẫn file         | Mô tả                | Trạng thái |
+| --- | ---------------------- | -------------------- | ---------- |
+| 1   | `src/path/to/file.ext` | Mô tả ngắn chức năng | ✅ / ⬜    |
+| 2   | `src/path/to/file.ext` | Mô tả ngắn chức năng | ✅ / ⬜    |
 
 ### Chỉnh sửa
 
-| # | Đường dẫn file | Nội dung thay đổi | Trạng thái |
-|---|---------------|-------------------|-----------|
-| 1 | `src/path/to/file.ext` | Thay đổi gì, tại sao | ✅ / ⬜ |
+| #   | Đường dẫn file         | Nội dung thay đổi    | Trạng thái |
+| --- | ---------------------- | -------------------- | ---------- |
+| 1   | `src/path/to/file.ext` | Thay đổi gì, tại sao | ✅ / ⬜    |
 
 ### Xóa (nếu có)
 
-| # | Đường dẫn file | Lý do xóa |
-|---|---------------|----------|
-| 1 | `src/path/to/old-file.ext` | Thay thế bởi file mới X |
+| #   | Đường dẫn file             | Lý do xóa               |
+| --- | -------------------------- | ----------------------- |
+| 1   | `src/path/to/old-file.ext` | Thay thế bởi file mới X |
 
 ---
 
 ## Ghi chú
+
 - [Ghi chú đặc biệt nếu có]
 ```
 
@@ -338,11 +339,13 @@ Dưới đây là template chuẩn cho `plan.md` của mỗi pha:
 ## 1. Phạm vi (Scope)
 
 ### Bao gồm (In scope)
+
 - [ ] Chức năng A
 - [ ] Chức năng B
 - [ ] Chức năng C
 
 ### Không bao gồm (Out of scope)
+
 - Chức năng X (sẽ làm ở Pha Y)
 - Chức năng Z (chưa có yêu cầu)
 
@@ -351,6 +354,7 @@ Dưới đây là template chuẩn cho `plan.md` của mỗi pha:
 ## 2. Tasks chi tiết
 
 ### Task 1: [Tên task]
+
 - **Mô tả:** [Chi tiết task cần làm gì]
 - **File liên quan:** `src/path/file.ext`
 - **Logic / Flow:**
@@ -360,22 +364,25 @@ Dưới đây là template chuẩn cho `plan.md` của mỗi pha:
 - **Dữ liệu tham chiếu:** [Lấy từ tài liệu nào, mục nào]
 
 ### Task 2: [Tên task]
+
 - **Mô tả:** ...
 - ...
 
 ### Task N: [Tên task]
+
 - ...
 
 ---
 
 ## 3. Cấu trúc file dự kiến
-
 ```
+
 src/
 ├── folder/
-│   ├── new-file-1.ext      ← [Mô tả]
-│   ├── new-file-2.ext      ← [Mô tả]
-│   └── ...
+│ ├── new-file-1.ext ← [Mô tả]
+│ ├── new-file-2.ext ← [Mô tả]
+│ └── ...
+
 ```
 
 ---
@@ -407,24 +414,24 @@ src/
 
 ### Commit types
 
-| Type | Ý nghĩa | Ví dụ |
-|------|---------|-------|
-| `feat` | Tính năng mới | `[Pha 2] feat: hoàn thành đăng nhập/đăng ký` |
-| `fix` | Sửa lỗi | `[Pha 2] fix: sửa lỗi validate email` |
-| `refactor` | Tái cấu trúc | `[Pha 3] refactor: tách component EventCard` |
-| `docs` | Documentation | `[Pha 1] docs: thêm plan.md và files.md` |
-| `style` | UI/CSS | `[Pha 4] style: cập nhật responsive navbar` |
-| `setup` | Cài đặt, config | `[Pha 1] setup: khởi tạo project Bootstrap 5.3` |
+| Type       | Ý nghĩa         | Ví dụ                                           |
+| ---------- | --------------- | ----------------------------------------------- |
+| `feat`     | Tính năng mới   | `[Pha 2] feat: hoàn thành đăng nhập/đăng ký`    |
+| `fix`      | Sửa lỗi         | `[Pha 2] fix: sửa lỗi validate email`           |
+| `refactor` | Tái cấu trúc    | `[Pha 3] refactor: tách component EventCard`    |
+| `docs`     | Documentation   | `[Pha 1] docs: thêm plan.md và files.md`        |
+| `style`    | UI/CSS          | `[Pha 4] style: cập nhật responsive navbar`     |
+| `setup`    | Cài đặt, config | `[Pha 1] setup: khởi tạo project Bootstrap 5.3` |
 
 ### Quy tắc commit
 
-| # | Quy tắc |
-|---|---------|
-| 1 | **Mỗi pha = 1 commit chính** khi hoàn thành toàn bộ pha |
-| 2 | Commit message **phải có prefix `[Pha X]`** |
-| 3 | Message bằng **tiếng Việt** (mô tả) hoặc tiếng Anh (type) |
-| 4 | Không commit code dở dang, chưa chạy được |
-| 5 | Commit docs (plan.md, files.md) **có thể tách riêng** trước khi commit code |
+| #   | Quy tắc                                                                     |
+| --- | --------------------------------------------------------------------------- |
+| 1   | **Mỗi pha = 1 commit chính** khi hoàn thành toàn bộ pha                     |
+| 2   | Commit message **phải có prefix `[Pha X]`**                                 |
+| 3   | Message bằng **tiếng Việt** (mô tả) hoặc tiếng Anh (type)                   |
+| 4   | Không commit code dở dang, chưa chạy được                                   |
+| 5   | Commit docs (plan.md, files.md) **có thể tách riêng** trước khi commit code |
 
 ### Ví dụ flow commit cho 1 pha
 
@@ -440,11 +447,13 @@ Commit 2: [Pha 3] feat: hoàn thành CRUD sự kiện (danh sách, chi tiết, t
 Trước khi tuyên bố pha hoàn thành, agent **PHẢI** đảm bảo tất cả các mục sau:
 
 ### Documentation
+
 - [ ] `docs/pha-X/plan.md` đã tạo đầy đủ, rõ ràng
 - [ ] `docs/pha-X/files.md` đã cập nhật trạng thái ✅ cho mọi file
 - [ ] Files.md ghi đúng đường dẫn, đúng mô tả, đúng số lượng
 
 ### Code Quality
+
 - [ ] Code chạy được, không có lỗi syntax/runtime
 - [ ] Luồng chức năng hoàn chỉnh từ đầu đến cuối
 - [ ] Không có code TODO / FIXME / placeholder bỏ sót
@@ -452,15 +461,18 @@ Trước khi tuyên bố pha hoàn thành, agent **PHẢI** đảm bảo tất c
 - [ ] Tuân thủ design rules (màu sắc, layout, spacing, typography...)
 
 ### Integration
+
 - [ ] Không break bất kỳ chức năng nào từ các pha trước
 - [ ] Tương thích với cấu trúc project hiện tại
 - [ ] Các link / navigation hoạt động đúng
 
 ### Commit
+
 - [ ] Commit message đúng format `[Pha X] type: mô tả`
 - [ ] Đã commit thành công
 
 ### Handoff
+
 - [ ] Thông báo user kết quả pha
 - [ ] Tóm tắt những gì đã làm
 - [ ] Nêu rõ pha tiếp theo là gì
@@ -518,6 +530,7 @@ Trước khi tuyên bố pha hoàn thành, agent **PHẢI** đảm bảo tất c
 ### Ví dụ: Nhận yêu cầu "Xây dựng hệ thống quản lý sự kiện"
 
 **Bước 1 — Phân tích:**
+
 ```
 Đã có:
   ✅ Use case diagram
@@ -569,6 +582,7 @@ Pha 6: Dashboard & Thống kê
 > **Tham chiếu:** EventFlow-Design-Rules.md
 
 ## Scope
+
 - [x] Khởi tạo project structure
 - [x] Cài đặt Bootstrap 5.3 CDN
 - [x] Tạo CSS variables (từ design rules)
@@ -577,9 +591,13 @@ Pha 6: Dashboard & Thống kê
 - [x] Tạo trang Home (placeholder)
 
 ## Tasks
+
 ### Task 1: Khởi tạo project...
+
 ### Task 2: CSS Variables...
+
 ### Task 3: Navbar...
+
 ...
 ```
 
@@ -591,6 +609,7 @@ git commit -m "[Pha 1] setup: khởi tạo project và base layout (navbar, foot
 ```
 
 **Báo cáo user:**
+
 ```
 ✅ Pha 1 hoàn thành!
 
