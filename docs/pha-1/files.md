@@ -3,7 +3,7 @@
 > **Trạng thái:** 🟢 Hoàn thành  
 > **Ngày bắt đầu:** 04/11/2026  
 > **Ngày hoàn thành:** 04/11/2026  
-> **Commit message:** `[Pha 1] setup: khởi tạo CSDL MySQL 7 bảng, PDO config, Session RBAC và Layout Bootstrap 5.3`
+> **Commit hash:** `950e7d7`
 
 ---
 
