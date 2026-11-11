@@ -487,3 +487,8 @@ a:hover {
   color: var(--neutral-500);
   font-size: 0.875rem;
 }
+
+.badge-cancelled {
+  background: var(--bs-danger-bg-subtle);
+  color: var(--bs-danger-text-emphasis);
+}

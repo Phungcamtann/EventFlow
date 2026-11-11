@@ -5,6 +5,7 @@
  */
 require_once __DIR__ . '/app/config/database.php';
 require_once __DIR__ . '/app/includes/session_auth.php';
+require_once __DIR__ . '/app/includes/event_helpers.php';
 
 // Yêu cầu đăng nhập trước khi vào trang chủ
 if (!is_logged_in()) {
@@ -17,13 +18,17 @@ require_once __DIR__ . '/app/includes/header.php';
 
 // Lấy danh sách sự kiện từ CSDL (nếu có kết nối)
 $events = [];
+$now = date('Y-m-d H:i:s'); // chỉ dùng cho nhánh dự phòng; nhánh DB lấy giờ từ MySQL
 try {
     $pdo = get_db_connection();
+    $now = event_now($pdo);
     $stmt = $pdo->query("
-        SELECT e.*, c.ClubName 
-        FROM Event e 
-        LEFT JOIN Club c ON e.ClubID = c.ClubID 
-        WHERE e.Status = 'Published'
+        SELECT e.*, c.ClubName,
+               (SELECT COUNT(*) FROM Event_Registration r
+                 WHERE r.EventID = e.EventID AND r.Status = 'Registered') AS RegisteredCount
+        FROM Event e
+        LEFT JOIN Club c ON e.ClubID = c.ClubID
+        WHERE e.Status IN ('Published', 'Cancelled')
         ORDER BY e.StartTime ASC
     ");
     $events = $stmt->fetchAll();
@@ -109,8 +114,20 @@ try {
                 $dBadge = $evt['DateBadge'] ?? (!empty($evt['StartTime']) ? date('d \T\Hm', strtotime($evt['StartTime'])) : '14 TH11');
                 $timeStr = $evt['Time'] ?? (!empty($evt['StartTime']) ? date('H:i', strtotime($evt['StartTime'])) . ' - ' . date('H:i', strtotime($evt['EndTime'])) : '');
                 $locStr = $evt['Location'] ?? 'UEH Cơ sở B';
-                $badgeText = $evt['StatusBadge'] ?? 'Đang mở đăng ký';
-                $bClass = $evt['BadgeClass'] ?? 'badge-open';
+                if (isset($evt['RegisteredCount'])) {
+                    // Dữ liệu từ DB: trạng thái suy ra từ Status + hạn đăng ký + số chỗ
+                    $state = event_state($evt, (int)$evt['RegisteredCount'], $now);
+                    $badgeText = $state['label'];
+                    $bClass = $state['css_class'];
+                    $seatsText = event_seats_text($state);
+                    $highlights = $state['highlights'];
+                } else {
+                    // Dữ liệu dự phòng (mảng tĩnh)
+                    $badgeText = $evt['StatusBadge'] ?? 'Đang mở đăng ký';
+                    $bClass = $evt['BadgeClass'] ?? 'badge-open';
+                    $seatsText = null;
+                    $highlights = [];
+                }
             ?>
                 <div class="col-md-6 col-lg-4">
                     <div class="card card-hover h-100 overflow-hidden border">
@@ -140,6 +157,12 @@ try {
                                 <div class="text-secondary small d-flex flex-column gap-1 mb-4">
                                     <div><i class="bi bi-clock me-1 text-primary"></i> <?= htmlspecialchars($timeStr) ?></div>
                                     <div class="text-truncate"><i class="bi bi-geo-alt me-1 text-primary"></i> <?= htmlspecialchars($locStr) ?></div>
+                                    <?php if ($seatsText !== null): ?>
+                                        <div><i class="bi bi-people me-1 text-primary"></i> Đã đăng ký: <span class="font-mono"><?= htmlspecialchars($seatsText) ?></span></div>
+                                    <?php endif; ?>
+                                    <?php foreach ($highlights as $hl): ?>
+                                        <div><span class="badge bg-warning-subtle text-warning-emphasis rounded-pill"><i class="bi bi-exclamation-circle me-1"></i><?= htmlspecialchars($hl) ?></span></div>
+                                    <?php endforeach; ?>
                                 </div>
                             </div>
 
