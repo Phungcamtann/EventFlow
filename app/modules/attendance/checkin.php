@@ -30,3 +30,60 @@ if ($clubIds === []) {
  * Điểm danh một người. Trả về [bool, thông báo].
  * Khóa dòng đăng ký (FOR UPDATE); Attendance.RegID là UNIQUE nên chặn trùng ở tầng DB.
  */
+function att_checkin(PDO $pdo, int $eventId, int $regId, int $staffId): array {
+    $rollback = static function (string $msg) use ($pdo): array {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        return [false, $msg];
+    };
+
+    try {
+        $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare("
+            SELECT r.RegID, r.Status AS RegStatus, e.Status AS EventStatus, e.EndTime
+            FROM Event_Registration r
+            JOIN Event e ON e.EventID = r.EventID
+            WHERE r.RegID = :r AND r.EventID = :e
+            FOR UPDATE
+        ");
+        $stmt->execute([':r' => $regId, ':e' => $eventId]);
+        $row = $stmt->fetch();
+
+        if (!$row) {
+            return $rollback('Không tìm thấy đăng ký của sự kiện này.');
+        }
+        if ($row['RegStatus'] !== 'Registered') {
+            return $rollback('Người này đã hủy đăng ký nên không thể điểm danh.');
+        }
+        if ($row['EventStatus'] !== 'Published') {
+            return $rollback('Sự kiện không ở trạng thái công bố.');
+        }
+        if (event_now($pdo) >= $row['EndTime']) {
+            return $rollback('Sự kiện đã kết thúc, không thể điểm danh.');
+        }
+
+        $chk = $pdo->prepare("SELECT AttendanceID FROM Attendance WHERE RegID = :r LIMIT 1");
+        $chk->execute([':r' => $regId]);
+        if ($chk->fetch()) {
+            return $rollback('Người này đã được điểm danh rồi.');
+        }
+
+        $ins = $pdo->prepare("INSERT INTO Attendance (RegID, AttendanceStatus, CheckedInBy) VALUES (:r, 1, :s)");
+        $ins->execute([':r' => $regId, ':s' => $staffId]);
+
+        $pdo->commit();
+        return [true, 'Đã điểm danh thành công.'];
+    } catch (PDOException $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        if ($e->getCode() === '23000') {
+            return [false, 'Người này đã được điểm danh rồi.'];
+        }
+        error_log('[EventFlow] check-in failed: ' . $e->getMessage());
+        return [false, 'Không thể điểm danh. Vui lòng thử lại.'];
+    }
+}
+
