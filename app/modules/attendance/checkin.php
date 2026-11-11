@@ -168,3 +168,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // ---------------------------------------------------------------------------
 // GET 1: chưa chọn sự kiện → danh sách sự kiện của CLB
+// ---------------------------------------------------------------------------
+if ($eventId === 0) {
+    $in = implode(',', array_map('intval', $clubIds));
+    $events = $pdo->query("
+        SELECT e.EventID, e.EventName, e.StartTime, e.Location, e.Status,
+               (SELECT COUNT(*) FROM Event_Registration r
+                 WHERE r.EventID = e.EventID AND r.Status = 'Registered') AS RegisteredCount
+        FROM Event e
+        WHERE e.ClubID IN ({$in}) AND e.Status <> 'Draft'
+        ORDER BY e.StartTime DESC
+    ")->fetchAll();
+
+    $pageTitle = 'Điểm danh — EventFlow';
+    require_once __DIR__ . '/../../includes/header.php';
+    ?>
+    <div class="container py-4">
+        <div class="mb-4">
+            <h1 class="h3 fw-bold text-dark mb-1">Điểm danh sự kiện</h1>
+            <p class="text-muted small mb-0">Chọn sự kiện để điểm danh người tham gia.</p>
+        </div>
+
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <?php if (empty($events)): ?>
+                <div class="p-5 text-center text-muted">Chưa có sự kiện nào của CLB.</div>
+            <?php else: ?>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">Sự kiện</th>
+                                <th>Thời gian</th>
+                                <th>Đã đăng ký</th>
+                                <th>Trạng thái</th>
+                                <th class="text-end pe-4"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        <?php foreach ($events as $e): ?>
+                            <tr>
+                                <td class="ps-4 fw-semibold text-dark"><?= $h($e['EventName']) ?></td>
+                                <td class="small text-nowrap"><?= $h(event_fmt_dt($e['StartTime'])) ?></td>
+                                <td class="font-mono small"><?= (int)$e['RegisteredCount'] ?></td>
+                                <td class="small"><?= $e['Status'] === 'Cancelled' ? 'Đã hủy' : 'Đang công bố' ?></td>
+                                <td class="text-end pe-4">
+                                    <?php if ($e['Status'] !== 'Cancelled'): ?>
+                                        <a href="<?= $h($pageUrl . '?event_id=' . (int)$e['EventID']) ?>" class="btn btn-sm btn-primary">Điểm danh</a>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php
+    require_once __DIR__ . '/../../includes/footer.php';
+    exit;
+}
+
