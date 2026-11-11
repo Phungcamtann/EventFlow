@@ -31,3 +31,13 @@ function att_allowed_club_ids(PDO $pdo): array {
 /**
  * Tải sự kiện nếu thuộc một trong các CLB được phép. Trả về null nếu không.
  */
+function att_load_event(PDO $pdo, int $eventId, array $clubIds): ?array {
+    if ($eventId <= 0 || $clubIds === []) {
+        return null;
+    }
+    $in = implode(',', array_map('intval', $clubIds)); // đã ép kiểu int, an toàn để nối chuỗi
+    $stmt = $pdo->prepare("SELECT * FROM Event WHERE EventID = :id AND ClubID IN ({$in}) LIMIT 1");
+    $stmt->execute([':id' => $eventId]);
+    return $stmt->fetch() ?: null;
+}
+
