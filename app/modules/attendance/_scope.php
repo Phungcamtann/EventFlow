@@ -28,3 +28,6 @@ function att_allowed_club_ids(PDO $pdo): array {
     return array_values(array_unique($ids));
 }
 
+/**
+ * Tải sự kiện nếu thuộc một trong các CLB được phép. Trả về null nếu không.
+ */
