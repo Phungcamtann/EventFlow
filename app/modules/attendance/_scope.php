@@ -10,3 +10,21 @@
  * Danh sách ClubID người dùng được phép thao tác.
  * @return int[]
  */
+function att_allowed_club_ids(PDO $pdo): array {
+    $ids = [];
+
+    if (is_club_manager()) {
+        $club = event_manager_club($pdo, (int)current_user_id());
+        if ($club) {
+            $ids[] = (int)$club['ClubID'];
+        }
+    }
+
+    $sessionClub = $_SESSION['user']['ClubID'] ?? null;
+    if (is_authorized_club_member() && $sessionClub !== null) {
+        $ids[] = (int)$sessionClub;
+    }
+
+    return array_values(array_unique($ids));
+}
+
