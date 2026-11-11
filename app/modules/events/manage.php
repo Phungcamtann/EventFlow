@@ -81,3 +81,101 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // ---------------------------------------------------------------------------
 // Dữ liệu hiển thị
+// ---------------------------------------------------------------------------
+$now  = event_now($pdo);
+$stmt = $pdo->prepare("
+    SELECT e.*,
+           (SELECT COUNT(*) FROM Event_Registration r
+             WHERE r.EventID = e.EventID AND r.Status = 'Registered') AS RegisteredCount
+    FROM Event e
+    WHERE e.ClubID = :c
+    ORDER BY e.StartTime DESC
+");
+$stmt->execute([':c' => $clubId]);
+$events = $stmt->fetchAll();
+
+$pageTitle = 'Quản lý sự kiện — EventFlow';
+require_once __DIR__ . '/../../includes/header.php';
+?>
+
+<div class="container py-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-4">
+        <div>
+            <h1 class="h3 fw-bold text-dark mb-1">Quản lý sự kiện</h1>
+            <p class="text-muted small mb-0"><?= $h($club['ClubName']) ?> — gồm cả bản nháp và sự kiện đã hủy.</p>
+        </div>
+        <a href="<?= base_url('app/modules/events/form.php') ?>" class="btn btn-primary fw-semibold">
+            <i class="bi bi-plus-circle me-1"></i> Tạo sự kiện mới
+        </a>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <?php if (empty($events)): ?>
+            <div class="p-5 text-center text-muted">
+                <i class="bi bi-calendar-x fs-1 d-block mb-2"></i>
+                Chưa có sự kiện nào. Hãy tạo sự kiện đầu tiên của CLB.
+            </div>
+        <?php else: ?>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Sự kiện</th>
+                            <th>Thời gian</th>
+                            <th>Địa điểm</th>
+                            <th class="text-nowrap">Đã đăng ký</th>
+                            <th>Trạng thái</th>
+                            <th class="text-end pe-4">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($events as $evt):
+                        $state     = event_state($evt, (int)$evt['RegisteredCount'], $now);
+                        $isEnded   = $now >= $evt['EndTime'];
+                        $canEdit   = $evt['Status'] !== 'Cancelled';
+                        $canCancel = $evt['Status'] === 'Published' && !$isEnded;
+                    ?>
+                        <tr>
+                            <td class="ps-4">
+                                <div class="fw-semibold text-dark"><?= $h($evt['EventName']) ?></div>
+                                <?php if ($isEnded && $evt['Status'] === 'Published'): ?>
+                                    <div class="small text-muted">Đã kết thúc</div>
+                                <?php endif; ?>
+                            </td>
+                            <td class="small text-nowrap">
+                                <?= $h(event_fmt_dt($evt['StartTime'])) ?><br>
+                                <span class="text-muted">đến <?= $h(event_fmt_dt($evt['EndTime'])) ?></span>
+                            </td>
+                            <td class="small"><?= $h($evt['Location']) ?></td>
+                            <td class="font-mono small text-nowrap"><?= $h(event_seats_text($state)) ?></td>
+                            <td><span class="badge-pill-custom <?= $h($state['css_class']) ?>"><?= $h($state['label']) ?></span></td>
+                            <td class="text-end pe-4 text-nowrap">
+                                <a href="<?= base_url('app/modules/events/detail.php?id=' . (int)$evt['EventID']) ?>"
+                                   class="btn btn-sm btn-outline-secondary" title="Xem chi tiết"><i class="bi bi-eye"></i></a>
+                                <?php if ($canEdit): ?>
+                                    <a href="<?= base_url('app/modules/events/form.php?id=' . (int)$evt['EventID']) ?>"
+                                       class="btn btn-sm btn-outline-primary" title="Chỉnh sửa"><i class="bi bi-pencil"></i></a>
+                                <?php endif; ?>
+                                <?php if ($canCancel): ?>
+                                    <form method="POST" action="<?= $h($manageUrl) ?>" class="d-inline"
+                                          data-name="<?= $h($evt['EventName']) ?>"
+                                          onsubmit="return confirm('Hủy sự kiện &quot;' + this.dataset.name + '&quot;?\nDữ liệu đăng ký vẫn được giữ nhưng sự kiện sẽ chuyển sang trạng thái Đã hủy và không thể hoàn tác.');">
+                                        <?= csrf_field() ?>
+                                        <input type="hidden" name="action" value="cancel_event">
+                                        <input type="hidden" name="event_id" value="<?= (int)$evt['EventID'] ?>">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Hủy sự kiện">
+                                            <i class="bi bi-x-circle"></i> Hủy
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
+    </div>
+</div>
+
+<?php require_once __DIR__ . '/../../includes/footer.php'; ?>
