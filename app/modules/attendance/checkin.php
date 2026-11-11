@@ -91,3 +91,46 @@ function att_checkin(PDO $pdo, int $eventId, int $regId, int $staffId): array {
  * Bỏ điểm danh (khi bấm nhầm). Chỉ xóa dòng Attendance, không đụng đăng ký.
  * Chỉ làm được khi sự kiện chưa kết thúc.
  */
+function att_undo(PDO $pdo, int $eventId, int $regId): array {
+    $rollback = static function (string $msg) use ($pdo): array {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        return [false, $msg];
+    };
+
+    try {
+        $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare("
+            SELECT att.AttendanceID, e.EndTime
+            FROM Attendance att
+            JOIN Event_Registration r ON r.RegID = att.RegID
+            JOIN Event e ON e.EventID = r.EventID
+            WHERE att.RegID = :r AND r.EventID = :e
+            FOR UPDATE
+        ");
+        $stmt->execute([':r' => $regId, ':e' => $eventId]);
+        $row = $stmt->fetch();
+
+        if (!$row) {
+            return $rollback('Người này chưa được điểm danh.');
+        }
+        if (event_now($pdo) >= $row['EndTime']) {
+            return $rollback('Sự kiện đã kết thúc, không thể bỏ điểm danh.');
+        }
+
+        $del = $pdo->prepare("DELETE FROM Attendance WHERE AttendanceID = :id");
+        $del->execute([':id' => (int)$row['AttendanceID']]);
+
+        $pdo->commit();
+        return [true, 'Đã bỏ điểm danh.'];
+    } catch (PDOException $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log('[EventFlow] undo check-in failed: ' . $e->getMessage());
+        return [false, 'Không thể bỏ điểm danh. Vui lòng thử lại.'];
+    }
+}
+
