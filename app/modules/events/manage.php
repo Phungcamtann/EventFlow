@@ -104,9 +104,14 @@ require_once __DIR__ . '/../../includes/header.php';
             <h1 class="h3 fw-bold text-dark mb-1">Quản lý sự kiện</h1>
             <p class="text-muted small mb-0"><?= $h($club['ClubName']) ?> — gồm cả bản nháp và sự kiện đã hủy.</p>
         </div>
-        <a href="<?= base_url('app/modules/events/form.php') ?>" class="btn btn-primary fw-semibold">
-            <i class="bi bi-plus-circle me-1"></i> Tạo sự kiện mới
-        </a>
+        <div class="d-flex gap-2">
+            <a href="<?= base_url('app/modules/attendance/stats.php') ?>" class="btn btn-outline-primary fw-semibold">
+                <i class="bi bi-bar-chart-line me-1"></i> Báo cáo thống kê
+            </a>
+            <a href="<?= base_url('app/modules/events/form.php') ?>" class="btn btn-primary fw-semibold">
+                <i class="bi bi-plus-circle me-1"></i> Tạo sự kiện mới
+            </a>
+        </div>
     </div>
 
     <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
@@ -152,6 +157,8 @@ require_once __DIR__ . '/../../includes/header.php';
                             <td class="text-end pe-4 text-nowrap">
                                 <a href="<?= base_url('app/modules/events/detail.php?id=' . (int)$evt['EventID']) ?>"
                                    class="btn btn-sm btn-outline-secondary" title="Xem chi tiết"><i class="bi bi-eye"></i></a>
+                                <a href="<?= base_url('app/modules/attendance/checkin.php?event_id=' . (int)$evt['EventID']) ?>"
+                                   class="btn btn-sm btn-outline-success" title="Điểm danh sự kiện"><i class="bi bi-clipboard-check"></i></a>
                                 <?php if ($canEdit): ?>
                                     <a href="<?= base_url('app/modules/events/form.php?id=' . (int)$evt['EventID']) ?>"
                                        class="btn btn-sm btn-outline-primary" title="Chỉnh sửa"><i class="bi bi-pencil"></i></a>

@@ -68,6 +68,7 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
                                     <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item py-2" href="<?= base_url('app/modules/events/manage.php') ?>"><i class="bi bi-calendar-event me-2"></i> Quản lý sự kiện nội bộ</a></li>
                                     <li><a class="dropdown-item py-2" href="<?= base_url('app/modules/attendance/checkin.php') ?>"><i class="bi bi-clipboard-check me-2"></i> Điểm danh sự kiện</a></li>
+                                    <li><a class="dropdown-item py-2" href="<?= base_url('app/modules/attendance/stats.php') ?>"><i class="bi bi-bar-chart-line me-2"></i> Báo cáo thống kê</a></li>
                                 </ul>
                             </li>
                         <?php endif; ?>
