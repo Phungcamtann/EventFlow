@@ -6,3 +6,7 @@
  * Dùng chung cho registrations.php (SCR13) và checkin.php (SCR14).
  */
 
+/**
+ * Danh sách ClubID người dùng được phép thao tác.
+ * @return int[]
+ */
