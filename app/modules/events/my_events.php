@@ -26,3 +26,7 @@ $stmt = $pdo->prepare("
 $stmt->execute([':uid' => $userId]);
 $rows = $stmt->fetchAll();
 
+/**
+ * Trạng thái tham dự hiển thị cho một đăng ký.
+ * Trả về [nhãn, class badge].
+ */
