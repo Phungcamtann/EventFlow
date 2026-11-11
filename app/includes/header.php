@@ -15,12 +15,12 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($title) ?></title>
-    
+
     <!-- Bootstrap 5.3 CSS CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <!-- Bootstrap Icons CDN -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    
+
     <!-- Custom Design System CSS -->
     <link rel="stylesheet" href="<?= base_url('assets/css/style.css') ?>?v=<?= filemtime(__DIR__ . '/../../assets/css/style.css') ?>">
 </head>
@@ -50,7 +50,7 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
                     <li class="nav-item">
                         <a class="nav-link ef-nav-link" href="<?= base_url('app/modules/club/info.php') ?>">Thông tin CLB</a>
                     </li>
-                    
+
                     <?php if (is_logged_in()): ?>
                         <li class="nav-item">
                             <a class="nav-link ef-nav-link" href="<?= base_url('app/modules/events/my_events.php') ?>">Sự kiện của tôi</a>
@@ -67,7 +67,7 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
                                     <li><a class="dropdown-item py-2" href="<?= base_url('app/modules/club/edit.php') ?>"><i class="bi bi-pencil-square me-2"></i> Chỉnh sửa thông tin CLB</a></li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item py-2" href="<?= base_url('app/modules/events/manage.php') ?>"><i class="bi bi-calendar-event me-2"></i> Quản lý sự kiện nội bộ</a></li>
-                                    <li><a class="dropdown-item py-2" href="<?= base_url('app/modules/attendance/stats.php') ?>"><i class="bi bi-bar-chart-line me-2"></i> Báo cáo thống kê</a></li>
+                                    <li><a class="dropdown-item py-2" href="<?= base_url('app/modules/attendance/checkin.php') ?>"><i class="bi bi-clipboard-check me-2"></i> Điểm danh sự kiện</a></li>
                                 </ul>
                             </li>
                         <?php endif; ?>
@@ -75,7 +75,7 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
                         <!-- Menu ủy quyền hỗ trợ dành cho Authorized Club Member (không phải Manager) -->
                         <?php if (!is_club_manager() && is_authorized_club_member()): ?>
                             <li class="nav-item">
-                                <a class="nav-link ef-nav-link text-success fw-semibold" href="<?= base_url('app/modules/events/manage.php') ?>">
+                                <a class="nav-link ef-nav-link text-success fw-semibold" href="<?= base_url('app/modules/attendance/checkin.php') ?>">
                                     <i class="bi bi-clipboard-check me-1"></i> Hỗ trợ điểm danh
                                 </a>
                             </li>
