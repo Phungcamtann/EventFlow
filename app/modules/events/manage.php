@@ -66,3 +66,16 @@ function event_cancel(PDO $pdo, int $eventId, int $clubId): array {
 // ---------------------------------------------------------------------------
 // Xử lý POST: hủy sự kiện (Post/Redirect/Get)
 // ---------------------------------------------------------------------------
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verify_csrf_token()) {
+        set_flash('danger', 'Mã xác thực không hợp lệ hoặc phiên làm việc đã hết hạn. Vui lòng thử lại.');
+    } elseif (($_POST['action'] ?? '') === 'cancel_event') {
+        [$ok, $msg] = event_cancel($pdo, (int)($_POST['event_id'] ?? 0), $clubId);
+        set_flash($ok ? 'success' : 'danger', $msg);
+    } else {
+        set_flash('danger', 'Thao tác không hợp lệ.');
+    }
+    header('Location: ' . $manageUrl);
+    exit;
+}
+
