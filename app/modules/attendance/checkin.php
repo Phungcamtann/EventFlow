@@ -231,3 +231,167 @@ if ($eventId === 0) {
 
 // ---------------------------------------------------------------------------
 // GET 2: điểm danh một sự kiện
+// ---------------------------------------------------------------------------
+$evt = att_load_event($pdo, $eventId, $clubIds);
+if (!$evt) {
+    set_flash('danger', 'Không tìm thấy sự kiện hoặc bạn không thuộc CLB tổ chức sự kiện này.');
+    header('Location: ' . $pageUrl);
+    exit;
+}
+
+$now        = event_now($pdo);
+$canCheckIn = $evt['Status'] === 'Published' && $now < $evt['EndTime'];
+$last       = (int)($_GET['last'] ?? 0);
+
+$stmt = $pdo->prepare("
+    SELECT r.RegID, a.FullName, a.StudentCode,
+           att.AttendanceStatus, att.CheckInAt
+    FROM Event_Registration r
+    JOIN Account a ON a.AccountID = r.AccountID
+    LEFT JOIN Attendance att ON att.RegID = r.RegID
+    WHERE r.EventID = :e AND r.Status = 'Registered'
+    ORDER BY a.FullName ASC
+");
+$stmt->execute([':e' => $eventId]);
+$regs = $stmt->fetchAll();
+
+$total   = count($regs);
+$checked = 0;
+foreach ($regs as $r) {
+    if ($r['AttendanceStatus'] !== null) {
+        $checked++;
+    }
+}
+
+$pageTitle = 'Điểm danh — EventFlow';
+require_once __DIR__ . '/../../includes/header.php';
+?>
+
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="<?= $h($pageUrl) ?>" class="text-decoration-none text-muted">Chọn sự kiện</a></li>
+            <li class="breadcrumb-item active text-dark fw-semibold" aria-current="page"><?= $h($evt['EventName']) ?></li>
+        </ol>
+    </nav>
+
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+            <h1 class="h3 fw-bold text-dark mb-1"><?= $h($evt['EventName']) ?></h1>
+            <p class="text-muted small mb-0"><?= $h(event_fmt_dt($evt['StartTime'])) ?> · <?= $h($evt['Location']) ?></p>
+        </div>
+        <div class="text-md-end">
+            <div class="small text-muted">Đã điểm danh</div>
+            <div class="h4 fw-bold mb-0 font-mono"><?= $checked ?> / <?= $total ?> <span class="fs-6 fw-normal text-muted">người đăng ký</span></div>
+        </div>
+    </div>
+
+    <?php if (!$canCheckIn): ?>
+        <div class="alert alert-warning rounded-3">
+            Sự kiện không còn mở điểm danh (đã hủy hoặc đã kết thúc). Bạn chỉ có thể xem danh sách.
+        </div>
+    <?php endif; ?>
+
+    <div class="card border-0 shadow-sm rounded-4 p-3 mb-4">
+        <label for="q" class="visually-hidden">Tìm theo họ tên hoặc MSSV</label>
+        <div class="input-group">
+            <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+            <input type="search" id="q" class="form-control border-start-0" autocomplete="off"
+                   placeholder="Gõ họ tên hoặc MSSV để lọc" autofocus>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <?php if (empty($regs)): ?>
+            <div class="p-5 text-center text-muted">Chưa có người đăng ký còn hiệu lực.</div>
+        <?php else: ?>
+            <div class="table-responsive">
+                <table class="table align-middle mb-0" id="regTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Họ và tên</th>
+                            <th>MSSV</th>
+                            <th>Trạng thái</th>
+                            <th class="text-end pe-4">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($regs as $r):
+                        $done   = $r['AttendanceStatus'] !== null;
+                        $isLast = (int)$r['RegID'] === $last;
+                    ?>
+                        <tr data-name="<?= $h($r['FullName']) ?>" data-mssv="<?= $h($r['StudentCode'] ?? '') ?>"
+                            class="<?= $isLast ? 'table-success' : '' ?>">
+                            <td class="ps-4 fw-semibold text-dark"><?= $h($r['FullName']) ?></td>
+                            <td class="font-mono small"><?= $h($r['StudentCode'] ?? '—') ?></td>
+                            <td>
+                                <?php if ($done): ?>
+                                    <span class="badge rounded-pill px-3 py-2 bg-success-subtle text-success">
+                                        Đã điểm danh · <?= $h(event_fmt_dt($r['CheckInAt'])) ?>
+                                    </span>
+                                <?php else: ?>
+                                    <span class="badge rounded-pill px-3 py-2 bg-warning-subtle text-warning-emphasis">Chưa điểm danh</span>
+                                <?php endif; ?>
+                            </td>
+                            <td class="text-end pe-4">
+                                <?php if (!$canCheckIn): ?>
+                                    <span class="text-muted small">—</span>
+                                <?php elseif ($done): ?>
+                                    <form method="POST" action="<?= $h($eventUrl) ?>" class="d-inline">
+                                        <?= csrf_field() ?>
+                                        <input type="hidden" name="action" value="undo">
+                                        <input type="hidden" name="reg_id" value="<?= (int)$r['RegID'] ?>">
+                                        <input type="hidden" name="event_id" value="<?= $eventId ?>">
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary">Bỏ điểm danh</button>
+                                    </form>
+                                <?php else: ?>
+                                    <form method="POST" action="<?= $h($eventUrl) ?>" class="d-inline">
+                                        <?= csrf_field() ?>
+                                        <input type="hidden" name="action" value="checkin">
+                                        <input type="hidden" name="reg_id" value="<?= (int)$r['RegID'] ?>">
+                                        <input type="hidden" name="event_id" value="<?= $eventId ?>">
+                                        <button type="submit" class="btn btn-sm btn-primary">
+                                            <i class="bi bi-check2 me-1"></i>Điểm danh
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <div id="noMatch" class="p-4 text-center text-muted" hidden>Không có người nào khớp với từ khóa.</div>
+        <?php endif; ?>
+    </div>
+</div>
+
+<script>
+// Lọc trực tiếp trên trình duyệt, không cần bấm nút; bỏ dấu tiếng Việt khi so sánh.
+(function () {
+    var input = document.getElementById('q');
+    var table = document.getElementById('regTable');
+    var noMatch = document.getElementById('noMatch');
+    if (!input || !table) return;
+
+    function norm(s) {
+        return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/đ/g, 'd').replace(/Đ/g, 'd').toLowerCase().trim();
+    }
+
+    input.addEventListener('input', function () {
+        var q = norm(input.value), shown = 0;
+        table.querySelectorAll('tbody tr').forEach(function (tr) {
+            var hit = !q || norm(tr.dataset.name).indexOf(q) !== -1 || norm(tr.dataset.mssv).indexOf(q) !== -1;
+            tr.hidden = !hit;
+            if (hit) shown++;
+        });
+        if (noMatch) noMatch.hidden = shown > 0;
+    });
+
+    var highlighted = table.querySelector('tr.table-success');
+    if (highlighted) highlighted.scrollIntoView({ block: 'center' });
+})();
+</script>
+
+<?php require_once __DIR__ . '/../../includes/footer.php'; ?>
