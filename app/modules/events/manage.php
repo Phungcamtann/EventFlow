@@ -63,3 +63,5 @@ function event_cancel(PDO $pdo, int $eventId, int $clubId): array {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Xử lý POST: hủy sự kiện (Post/Redirect/Get)
