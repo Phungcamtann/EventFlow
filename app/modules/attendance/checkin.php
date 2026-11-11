@@ -26,3 +26,7 @@ if ($clubIds === []) {
     render_forbidden_page('Tài khoản của bạn chưa được gán cho CLB nào để điểm danh.');
 }
 
+/**
+ * Điểm danh một người. Trả về [bool, thông báo].
+ * Khóa dòng đăng ký (FOR UPDATE); Attendance.RegID là UNIQUE nên chặn trùng ở tầng DB.
+ */
