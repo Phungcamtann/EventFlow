@@ -134,3 +134,5 @@ function att_undo(PDO $pdo, int $eventId, int $regId): array {
     }
 }
 
+// ---------------------------------------------------------------------------
+// POST: điểm danh / bỏ điểm danh (Post/Redirect/Get)
