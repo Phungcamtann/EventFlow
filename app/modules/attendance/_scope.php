@@ -44,3 +44,6 @@ function att_load_event(PDO $pdo, int $eventId, array $clubIds): ?array {
 /**
  * Ghép chuỗi tìm kiếm thành mẫu LIKE an toàn (escape % và _).
  */
+function att_like(string $q): string {
+    return '%' . addcslashes($q, '%_\\') . '%';
+}
