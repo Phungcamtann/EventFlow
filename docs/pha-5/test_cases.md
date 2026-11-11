@@ -1,10 +1,10 @@
-# 🧪 Pha 5: Bộ Kịch Bản Kiểm Thử (Test Cases) — Quản lý Sự kiện, Đăng ký & Điểm danh
+# 🧪 Pha 5: Bộ Kịch Bản Kiểm Thử (Test Cases) — Quản lý Sự kiện, Đăng ký, Điểm danh & Thống kê
 
 > **Dự án:** EventFlow — Quản lý Hoạt động và Thành viên CLB Tiếng Anh Sinh Viên  
-> **Phân hệ:** Quản lý Sự kiện, Đăng ký & Điểm danh (`SCR08` – `SCR14`)  
+> **Phân hệ:** Quản lý Sự kiện, Đăng ký, Điểm danh & Thống kê (`SCR08` – `SCR15`)  
 > **Người thực hiện:** QA / Tester (Tiêu Lâm Định Quốc)  
 > **Ngày lập:** 11/11/2026  
-> **Trạng thái:** 🟢 Đã thiết kế & Sẵn sàng thực thi  
+> **Trạng thái:** 🟢 Hoàn thành 100% — Sẵn sàng nghiệm thu UAT  
 
 ---
 
@@ -12,11 +12,11 @@
 
 | Vai trò kiểm thử | Email đăng nhập | Mật khẩu mặc định | Ghi chú quyền hạn |
 |:---|:---|:---|:---|
-| **Club Manager** | `manager@eventflow.local` | `Password@123` | Quản lý sự kiện, tạo/sửa/hủy, điểm danh CLB ID = 1 |
-| **Event Supporter** | `supporter@eventflow.local` | `Password@123` | Thành viên ủy quyền (Active), được quyền điểm danh |
-| **Club Member** | `member@eventflow.local` | `Password@123` | Thành viên CLB thông thường, đăng ký/hủy sự kiện |
-| **Event Participant**| `student@eventflow.local` | `Password@123` | Sinh viên đăng ký tham gia sự kiện |
-| **System Admin** | `admin@eventflow.local` | `Password@123` | Quản trị tài khoản, không tham gia đăng ký/điểm danh |
+| **Club Manager** | `manager@eventflow.local` | `Password@123` | Quản trị CLB, tạo/sửa/hủy sự kiện, xem danh sách đăng ký, điểm danh và xem báo cáo thống kê |
+| **Event Supporter** | `supporter@eventflow.local` | `Password@123` | Thành viên ủy quyền (Active), được quyền xem danh sách đăng ký và điểm danh |
+| **Club Member** | `member@eventflow.local` | `Password@123` | Thành viên CLB thông thường, đăng ký/hủy tham gia sự kiện, xem hoạt động cá nhân |
+| **Event Participant**| `student@eventflow.local` | `Password@123` | Sinh viên đăng ký tham gia sự kiện, xem hoạt động cá nhân |
+| **System Admin** | `admin@eventflow.local` | `Password@123` | Quản trị tài khoản hệ thống (SCR16) |
 
 ---
 
@@ -48,26 +48,26 @@
 
 ---
 
-### Nhóm 3: Biểu Mẫu Tạo & Chỉnh Sửa Sự Kiện (`SCR10` — `form.php` / FR09, PB11, PB12)
+### Nhóm 3: Biểu Mẫu Tạo & Chỉnh Sửa Sự Kiện (`SCR10` — `form.php` / FR09, PB11, PB12, BR04)
 
 | Mã TC | Tên ca kiểm thử | Tiền điều kiện | Các bước thực hiện | Dữ liệu đầu vào | Kết quả mong đợi | Trạng thái |
 |:---|:---|:---|:---|:---|:---|:---:|
 | **TC_SP5_13** | Tạo sự kiện mới hợp lệ | Đăng nhập `Club Manager` | 1. Vào `app/modules/events/form.php`.<br>2. Nhập đầy đủ thông tin hợp lệ.<br>3. Chọn trạng thái `Published`.<br>4. Nhấn "Lưu sự kiện". | Tên sự kiện, Địa điểm, Thời gian hợp lệ, Sức chứa: 50 | Lưu thành công vào bảng `Event`, hiển thị thông báo flash xanh tại màn hình `manage.php`. | ⬜ Pass |
 | **TC_SP5_14** | Bỏ trống trường bắt buộc | Đăng nhập `Club Manager` | 1. Vào form tạo mới.<br>2. Bỏ trống Tên hoặc Địa điểm.<br>3. Nhấn Lưu. | Tên rỗng | Báo lỗi validation đỏ: "Vui lòng nhập tên sự kiện.", "Vui lòng nhập địa điểm." | ⬜ Pass |
-| **TC_SP5_15** | Ràng buộc thời gian kết thúc | Đăng nhập `Club Manager` | 1. Nhập `EndTime` nhỏ hơn hoặc bằng `StartTime`.<br>2. Nhấn Lưu. | End: `10:00`, Start: `11:00` | Báo lỗi: "Thời gian kết thúc phải sau thời gian bắt đầu." | ⬜ Pass |
-| **TC_SP5_16** | Ràng buộc hạn chót đăng ký | Đăng nhập `Club Manager` | 1. Nhập `RegistrationDeadline` sau `StartTime`.<br>2. Nhấn Lưu. | Deadline: `12:00`, Start: `10:00` | Báo lỗi: "Hạn đăng ký phải nhỏ hơn hoặc bằng thời gian bắt đầu sự kiện." | ⬜ Pass |
+| **TC_SP5_15** | Ràng buộc thời gian kết thúc (BR04) | Đăng nhập `Club Manager` | 1. Nhập `EndTime` nhỏ hơn hoặc bằng `StartTime`.<br>2. Nhấn Lưu. | End: `10:00`, Start: `11:00` | Báo lỗi: "Thời gian kết thúc phải sau thời gian bắt đầu." | ⬜ Pass |
+| **TC_SP5_16** | Ràng buộc hạn chót đăng ký (BR04) | Đăng nhập `Club Manager` | 1. Nhập `RegistrationDeadline` sau `StartTime`.<br>2. Nhấn Lưu. | Deadline: `12:00`, Start: `10:00` | Báo lỗi: "Hạn đăng ký phải nhỏ hơn hoặc bằng thời gian bắt đầu sự kiện." | ⬜ Pass |
 | **TC_SP5_17** | Chỉnh sửa sự kiện thành công | Đăng nhập `Club Manager`, sự kiện chưa hủy | 1. Tại `manage.php`, bấm nút Chỉnh sửa.<br>2. Sửa địa điểm hoặc mô tả.<br>3. Nhấn Lưu cập nhật. | Địa điểm mới: "Hội trường A" | Cập nhật thành công vào CSDL, chuyển hướng về `manage.php`. | ⬜ Pass |
 | **TC_SP5_18** | Chặn giảm sức chứa dưới số đã đăng ký | Sự kiện đã có 10 người đăng ký | 1. Chỉnh sửa sự kiện.<br>2. Nhập `MaxCapacity = 5`.<br>3. Nhấn Lưu. | `MaxCapacity = 5` (< 10) | Báo lỗi: "Số chỗ tối đa không được nhỏ hơn số người đã đăng ký hiện tại (10)." | ⬜ Pass |
 | **TC_SP5_19** | Chặn sửa sự kiện đã hủy | Sự kiện có `Status = 'Cancelled'` | 1. Cố ý truy cập `form.php?id={CancelledEventID}`. | ID sự kiện đã hủy | Chuyển hướng về `manage.php` kèm cảnh báo "Sự kiện đã bị hủy nên không thể chỉnh sửa." | ⬜ Pass |
 
 ---
 
-### Nhóm 4: Quản Lý Sự Kiện Nội Bộ & Hủy Sự Kiện (`SCR11` — `manage.php` / FR09, PB11, PB12)
+### Nhóm 4: Quản Lý Sự Kiện Nội Bộ & Hủy Sự Kiện (`SCR11` — `manage.php` / FR09, PB11, PB12, BR05)
 
 | Mã TC | Tên ca kiểm thử | Tiền điều kiện | Các bước thực hiện | Dữ liệu đầu vào | Kết quả mong đợi | Trạng thái |
 |:---|:---|:---|:---|:---|:---|:---:|
 | **TC_SP5_20** | Xem danh sách sự kiện nội bộ | Đăng nhập `Club Manager` | 1. Chọn menu "Quản lý sự kiện nội bộ". | URL `events/manage.php` | Hiển thị toàn bộ sự kiện của CLB (Draft, Published, Cancelled) kèm số lượng đăng ký thực tế. | ⬜ Pass |
-| **TC_SP5_21** | Hủy sự kiện bảo toàn dữ liệu | Đăng nhập `Club Manager`, sự kiện chưa kết thúc | 1. Bấm nút "Hủy sự kiện".<br>2. Xác nhận hộp thoại hủy. | Action: `cancel_event` | `Event.Status` chuyển thành `'Cancelled'`. Bản ghi trong `Event_Registration` và `Attendance` được giữ nguyên vẹn 100%. | ⬜ Pass |
+| **TC_SP5_21** | Hủy sự kiện bảo toàn dữ liệu (BR05) | Đăng nhập `Club Manager`, sự kiện chưa kết thúc | 1. Bấm nút "Hủy sự kiện".<br>2. Xác nhận hộp thoại hủy. | Action: `cancel_event` | `Event.Status` chuyển thành `'Cancelled'`. Bản ghi trong `Event_Registration` và `Attendance` được giữ nguyên vẹn 100%. | ⬜ Pass |
 | **TC_SP5_22** | Chặn hủy sự kiện đã kết thúc | Sự kiện có `EndTime <= NOW()` | 1. Quan sát dòng sự kiện đã kết thúc.<br>2. Cố gửi request hủy. | Sự kiện quá khứ | Nút hủy bị ẩn. Gửi request trực tiếp bị chặn: "Sự kiện đã kết thúc, không thể hủy." | ⬜ Pass |
 
 ---
@@ -81,21 +81,48 @@
 
 ---
 
-### Nhóm 6: Danh Sách Đăng Ký & Điểm Danh (`SCR13`, `SCR14` — `checkin.php` / FR14, FR15, PB17, PB18, PB19)
+### Nhóm 6: Danh Sách Đăng Ký Theo Sự Kiện (`SCR13` — `registrations.php` / FR14, PB17, UC11)
 
 | Mã TC | Tên ca kiểm thử | Tiền điều kiện | Các bước thực hiện | Dữ liệu đầu vào | Kết quả mong đợi | Trạng thái |
 |:---|:---|:---|:---|:---|:---|:---:|
-| **TC_SP5_25** | Phân quyền điểm danh 2 tầng | Đăng nhập lần lượt các tài khoản | 1. Truy cập `attendance/checkin.php`. | Các vai trò khác nhau | - `Club Manager` & `Event Supporter`: Vào thành công.<br>- `Club Member` & `Participant`: Bị chặn thông báo 403 Forbidden. | ⬜ Pass |
-| **TC_SP5_26** | Lọc tìm kiếm tức thời không dấu | Vào trang điểm danh của 1 sự kiện | 1. Nhập họ tên không dấu hoặc có dấu vào ô tìm kiếm.<br>2. Nhập thử MSSV. | Ô tìm kiếm: `nguyen` hoặc `3124...` | Bảng tự động ẩn các dòng không khớp ngay tức thì mà không cần bấm nút tìm kiếm, tốc độ phản hồi $\le 1\text{s}$ (đạt NFR03). | ⬜ Pass |
-| **TC_SP5_27** | Điểm danh thành công (Check-in) | Người tham gia chưa điểm danh, sự kiện chưa kết thúc | 1. Bấm nút "Điểm danh" tại dòng người tham gia. | Action: `checkin`, `reg_id` | Ghi nhận vào bảng `Attendance` (`AttendanceStatus = 1`), dòng được highlight màu xanh, số lượng đã điểm danh tăng lên. | ⬜ Pass |
-| **TC_SP5_28** | Bỏ điểm danh thành công (Undo) | Người tham gia đã được điểm danh trước đó | 1. Bấm nút "Bỏ điểm danh" trên dòng đã điểm danh. | Action: `undo`, `reg_id` | Xóa bản ghi khỏi bảng `Attendance`, trạng thái đổi lại "Chưa điểm danh", số người đã điểm danh giảm 1. | ⬜ Pass |
-| **TC_SP5_29** | Chặn điểm danh khi sự kiện đã kết thúc | Sự kiện có `EndTime <= NOW()` | 1. Vào trang điểm danh sự kiện đã qua. | Sự kiện quá khứ | Hiển thị cảnh báo màu vàng "Sự kiện không còn mở điểm danh...". Các nút điểm danh bị ẩn. | ⬜ Pass |
+| **TC_SP5_25** | Xem danh sách chọn sự kiện | Đăng nhập `Club Manager` hoặc `Event Supporter` | 1. Truy cập `attendance/registrations.php`. | URL không có `event_id` | Hiển thị danh sách các sự kiện của CLB, số đăng ký, số đã hủy, sức chứa và nút "Xem danh sách". | ⬜ Pass |
+| **TC_SP5_26** | Xem chi tiết danh sách người đăng ký | Đã chọn 1 sự kiện cụ thể | 1. Bấm "Xem danh sách" của sự kiện. | URL `registrations.php?event_id=X` | Hiển thị đầy đủ thông tin: Họ tên, MSSV, Email, Ngày đăng ký, Trạng thái đăng ký và Trạng thái điểm danh. | ⬜ Pass |
+| **TC_SP5_27** | Hiển thị 4 thẻ KPI tóm tắt số chỗ | Vào trang đăng ký của sự kiện | 1. Quan sát 4 thẻ KPI đầu trang. | Dữ liệu sự kiện | Hiển thị chính xác: Đăng ký hợp lệ, Sức chứa tối đa, Số chỗ còn trống, và Số người đã điểm danh. | ⬜ Pass |
+| **TC_SP5_28** | Lọc theo trạng thái đăng ký | Danh sách có cả người đăng ký và người đã hủy | 1. Bấm radio "Hợp lệ".<br>2. Bấm radio "Đã hủy".<br>3. Bấm radio "Tất cả". | Bộ lọc trạng thái | Bảng lọc đúng đối tượng: Chỉ hiện người đang giữ chỗ, chỉ hiện người đã hủy, hoặc hiện tất cả. | ⬜ Pass |
+| **TC_SP5_29** | Tìm kiếm tức thời không dấu client JS | Danh sách có nhiều người tham gia | 1. Gõ tên không dấu (vd: `nguyen`).<br>2. Gõ MSSV hoặc Email. | Từ khóa tìm kiếm | Bảng tự động ẩn các dòng không khớp ngay tức thì không tải lại trang ($\le 1\text{s}$ đạt NFR03). | ⬜ Pass |
+| **TC_SP5_30** | Nút chuyển nhanh sang Điểm danh | Đang ở trang danh sách đăng ký | 1. Nhấn nút "Chuyển sang Điểm danh". | URL button | Chuyển hướng chính xác sang `checkin.php?event_id=X` để tiến hành check-in. | ⬜ Pass |
 
 ---
 
-### Nhóm 7: Bảo Mật & Toàn Vẹn Hệ Thống (Security & Integrity)
+### Nhóm 7: Điểm Danh Sự Kiện & Xử Lý Ngoại Lệ (`SCR14` — `checkin.php` / FR15, PB18, PB19, UC12)
 
 | Mã TC | Tên ca kiểm thử | Tiền điều kiện | Các bước thực hiện | Dữ liệu đầu vào | Kết quả mong đợi | Trạng thái |
 |:---|:---|:---|:---|:---|:---|:---:|
-| **TC_SP5_30** | Bảo vệ chống CSRF | Bất kỳ biểu mẫu POST nào (Form, Detail, Checkin, Cancel) | 1. Dùng DevTools sửa hoặc xóa trường `_csrf_token`.<br>2. Submit form. | Token rỗng hoặc không khớp | Thao tác bị từ chối, báo lỗi: "Mã xác thực không hợp lệ hoặc phiên làm việc đã hết hạn." | ⬜ Pass |
-| **TC_SP5_31** | Chống XSS qua dữ liệu nhập | Form tạo/sửa sự kiện | 1. Nhập tên sự kiện chứa thẻ `<script>alert('xss')</script>`.<br>2. Lưu và xem tại trang chủ và chi tiết. | Mã HTML/script | Trình duyệt hiển thị nguyên văn chuỗi văn bản, script không bị thực thi (được mã hóa qua `htmlspecialchars()`). | ⬜ Pass |
+| **TC_SP5_31** | Phân quyền điểm danh 2 tầng | Đăng nhập lần lượt các tài khoản | 1. Truy cập `attendance/checkin.php`. | Các vai trò khác nhau | - `Club Manager` & `Event Supporter`: Vào thành công.<br>- `Club Member` & `Participant`: Bị chặn thông báo 403 Forbidden. | ⬜ Pass |
+| **TC_SP5_32** | Lọc tìm kiếm tức thời không dấu | Vào trang điểm danh của 1 sự kiện | 1. Nhập họ tên không dấu hoặc có dấu vào ô tìm kiếm.<br>2. Nhập thử MSSV. | Ô tìm kiếm: `nguyen` hoặc `3124...` | Bảng tự động lọc tức thời $\le 1\text{s}$ (đạt NFR03). | ⬜ Pass |
+| **TC_SP5_33** | Điểm danh thành công (Check-in) | Người tham gia chưa điểm danh, sự kiện chưa kết thúc | 1. Bấm nút "Điểm danh" tại dòng người tham gia. | Action: `checkin`, `reg_id` | Ghi nhận vào bảng `Attendance` (`AttendanceStatus = 1`), dòng được highlight màu xanh, số lượng đã điểm danh tăng lên. | ⬜ Pass |
+| **TC_SP5_34** | Bỏ điểm danh thành công (Undo) | Người tham gia đã được điểm danh trước đó | 1. Bấm nút "Bỏ điểm danh" trên dòng đã điểm danh. | Action: `undo`, `reg_id` | Xóa bản ghi khỏi bảng `Attendance`, trạng thái đổi lại "Chưa điểm danh", số người đã điểm danh giảm 1. | ⬜ Pass |
+| **TC_SP5_35** | Chặn điểm danh khi sự kiện đã kết thúc | Sự kiện có `EndTime <= NOW()` | 1. Vào trang điểm danh sự kiện đã qua. | Sự kiện quá khứ | Hiển thị cảnh báo màu vàng "Sự kiện không còn mở điểm danh...". Các nút điểm danh bị ẩn. | ⬜ Pass |
+
+---
+
+### Nhóm 8: Báo Cáo Thống Kê Hoạt Động Cơ Bản (`SCR15` — `stats.php` / FR16, PB20, UC13, BR06)
+
+| Mã TC | Tên ca kiểm thử | Tiền điều kiện | Các bước thực hiện | Dữ liệu đầu vào | Kết quả mong đợi | Trạng thái |
+|:---|:---|:---|:---|:---|:---|:---:|
+| **TC_SP5_36** | Phân quyền truy cập Báo cáo Thống kê | Đăng nhập các tài khoản khác nhau | 1. Truy cập `attendance/stats.php`. | Các vai trò hệ thống | - `Club Manager`: Truy cập thành công.<br>- Các vai trò khác (`Supporter`, `Member`, `Student`, `Admin`): Bị chặn 403 Forbidden. | ⬜ Pass |
+| **TC_SP5_37** | Hiển thị 4 thẻ KPI Dashboard toàn CLB | Đăng nhập `Club Manager` | 1. Mở trang Báo cáo thống kê. | URL `attendance/stats.php` | Hiển thị chính xác: Tổng thành viên Active, Tổng số sự kiện, Tổng đăng ký / có mặt, và Tỷ lệ tham dự trung bình toàn CLB (%). | ⬜ Pass |
+| **TC_SP5_38** | Kiểm tra công thức thống kê BR06 | CSDL có sự kiện với số đăng ký và điểm danh thực tế | 1. Đối chiếu số liệu từng dòng trong bảng chi tiết sự kiện. | Dữ liệu CSDL | Tính toán chính xác 100% theo BR06:<br>- `Số đăng ký` = `COUNT(RegID WHERE Status='Registered')`<br>- `Số có mặt` = `COUNT(AttendanceID WHERE AttendanceStatus=1)`<br>- `Số vắng mặt` = `Số đăng ký - Số có mặt`<br>- `Tỷ lệ %` = `(Có mặt / Đăng ký) * 100%`. | ⬜ Pass |
+| **TC_SP5_39** | Màu sắc thanh tiến độ Progress Bar | Các sự kiện với tỷ lệ tham dự khác nhau | 1. Quan sát thanh tiến độ của từng sự kiện. | Tỷ lệ tham dự đa dạng | - Tỷ lệ $\ge 80\%$: Thanh màu xanh lá (`bg-success`).<br>- Tỷ lệ $50\% - 79\%$: Thanh màu vàng (`bg-warning`).<br>- Tỷ lệ $< 50\%$: Thanh màu đỏ (`bg-danger`). | ⬜ Pass |
+| **TC_SP5_40** | Lọc sự kiện theo trạng thái trong thống kê | Có sự kiện Published, Draft, Cancelled | 1. Chọn lọc "Đang công bố".<br>2. Chọn lọc "Bản nháp".<br>3. Chọn lọc "Đã hủy". | Dropdown trạng thái | Bảng chỉ hiển thị đúng các sự kiện có trạng thái được chọn. | ⬜ Pass |
+| **TC_SP5_41** | Tìm kiếm sự kiện theo tên trong thống kê | Nhập từ khóa tên sự kiện | 1. Nhập từ khóa vào ô tìm kiếm.<br>2. Nhấn nút "Lọc". | Tên sự kiện | Bảng hiển thị chính xác các sự kiện có tên chứa từ khóa tìm kiếm. | ⬜ Pass |
+
+---
+
+### Nhóm 9: Bảo Mật & Toàn Vẹn Hệ Thống (Security & Integrity)
+
+| Mã TC | Tên ca kiểm thử | Tiền điều kiện | Các bước thực hiện | Dữ liệu đầu vào | Kết quả mong đợi | Trạng thái |
+|:---|:---|:---|:---|:---|:---|:---:|
+| **TC_SP5_42** | Bảo vệ chống CSRF | Bất kỳ biểu mẫu POST nào (Form, Detail, Checkin, Cancel) | 1. Dùng DevTools sửa hoặc xóa trường `_csrf_token`.<br>2. Submit form. | Token rỗng hoặc không khớp | Thao tác bị từ chối, báo lỗi: "Mã xác thực không hợp lệ hoặc phiên làm việc đã hết hạn." | ⬜ Pass |
+| **TC_SP5_43** | Chống XSS qua dữ liệu nhập | Form tạo/sửa sự kiện | 1. Nhập tên sự kiện chứa thẻ `<script>alert('xss')</script>`.<br>2. Lưu và xem tại trang chủ, chi tiết, quản lý và thống kê. | Mã HTML/script | Trình duyệt hiển thị nguyên văn chuỗi văn bản, script không bị thực thi (được mã hóa qua `htmlspecialchars()`). | ⬜ Pass |
+| **TC_SP5_44** | Chống Race Condition khi đăng ký đồng thời (NFR01) | Sự kiện chỉ còn đúng 1 chỗ trống duy nhất | 1. 2 tài khoản cùng bấm "Đăng ký" tại cùng 1 giây. | 2 request đồng thời | Cơ chế `SELECT ... FOR UPDATE` đảm bảo chỉ 1 người đăng ký thành công, người còn lại nhận thông báo "Sự kiện đã hết chỗ." Không bao giờ vượt `MaxCapacity`. | ⬜ Pass |
