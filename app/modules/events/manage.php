@@ -18,3 +18,8 @@ if (!$club) {
 }
 $clubId = (int)$club['ClubID'];
 
+/**
+ * Hủy sự kiện: chỉ đổi Event.Status → 'Cancelled'.
+ * KHÔNG xóa / sửa Event_Registration hay Attendance (bảo toàn dữ liệu đăng ký — FR09).
+ * Quy tắc tạm: chỉ hủy sự kiện đã công bố và chưa kết thúc.
+ */
