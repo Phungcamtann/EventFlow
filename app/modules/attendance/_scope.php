@@ -41,3 +41,6 @@ function att_load_event(PDO $pdo, int $eventId, array $clubIds): ?array {
     return $stmt->fetch() ?: null;
 }
 
+/**
+ * Ghép chuỗi tìm kiếm thành mẫu LIKE an toàn (escape % và _).
+ */
