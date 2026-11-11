@@ -87,3 +87,7 @@ function att_checkin(PDO $pdo, int $eventId, int $regId, int $staffId): array {
     }
 }
 
+/**
+ * Bỏ điểm danh (khi bấm nhầm). Chỉ xóa dòng Attendance, không đụng đăng ký.
+ * Chỉ làm được khi sự kiện chưa kết thúc.
+ */
