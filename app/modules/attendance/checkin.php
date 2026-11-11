@@ -137,3 +137,32 @@ function att_undo(PDO $pdo, int $eventId, int $regId): array {
 // ---------------------------------------------------------------------------
 // POST: điểm danh / bỏ điểm danh (Post/Redirect/Get)
 // ---------------------------------------------------------------------------
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $evt = att_load_event($pdo, $eventId, $clubIds);
+    if (!$evt) {
+        set_flash('danger', 'Không tìm thấy sự kiện hoặc bạn không thuộc CLB tổ chức sự kiện này.');
+        header('Location: ' . $pageUrl);
+        exit;
+    }
+
+    $action = $_POST['action'] ?? '';
+    $regId  = (int)($_POST['reg_id'] ?? 0);
+    $last   = '';
+
+    if (!verify_csrf_token()) {
+        set_flash('danger', 'Mã xác thực không hợp lệ hoặc phiên làm việc đã hết hạn. Vui lòng thử lại.');
+    } elseif ($action === 'checkin') {
+        [$ok, $msg] = att_checkin($pdo, $eventId, $regId, (int)current_user_id());
+        set_flash($ok ? 'success' : 'danger', $msg);
+        $last = $ok ? '&last=' . $regId : '';
+    } elseif ($action === 'undo') {
+        [$ok, $msg] = att_undo($pdo, $eventId, $regId);
+        set_flash($ok ? 'success' : 'danger', $msg);
+    } else {
+        set_flash('danger', 'Thao tác không hợp lệ.');
+    }
+
+    header('Location: ' . $eventUrl . $last);
+    exit;
+}
+
