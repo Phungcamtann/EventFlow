@@ -184,9 +184,14 @@ if ($eventId === 0) {
     require_once __DIR__ . '/../../includes/header.php';
     ?>
     <div class="container py-4">
-        <div class="mb-4">
-            <h1 class="h3 fw-bold text-dark mb-1">Điểm danh sự kiện</h1>
-            <p class="text-muted small mb-0">Chọn sự kiện để điểm danh người tham gia.</p>
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+            <div>
+                <h1 class="h3 fw-bold text-dark mb-1">Điểm danh sự kiện</h1>
+                <p class="text-muted small mb-0">Chọn sự kiện để điểm danh người tham gia.</p>
+            </div>
+            <a href="<?= base_url('app/modules/attendance/registrations.php') ?>" class="btn btn-outline-primary">
+                <i class="bi bi-people me-1"></i> Quản lý danh sách đăng ký
+            </a>
         </div>
 
         <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
@@ -280,9 +285,14 @@ require_once __DIR__ . '/../../includes/header.php';
             <h1 class="h3 fw-bold text-dark mb-1"><?= $h($evt['EventName']) ?></h1>
             <p class="text-muted small mb-0"><?= $h(event_fmt_dt($evt['StartTime'])) ?> · <?= $h($evt['Location']) ?></p>
         </div>
-        <div class="text-md-end">
-            <div class="small text-muted">Đã điểm danh</div>
-            <div class="h4 fw-bold mb-0 font-mono"><?= $checked ?> / <?= $total ?> <span class="fs-6 fw-normal text-muted">người đăng ký</span></div>
+        <div class="d-flex align-items-center gap-3 text-md-end">
+            <a href="<?= base_url('app/modules/attendance/registrations.php?event_id=' . $eventId) ?>" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-people me-1"></i> Danh sách đăng ký
+            </a>
+            <div>
+                <div class="small text-muted">Đã điểm danh</div>
+                <div class="h4 fw-bold mb-0 font-mono"><?= $checked ?> / <?= $total ?> <span class="fs-6 fw-normal text-muted">người đăng ký</span></div>
+            </div>
         </div>
     </div>
 
