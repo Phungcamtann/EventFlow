@@ -166,3 +166,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
+// ---------------------------------------------------------------------------
+// GET 1: chưa chọn sự kiện → danh sách sự kiện của CLB
