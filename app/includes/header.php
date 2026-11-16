@@ -15,6 +15,7 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($title) ?></title>
+    <link rel="icon" type="image/png" href="<?= base_url('assets/images/logo.png') ?>">
 
     <!-- Bootstrap 5.3 CSS CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
@@ -32,7 +33,7 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
         <div class="container">
             <!-- Brand Logo -->
             <a class="navbar-brand d-flex align-items-center gap-2" href="<?= base_url() ?>">
-                <div class="ef-logo-icon">E</div>
+                <img src="<?= base_url('assets/images/logo.png') ?>" alt="EventFlow Logo" class="ef-logo-img">
                 <span class="ef-logo-text">EventFlow</span>
             </a>
 
@@ -80,6 +81,13 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
                                     <i class="bi bi-clipboard-check me-1"></i> Hỗ trợ điểm danh
                                 </a>
                             </li>
+                            <?php if (can_manage_club_profile()): ?>
+                                <li class="nav-item">
+                                    <a class="nav-link ef-nav-link text-primary fw-semibold" href="<?= base_url('app/modules/club/edit.php') ?>">
+                                        <i class="bi bi-pencil-square me-1"></i> Cập nhật CLB
+                                    </a>
+                                </li>
+                            <?php endif; ?>
                         <?php endif; ?>
 
                         <!-- Menu Quản trị Hệ thống dành riêng cho System Administrator -->

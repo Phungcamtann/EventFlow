@@ -125,7 +125,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 <!-- Top Brand Info -->
                 <div class="position-relative z-1">
                     <div class="d-flex align-items-center gap-2 mb-4">
-                        <div class="ef-logo-icon bg-white text-primary">E</div>
+                        <img src="<?= base_url('assets/images/logo.png') ?>" alt="EventFlow Logo" class="ef-logo-img rounded-3" style="width: 44px; height: 44px; object-fit: contain;">
                         <span class="fs-4 fw-bold text-white tracking-tight">EventFlow</span>
                     </div>
 

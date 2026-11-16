@@ -258,6 +258,16 @@ require_once __DIR__ . '/../../includes/header.php';
         <!-- THÔNG TIN SỰ KIỆN -->
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100">
+                <?php 
+                $detailBanner = !empty($evt['BannerImage']) ? $evt['BannerImage'] : 'assets/uploads/events/default_banner.jpg';
+                $detailBannerExists = file_exists(__DIR__ . '/../../../' . $detailBanner);
+                ?>
+                <?php if ($detailBannerExists): ?>
+                    <div class="position-relative overflow-hidden" style="max-height: 280px; background-color: #f1f5f9;">
+                        <img src="<?= base_url($detailBanner) ?>" alt="<?= $h($evt['EventName']) ?>" class="w-100" style="height: 260px; object-fit: cover;">
+                    </div>
+                <?php endif; ?>
+
                 <div class="card-header bg-white border-bottom border-light p-4">
                     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
                         <span class="badge-pill-custom <?= $h($state['css_class']) ?>"><?= $h($state['label']) ?></span>

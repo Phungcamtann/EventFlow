@@ -131,11 +131,25 @@ try {
             ?>
                 <div class="col-md-6 col-lg-4">
                     <div class="card card-hover h-100 overflow-hidden border">
-                        <!-- Top Banner Card with Category & Circle -->
-                        <div class="event-card-header <?= $hClass ?>">
-                            <div class="header-circle"></div>
-                            <span><?= htmlspecialchars($cat) ?></span>
-                        </div>
+                        <?php 
+                        $bannerUrl = !empty($evt['BannerImage']) ? $evt['BannerImage'] : 'assets/uploads/events/default_banner.jpg';
+                        $bannerExists = file_exists(__DIR__ . '/' . $bannerUrl);
+                        ?>
+                        <?php if ($bannerExists): ?>
+                            <!-- Top Banner Image -->
+                            <div class="position-relative overflow-hidden" style="height: 180px; background-color: #f1f5f9;">
+                                <img src="<?= base_url($bannerUrl) ?>" alt="<?= htmlspecialchars($evt['EventName']) ?>" class="w-100 h-100" style="object-fit: cover;">
+                                <span class="badge bg-dark bg-opacity-75 text-white position-absolute top-0 start-0 m-3 px-2 py-1 rounded-pill small font-mono">
+                                    <i class="bi bi-tag-fill me-1 text-warning"></i><?= htmlspecialchars($cat) ?>
+                                </span>
+                            </div>
+                        <?php else: ?>
+                            <!-- Fallback Color Banner Card with Category & Circle -->
+                            <div class="event-card-header <?= $hClass ?>">
+                                <div class="header-circle"></div>
+                                <span><?= htmlspecialchars($cat) ?></span>
+                            </div>
+                        <?php endif; ?>
 
                         <!-- Card Body -->
                         <div class="card-body p-4 d-flex flex-column justify-content-between">

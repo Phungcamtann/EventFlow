@@ -136,6 +136,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = 'Trạng thái sự kiện không hợp lệ.';
         }
 
+        // --- Xử lý tải lên Banner sự kiện ---
+        $bannerPath = $isEditMode ? ($evt['BannerImage'] ?? null) : null;
+        if (isset($_FILES['banner_image']) && $_FILES['banner_image']['error'] === UPLOAD_ERR_OK) {
+            $fileTmp  = $_FILES['banner_image']['tmp_name'];
+            $fileName = $_FILES['banner_image']['name'];
+            $fileSize = $_FILES['banner_image']['size'];
+            $ext      = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+
+            $allowedExts = ['jpg', 'jpeg', 'png', 'webp'];
+            if (!in_array($ext, $allowedExts, true)) {
+                $errors[] = 'Định dạng hình ảnh banner không hợp lệ (chỉ chấp nhận JPG, JPEG, PNG, WEBP).';
+            } elseif ($fileSize > 5 * 1024 * 1024) {
+                $errors[] = 'Dung lượng ảnh banner không được vượt quá 5MB.';
+            } else {
+                $finfo = new finfo(FILEINFO_MIME_TYPE);
+                $mime  = $finfo->file($fileTmp);
+                $allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
+                if (!in_array($mime, $allowedMimes, true)) {
+                    $errors[] = 'Tệp tải lên không phải là định dạng hình ảnh hợp lệ.';
+                } else {
+                    $uploadDir = __DIR__ . '/../../../assets/uploads/events/';
+                    if (!is_dir($uploadDir)) {
+                        mkdir($uploadDir, 0755, true);
+                    }
+                    $newFileName = 'event_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+                    $destPath = $uploadDir . $newFileName;
+                    if (move_uploaded_file($fileTmp, $destPath)) {
+                        $bannerPath = 'assets/uploads/events/' . $newFileName;
+                    } else {
+                        $errors[] = 'Không thể lưu hình ảnh banner đã tải lên. Vui lòng thử lại.';
+                    }
+                }
+            }
+        }
+
         // --- Lưu ---
         if (empty($errors)) {
             try {
@@ -166,7 +201,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             UPDATE Event
                             SET EventName = :name, Description = :descr, Location = :loc,
                                 StartTime = :st, EndTime = :et, RegistrationDeadline = :dl,
-                                MaxCapacity = :cap, Status = :status
+                                MaxCapacity = :cap, Status = :status, BannerImage = :banner
                             WHERE EventID = :id AND ClubID = :c
                         ");
                         $up->execute([
@@ -178,6 +213,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             ':dl'     => $deadline,
                             ':cap'    => $capacity,
                             ':status' => $form['Status'],
+                            ':banner' => $bannerPath,
                             ':id'     => $eventId,
                             ':c'      => $clubId,
                         ]);
@@ -189,8 +225,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $ins = $pdo->prepare("
                         INSERT INTO Event
-                            (ClubID, EventName, Description, Location, StartTime, EndTime, RegistrationDeadline, MaxCapacity, Status)
-                        VALUES (:c, :name, :descr, :loc, :st, :et, :dl, :cap, :status)
+                            (ClubID, EventName, Description, Location, StartTime, EndTime, RegistrationDeadline, MaxCapacity, Status, BannerImage)
+                        VALUES (:c, :name, :descr, :loc, :st, :et, :dl, :cap, :status, :banner)
                     ");
                     $ins->execute([
                         ':c'      => $clubId,
@@ -202,6 +238,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ':dl'     => $deadline,
                         ':cap'    => $capacity,
                         ':status' => $form['Status'],
+                        ':banner' => $bannerPath,
                     ]);
                     $pdo->commit();
                     set_flash('success', 'Tạo sự kiện thành công!');
@@ -263,13 +300,30 @@ require_once __DIR__ . '/../../includes/header.php';
                         </div>
                     <?php endif; ?>
 
-                    <form method="POST" action="<?= $h($_SERVER['REQUEST_URI']) ?>" id="eventForm" novalidate>
+                    <form method="POST" action="<?= $h($_SERVER['REQUEST_URI']) ?>" id="eventForm" enctype="multipart/form-data" novalidate>
                         <?= csrf_field() ?>
 
                         <div class="mb-4">
                             <label for="event_name" class="form-label fw-bold text-dark">Tên sự kiện <span class="text-danger">*</span></label>
                             <input type="text" class="form-control rounded-3" id="event_name" name="event_name" maxlength="200"
                                    value="<?= $h($form['EventName']) ?>" required>
+                        </div>
+
+                        <!-- Banner Image Upload -->
+                        <div class="mb-4">
+                            <label for="banner_image" class="form-label fw-bold text-dark">Hình ảnh / Banner sự kiện</label>
+                            <?php if ($isEditMode && !empty($evt['BannerImage']) && file_exists(__DIR__ . '/../../../' . $evt['BannerImage'])): ?>
+                                <div class="mb-2">
+                                    <div class="small text-muted mb-1">Banner hiện tại:</div>
+                                    <img src="<?= base_url($evt['BannerImage']) ?>" alt="Banner hiện tại" class="rounded-3 border" style="max-height: 160px; max-width: 100%; object-fit: cover;">
+                                </div>
+                            <?php endif; ?>
+                            <input type="file" class="form-control rounded-3" id="banner_image" name="banner_image" accept="image/png, image/jpeg, image/jpg, image/webp">
+                            <div class="form-text text-muted">Hỗ trợ định dạng JPG, PNG, WEBP. Dung lượng tối đa 5MB. Kích thước khuyến nghị tỷ lệ ~ 16:9 hoặc 21:9.</div>
+                            <div id="newBannerPreviewContainer" class="mt-2 d-none">
+                                <div class="small text-success fw-semibold mb-1"><i class="bi bi-eye me-1"></i> Xem trước banner mới:</div>
+                                <img id="newBannerPreview" src="#" alt="Xem trước banner" class="rounded-3 border" style="max-height: 160px; max-width: 100%; object-fit: cover;">
+                            </div>
                         </div>
 
                         <div class="mb-4">
@@ -366,6 +420,24 @@ require_once __DIR__ . '/../../includes/header.php';
             box.classList.add('d-none');
         }
     });
+
+    var bannerInput = document.getElementById('banner_image');
+    var bannerPrevBox = document.getElementById('newBannerPreviewContainer');
+    var bannerPrevImg = document.getElementById('newBannerPreview');
+    if (bannerInput && bannerPrevImg) {
+        bannerInput.addEventListener('change', function () {
+            if (this.files && this.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    bannerPrevImg.src = e.target.result;
+                    bannerPrevBox.classList.remove('d-none');
+                };
+                reader.readAsDataURL(this.files[0]);
+            } else {
+                bannerPrevBox.classList.add('d-none');
+            }
+        });
+    }
 })();
 </script>
 

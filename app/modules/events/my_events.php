@@ -13,7 +13,7 @@ $now    = event_now($pdo);
 
 $stmt = $pdo->prepare("
     SELECT r.RegID, r.Status AS RegStatus, r.RegDate,
-           e.EventID, e.EventName, e.Location, e.StartTime, e.EndTime, e.Status AS EventStatus,
+           e.EventID, e.EventName, e.Location, e.StartTime, e.EndTime, e.Status AS EventStatus, e.BannerImage,
            c.ClubName,
            a.AttendanceStatus
     FROM Event_Registration r
@@ -88,10 +88,17 @@ require_once __DIR__ . '/../../includes/header.php';
                     ?>
                         <tr>
                             <td class="ps-4">
-                                <div class="fw-semibold text-dark"><?= $h($row['EventName']) ?></div>
-                                <?php if (!empty($row['ClubName'])): ?>
-                                    <div class="small text-muted"><?= $h($row['ClubName']) ?></div>
-                                <?php endif; ?>
+                                <div class="d-flex align-items-center gap-2">
+                                    <?php if (!empty($row['BannerImage']) && file_exists(__DIR__ . '/../../../' . $row['BannerImage'])): ?>
+                                        <img src="<?= base_url($row['BannerImage']) ?>" alt="" class="rounded-2 border" style="width: 48px; height: 32px; object-fit: cover;">
+                                    <?php endif; ?>
+                                    <div>
+                                        <div class="fw-semibold text-dark"><?= $h($row['EventName']) ?></div>
+                                        <?php if (!empty($row['ClubName'])): ?>
+                                            <div class="small text-muted"><?= $h($row['ClubName']) ?></div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
                             </td>
                             <td class="small text-nowrap">
                                 <?= $h(event_fmt_dt($row['StartTime'])) ?><br>

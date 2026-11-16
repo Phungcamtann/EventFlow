@@ -107,7 +107,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 <!-- Top Brand Info -->
                 <div class="position-relative z-1">
                     <div class="d-flex align-items-center gap-2 mb-4">
-                        <div class="ef-logo-icon bg-white text-primary">E</div>
+                        <img src="<?= base_url('assets/images/logo.png') ?>" alt="EventFlow Logo" class="ef-logo-img rounded-3" style="width: 44px; height: 44px; object-fit: contain;">
                         <span class="fs-4 fw-bold text-white tracking-tight">EventFlow</span>
                     </div>
 
@@ -223,17 +223,6 @@ require_once __DIR__ . '/../../includes/header.php';
                         <a href="<?= base_url('app/modules/auth/register.php') ?>" class="text-primary fw-semibold ms-1">Đăng ký tài khoản</a>
                     </div>
                 </form>
-
-                <!-- Box thông tin tài khoản demo nhanh cho người dùng/giám khảo test -->
-                <div class="mt-5 pt-4 border-top">
-                    <p class="small text-muted fw-semibold mb-2"><i class="bi bi-info-circle me-1"></i> Tài khoản mẫu dùng thử (Mật khẩu: <code>Password@123</code>):</p>
-                    <div class="d-flex flex-wrap gap-1 small">
-                        <span class="badge bg-light text-dark border font-mono">admin@ueh.edu.vn (Admin)</span>
-                        <span class="badge bg-light text-dark border font-mono">manager@st.ueh.edu.vn (Manager)</span>
-                        <span class="badge bg-light text-dark border font-mono">supporter@st.ueh.edu.vn (Supporter)</span>
-                        <span class="badge bg-light text-dark border font-mono">minhan@st.ueh.edu.vn (Member)</span>
-                    </div>
-                </div>
             </div>
         </div>
     </div>

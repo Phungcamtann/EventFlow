@@ -36,6 +36,8 @@ CREATE TABLE IF NOT EXISTS Club (
     ClubID INT AUTO_INCREMENT PRIMARY KEY,
     ClubName VARCHAR(150) NOT NULL,
     Description TEXT NULL,
+    Avatar VARCHAR(255) NULL,
+    BannerImage VARCHAR(255) NULL,
     ContactInfo VARCHAR(255) NULL,
     ManagerID INT NOT NULL,
     CONSTRAINT fk_club_manager FOREIGN KEY (ManagerID) REFERENCES Account(AccountID)
@@ -71,6 +73,7 @@ CREATE TABLE IF NOT EXISTS Event (
     EndTime DATETIME NOT NULL,
     RegistrationDeadline DATETIME NOT NULL,
     MaxCapacity INT NULL,
+    BannerImage VARCHAR(255) NULL,
     Status VARCHAR(30) NOT NULL DEFAULT 'Published',
     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_event_club FOREIGN KEY (ClubID) REFERENCES Club(ClubID)
@@ -129,9 +132,9 @@ INSERT INTO Account (AccountID, Email, PasswordHash, FullName, StudentCode, Role
 (5, 'student@st.ueh.edu.vn', '$2y$10$vjmH8REt.69lxZv/JKtIMeVzgRkOOJU6jJzJIBOGi/JwMYgJHyPVm', 'Lê Hoàng Nam', '31241020999', 4, 1)
 ON DUPLICATE KEY UPDATE FullName = VALUES(FullName);
 
-INSERT INTO Club (ClubID, ClubName, Description, ContactInfo, ManagerID) VALUES
-(1, 'UEH English Club (Bell Club)', 'Câu lạc bộ Tiếng Anh sinh viên trực thuộc Đại học Kinh tế TP. Hồ Chí Minh (UEH). Lĩnh vực hoạt động: Học thuật, Giao lưu văn hóa, Rèn luyện kỹ năng giao tiếp và Tranh biện tiếng Anh.', 'Email: englishclub@ueh.edu.vn | Fanpage: fb.com/uehenglishclub | Cơ sở B - 279 Nguyễn Tri Phương', 2)
-ON DUPLICATE KEY UPDATE ClubName = VALUES(ClubName);
+INSERT INTO Club (ClubID, ClubName, Description, Avatar, BannerImage, ContactInfo, ManagerID) VALUES
+(1, 'UEH English Club (Bell Club)', 'Câu lạc bộ Tiếng Anh sinh viên trực thuộc Đại học Kinh tế TP. Hồ Chí Minh (UEH). Lĩnh vực hoạt động: Học thuật, Giao lưu văn hóa, Rèn luyện kỹ năng giao tiếp và Tranh biện tiếng Anh.', 'assets/uploads/club/ueh_club_avatar.jpg', 'assets/uploads/club/ueh_club_banner.jpg', 'Email: englishclub@ueh.edu.vn | Fanpage: fb.com/uehenglishclub | Cơ sở B - 279 Nguyễn Tri Phương', 2)
+ON DUPLICATE KEY UPDATE ClubName = VALUES(ClubName), Avatar = VALUES(Avatar), BannerImage = VALUES(BannerImage);
 
 INSERT INTO Club_Member (MemberID, AccountID, ClubID, MemberRole, Status, JoinedDate) VALUES
 (1, 2, 1, 'Board Member', 'Active', '2025-09-01'),
@@ -139,8 +142,8 @@ INSERT INTO Club_Member (MemberID, AccountID, ClubID, MemberRole, Status, Joined
 (3, 4, 1, 'Member', 'Active', '2026-01-10')
 ON DUPLICATE KEY UPDATE MemberRole = VALUES(MemberRole);
 
-INSERT INTO Event (EventID, ClubID, EventName, Description, Location, StartTime, EndTime, RegistrationDeadline, MaxCapacity, Status) VALUES
-(1, 1, 'English Speaking Circle', 'Buổi sinh hoạt giao tiếp tiếng Anh định kỳ theo chủ đề dành cho thành viên CLB và sinh viên UEH. Thảo luận các chủ đề đời sống, kết nối bạn bè và nâng cao phản xạ tiếng Anh tự nhiên.', 'UEH Cơ sở B - 279 Nguyễn Tri Phương (Phòng B1.302)', '2026-11-15 18:00:00', '2026-11-15 20:30:00', '2026-11-14 23:59:00', 40, 'Published'),
-(2, 1, 'Debate Lab: Speak Up', 'Workshop hướng dẫn kỹ năng tranh biện tiếng Anh theo format Nghị viện Anh (British Parliamentary). Rèn luyện tư duy phản biện, lập luận logic và kỹ năng thuyết trình trước đám đông.', 'UEH Cơ sở B - Hội trường B1.302', '2026-11-20 14:00:00', '2026-11-20 17:00:00', '2026-11-19 23:59:00', 60, 'Published'),
-(3, 1, 'Cultural Exchange Day', 'Ngày hội giao lưu văn hóa và thực hành ngôn ngữ dành cho toàn thể sinh viên. Khám phá các nền văn hóa đa quốc gia, tham gia minigame và thưởng thức âm nhạc acoustic.', 'Sảnh B1 - UEH Nguyễn Tri Phương', '2026-11-28 08:30:00', '2026-11-28 11:30:00', '2026-11-26 23:59:00', NULL, 'Published')
+INSERT INTO Event (EventID, ClubID, EventName, Description, Location, StartTime, EndTime, RegistrationDeadline, MaxCapacity, BannerImage, Status) VALUES
+(1, 1, 'English Speaking Circle', 'Buổi sinh hoạt giao tiếp tiếng Anh định kỳ theo chủ đề dành cho thành viên CLB và sinh viên UEH. Thảo luận các chủ đề đời sống, kết nối bạn bè và nâng cao phản xạ tiếng Anh tự nhiên.', 'UEH Cơ sở B - 279 Nguyễn Tri Phương (Phòng B1.302)', '2026-11-15 18:00:00', '2026-11-15 20:30:00', '2026-11-14 23:59:00', 40, 'assets/uploads/events/event_speaking.png', 'Published'),
+(2, 1, 'Debate Lab: Speak Up', 'Workshop hướng dẫn kỹ năng tranh biện tiếng Anh theo format Nghị viện Anh (British Parliamentary). Rèn luyện tư duy phản biện, lập luận logic và kỹ năng thuyết trình trước đám đông.', 'UEH Cơ sở B - Hội trường B1.302', '2026-11-20 14:00:00', '2026-11-20 17:00:00', '2026-11-19 23:59:00', 60, 'assets/uploads/events/event_debate.jpg', 'Published'),
+(3, 1, 'Cultural Exchange Day', 'Ngày hội giao lưu văn hóa và thực hành ngôn ngữ dành cho toàn thể sinh viên. Khám phá các nền văn hóa đa quốc gia, tham gia minigame và thưởng thức âm nhạc acoustic.', 'Sảnh B1 - UEH Nguyễn Tri Phương', '2026-11-28 08:30:00', '2026-11-28 11:30:00', '2026-11-26 23:59:00', NULL, 'assets/uploads/events/event_culture.jpg', 'Published')
 ON DUPLICATE KEY UPDATE EventName = VALUES(EventName);

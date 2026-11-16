@@ -65,14 +65,23 @@ require_once __DIR__ . '/../../includes/header.php';
         </ol>
     </nav>
 
+    <?php 
+    $bannerStyle = (!empty($club['BannerImage']) && file_exists(__DIR__ . '/../../../' . $club['BannerImage']))
+        ? "background: linear-gradient(rgba(30, 27, 75, 0.85), rgba(30, 27, 75, 0.92)), url('" . base_url($club['BannerImage']) . "') center/cover no-repeat;"
+        : "background: linear-gradient(135deg, #4338CA 0%, #312E81 100%);";
+    ?>
     <!-- Club Banner Card -->
-    <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4" style="background: linear-gradient(135deg, #4338CA 0%, #312E81 100%);">
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4" style="<?= $bannerStyle ?>">
         <div class="card-body p-4 p-md-5 text-white">
             <div class="row align-items-center g-4">
                 <div class="col-md-auto text-center text-md-start">
-                    <div class="d-inline-flex align-items-center justify-content-center rounded-4 shadow-sm" style="width: 88px; height: 88px; background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.25);">
-                        <i class="bi bi-mortarboard-fill fs-1 text-white"></i>
-                    </div>
+                    <?php if (!empty($club['Avatar']) && file_exists(__DIR__ . '/../../../' . $club['Avatar'])): ?>
+                        <img src="<?= base_url($club['Avatar']) ?>" alt="<?= htmlspecialchars($club['ClubName']) ?>" class="rounded-4 shadow-sm object-fit-cover border border-white border-2" style="width: 88px; height: 88px; object-fit: cover;">
+                    <?php else: ?>
+                        <div class="d-inline-flex align-items-center justify-content-center rounded-4 shadow-sm" style="width: 88px; height: 88px; background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.25);">
+                            <i class="bi bi-mortarboard-fill fs-1 text-white"></i>
+                        </div>
+                    <?php endif; ?>
                 </div>
                 <div class="col-md">
                     <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
@@ -87,14 +96,16 @@ require_once __DIR__ . '/../../includes/header.php';
                     </p>
                 </div>
                 <div class="col-md-auto text-md-end">
-                    <?php if (is_club_manager()): ?>
+                    <?php if (can_manage_club_profile()): ?>
                         <div class="d-flex flex-wrap gap-2 justify-content-md-end">
                             <a href="<?= base_url('app/modules/club/edit.php') ?>" class="btn btn-light shadow-sm fw-semibold">
                                 <i class="bi bi-pencil-square me-1 text-primary"></i> Chỉnh sửa thông tin
                             </a>
-                            <a href="<?= base_url('app/modules/club/members.php') ?>" class="btn btn-outline-light fw-semibold">
-                                <i class="bi bi-people me-1"></i> Quản lý thành viên
-                            </a>
+                            <?php if (is_club_manager()): ?>
+                                <a href="<?= base_url('app/modules/club/members.php') ?>" class="btn btn-outline-light fw-semibold">
+                                    <i class="bi bi-people me-1"></i> Quản lý thành viên
+                                </a>
+                            <?php endif; ?>
                         </div>
                     <?php endif; ?>
                 </div>

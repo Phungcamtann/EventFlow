@@ -142,10 +142,17 @@ require_once __DIR__ . '/../../includes/header.php';
                     ?>
                         <tr>
                             <td class="ps-4">
-                                <div class="fw-semibold text-dark"><?= $h($evt['EventName']) ?></div>
-                                <?php if ($isEnded && $evt['Status'] === 'Published'): ?>
-                                    <div class="small text-muted">Đã kết thúc</div>
-                                <?php endif; ?>
+                                <div class="d-flex align-items-center gap-2">
+                                    <?php if (!empty($evt['BannerImage']) && file_exists(__DIR__ . '/../../../' . $evt['BannerImage'])): ?>
+                                        <img src="<?= base_url($evt['BannerImage']) ?>" alt="" class="rounded-2 border" style="width: 48px; height: 32px; object-fit: cover;">
+                                    <?php endif; ?>
+                                    <div>
+                                        <div class="fw-semibold text-dark"><?= $h($evt['EventName']) ?></div>
+                                        <?php if ($isEnded && $evt['Status'] === 'Published'): ?>
+                                            <div class="small text-muted">Đã kết thúc</div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
                             </td>
                             <td class="small text-nowrap">
                                 <?= $h(event_fmt_dt($evt['StartTime'])) ?><br>

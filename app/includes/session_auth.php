@@ -209,6 +209,22 @@ function is_authorized_club_member(): bool {
 }
 
 /**
+ * Kiểm tra xem người dùng có quyền cập nhật thông tin và hình ảnh CLB không
+ * Điều kiện: Club Manager HOẶC (Club Member có Status = 'Active' VÀ MemberRole = 'Board Member')
+ */
+function can_manage_club_profile(): bool {
+    if (!is_logged_in()) {
+        return false;
+    }
+    if (is_club_manager()) {
+        return true;
+    }
+    $memberRole = $_SESSION['user']['MemberRole'] ?? '';
+    $clubStatus = $_SESSION['user']['ClubStatus'] ?? '';
+    return ($clubStatus === 'Active') && ($memberRole === 'Board Member');
+}
+
+/**
  * Yêu cầu đăng nhập trước khi truy cập trang
  */
 function require_login(): void {
