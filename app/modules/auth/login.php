@@ -195,12 +195,17 @@ require_once __DIR__ . '/../../includes/header.php';
                     <!-- Mật khẩu -->
                     <div class="mb-2">
                         <label for="password" class="form-label">Mật khẩu</label>
-                        <input type="password" class="form-control" id="password" name="password" placeholder="••••••••••••" required>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="password" name="password" placeholder="••••••••••••" required>
+                            <button class="btn btn-outline-secondary btn-toggle-password" type="button" data-target="password" tabindex="-1" title="Hiện/ẩn mật khẩu">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Quên mật khẩu? (Right-aligned theo Figma) -->
                     <div class="d-flex justify-content-end mb-4">
-                        <a href="javascript:void(0)" onclick="alert('Tính năng đặt lại mật khẩu trực tuyến (FR03) thuộc giai đoạn sau. Trong phiên bản MVP, vui lòng liên hệ Ban quản trị qua email: admin@ueh.edu.vn để được hỗ trợ cấp lại mật khẩu.')" class="small text-secondary text-decoration-none">
+                        <a href="javascript:void(0)" onclick="alert('Tính năng đặt lại mật khẩu trực tuyến đang trong giai đoạn phát triển. Vui lòng liên hệ Ban quản trị qua email: admin@ueh.edu.vn để được hỗ trợ cấp lại mật khẩu.')" class="small text-secondary text-decoration-none">
                             Quên mật khẩu?
                         </a>
                     </div>

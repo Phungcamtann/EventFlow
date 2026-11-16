@@ -443,9 +443,9 @@ require_once __DIR__ . '/../../includes/header.php';
 
     <div class="card border-0 shadow-sm rounded-4 p-3 mb-4">
         <label for="q" class="visually-hidden">Tìm theo họ tên hoặc MSSV</label>
-        <div class="input-group">
-            <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-            <input type="search" id="q" class="form-control border-start-0" autocomplete="off"
+        <div class="input-group input-group-lg">
+            <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+            <input type="search" id="q" class="form-control border-start-0 ps-0 fs-6" autocomplete="off"
                    placeholder="Gõ họ tên hoặc MSSV để lọc nhanh người tham gia..." autofocus>
         </div>
     </div>
@@ -526,48 +526,51 @@ require_once __DIR__ . '/../../includes/header.php';
 </div>
 
 <?php if ($canCheckIn): ?>
-<!-- Modal Điểm danh bổ sung (Walk-in Check-in) -->
+<!-- Modal Điểm danh bổ sung (Walk-in Check-in) - Mở rộng form thông thoáng (modal-xl) -->
 <div class="modal fade" id="walkinModal" tabindex="-1" aria-labelledby="walkinModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
         <div class="modal-content border-0 shadow-lg rounded-4">
             <div class="modal-header border-bottom px-4 pt-4 pb-3">
                 <div class="d-flex align-items-center gap-2">
                     <div class="p-2 rounded-3 bg-success-subtle text-success">
-                        <i class="bi bi-person-plus-fill fs-5"></i>
+                        <i class="bi bi-person-plus-fill fs-4"></i>
                     </div>
                     <div>
                         <h5 class="modal-title fw-bold text-dark mb-0" id="walkinModalLabel">Điểm danh bổ sung tại chỗ</h5>
-                        <small class="text-muted">Dành cho sinh viên chưa đăng ký trước hoặc chưa có tên trong danh sách điểm danh</small>
+                        <small class="text-muted">Tra cứu và ghi nhận tham dự cho sinh viên chưa đăng ký trước hoặc chưa có tên trong danh sách</small>
                     </div>
                 </div>
                 <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
-                <div class="mb-3">
-                    <label for="walkinQuery" class="form-label fw-semibold small text-dark">Tra cứu nhanh sinh viên</label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-                        <input type="search" id="walkinQuery" class="form-control border-start-0" autocomplete="off"
-                               placeholder="Nhập Họ tên, MSSV hoặc Email để tìm kiếm...">
+                <div class="mb-4">
+                    <label for="walkinQuery" class="form-label fw-semibold text-dark">Tra cứu nhanh sinh viên</label>
+                    <div class="input-group input-group-lg">
+                        <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                        <input type="search" id="walkinQuery" class="form-control border-start-0 ps-0 fs-6" autocomplete="off"
+                               placeholder="Nhập Họ tên, Mã số sinh viên (MSSV) hoặc Email để lọc danh sách...">
                     </div>
-                    <div class="form-text small">Tìm trong danh sách tất cả tài khoản sinh viên đang hoạt động trên hệ thống.</div>
+                    <div class="form-text small mt-2 text-muted">
+                        <i class="bi bi-info-circle me-1 text-primary"></i> Danh sách hiển thị toàn bộ sinh viên đang hoạt động trong hệ thống chưa được ghi nhận điểm danh.
+                    </div>
                 </div>
 
-                <div class="table-responsive rounded-3 border" style="max-height: 340px;">
+                <div class="table-responsive rounded-4 border" style="max-height: 480px;">
                     <table class="table table-hover align-middle mb-0" id="walkinTable">
                         <thead class="table-light sticky-top">
                             <tr>
-                                <th class="ps-3">Họ và tên</th>
-                                <th>MSSV</th>
-                                <th>Email</th>
-                                <th>Tình trạng đăng ký</th>
-                                <th class="text-end pe-3">Thao tác</th>
+                                <th class="ps-4 py-3">Họ và tên</th>
+                                <th class="py-3">MSSV</th>
+                                <th class="py-3">Email</th>
+                                <th class="py-3">Tình trạng đăng ký</th>
+                                <th class="text-end pe-4 py-3">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody>
                         <?php if (empty($unregisteredCandidates)): ?>
                             <tr>
-                                <td colspan="5" class="p-4 text-center text-muted">
+                                <td colspan="5" class="p-5 text-center text-muted">
+                                    <i class="bi bi-check2-circle fs-1 text-success d-block mb-2"></i>
                                     Tất cả sinh viên đều đã được điểm danh!
                                 </td>
                             </tr>
@@ -586,21 +589,21 @@ require_once __DIR__ . '/../../includes/header.php';
                                 <tr data-name="<?= $h($cand['FullName']) ?>"
                                     data-mssv="<?= $h($cand['StudentCode'] ?? '') ?>"
                                     data-email="<?= $h($cand['Email']) ?>">
-                                    <td class="ps-3 fw-semibold text-dark"><?= $h($cand['FullName']) ?></td>
-                                    <td class="font-mono small"><?= $h($cand['StudentCode'] ?? '—') ?></td>
-                                    <td class="small text-muted"><?= $h($cand['Email']) ?></td>
-                                    <td>
-                                        <span class="badge rounded-pill px-2 py-1 <?= $statusClass ?> small">
+                                    <td class="ps-4 py-3 fw-semibold text-dark"><?= $h($cand['FullName']) ?></td>
+                                    <td class="py-3 font-mono"><?= $h($cand['StudentCode'] ?? '—') ?></td>
+                                    <td class="py-3 text-muted"><?= $h($cand['Email']) ?></td>
+                                    <td class="py-3">
+                                        <span class="badge rounded-pill px-3 py-2 <?= $statusClass ?>">
                                             <?= $statusLabel ?>
                                         </span>
                                     </td>
-                                    <td class="text-end pe-3">
+                                    <td class="text-end pe-4 py-3">
                                         <form method="POST" action="<?= $h($eventUrl) ?>" class="d-inline">
                                             <?= csrf_field() ?>
                                             <input type="hidden" name="action" value="walkin_checkin">
                                             <input type="hidden" name="account_id" value="<?= (int)$cand['AccountID'] ?>">
                                             <input type="hidden" name="event_id" value="<?= $eventId ?>">
-                                            <button type="submit" class="btn btn-sm btn-success">
+                                            <button type="submit" class="btn btn-sm btn-success px-3 shadow-sm">
                                                 <i class="bi bi-check-circle me-1"></i> Điểm danh ngay
                                             </button>
                                         </form>
@@ -611,12 +614,13 @@ require_once __DIR__ . '/../../includes/header.php';
                         </tbody>
                     </table>
                 </div>
-                <div id="walkinNoMatch" class="p-3 text-center text-muted small" hidden>
+                <div id="walkinNoMatch" class="p-4 text-center text-muted" hidden>
+                    <i class="bi bi-search fs-3 d-block mb-2 text-secondary"></i>
                     Không tìm thấy sinh viên nào khớp với từ khóa tìm kiếm.
                 </div>
             </div>
             <div class="modal-footer border-top px-4 py-3">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Đóng</button>
             </div>
         </div>
     </div>

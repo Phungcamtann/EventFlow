@@ -92,9 +92,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $accountId = (int)($_POST['account_id'] ?? 0);
         $newRoleId = (int)($_POST['new_role_id'] ?? 0);
 
-        // Quy tắc BR02: Chặn Admin tự giáng quyền của chính mình
+        // Chặn Admin tự giáng quyền của chính mình
         if ($accountId === current_user_id() && $newRoleId !== 1) {
-            set_flash('danger', 'Quy tắc BR02: Bạn không thể tự hạ quyền Quản trị viên của chính tài khoản mình đang đăng nhập.');
+            set_flash('danger', 'Bạn không thể tự hạ quyền Quản trị viên của chính tài khoản mình đang đăng nhập.');
             header('Location: ' . base_url('app/modules/admin/accounts.php'));
             exit;
         }
@@ -115,9 +115,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $currentStatus = (int)($_POST['current_status'] ?? 1);
         $newStatus = ($currentStatus === 1) ? 0 : 1;
 
-        // Quy tắc BR02: Tuyệt đối không cho phép Admin tự khóa tài khoản của chính mình
+        // Tuyệt đối không cho phép Admin tự khóa tài khoản của chính mình
         if ($accountId === current_user_id()) {
-            set_flash('danger', 'Quy tắc BR02: Bạn không thể tự khóa tài khoản Quản trị viên của chính mình.');
+            set_flash('danger', 'Bạn không thể tự khóa tài khoản Quản trị viên của chính mình.');
             header('Location: ' . base_url('app/modules/admin/accounts.php'));
             exit;
         }
@@ -186,7 +186,6 @@ require_once __DIR__ . '/../../includes/header.php';
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
         <div>
             <div class="d-flex align-items-center gap-2 mb-1">
-                <span class="badge bg-danger-subtle text-danger font-mono px-2 py-1 rounded-pill small">SCR16 · FR17</span>
                 <span class="text-secondary small">System Administrator</span>
             </div>
             <h1 class="h3 fw-bold text-dark mb-1">Quản trị tài khoản & Quyền hệ thống</h1>
@@ -366,7 +365,7 @@ require_once __DIR__ . '/../../includes/header.php';
 
                                         <!-- Nút Khóa / Mở khóa tài khoản -->
                                         <?php if ($isCurrentAdmin): ?>
-                                            <button type="button" class="btn btn-outline-secondary" disabled title="Quy tắc BR02: Không thể tự khóa chính mình">
+                                            <button type="button" class="btn btn-outline-secondary" disabled title="Không thể tự khóa tài khoản của chính mình">
                                                 <i class="bi bi-lock-fill"></i>
                                             </button>
                                         <?php else: ?>

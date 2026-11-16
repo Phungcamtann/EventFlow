@@ -1,7 +1,6 @@
 <?php
 /**
- * EventFlow — SCR03: Hồ sơ cá nhân & Xem tư cách thành viên
- * Đáp ứng: FR04, PB05, UC04
+ * EventFlow — Hồ sơ cá nhân & Xem tư cách thành viên
  * Phân quyền: Mọi người dùng đã đăng nhập (System Administrator, Club Manager, Club Member, Event Participant)
  */
 
@@ -170,6 +169,8 @@ if (count($nameParts) >= 2) {
 }
 $initials = strtoupper($initials);
 
+$startInEditMode = !empty($profileErrors);
+
 $pageTitle = 'Hồ sơ cá nhân — EventFlow';
 require_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -187,7 +188,6 @@ require_once __DIR__ . '/../../includes/header.php';
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
         <div>
             <div class="d-flex align-items-center gap-2 mb-1">
-                <span class="badge bg-primary-subtle text-primary font-mono px-2 py-1 rounded-pill small">SCR03 · FR04</span>
                 <span class="text-secondary small">Quản lý tài khoản cá nhân</span>
             </div>
             <h1 class="h3 fw-bold text-dark mb-1">Hồ sơ cá nhân & Tư cách thành viên</h1>
@@ -212,18 +212,16 @@ require_once __DIR__ . '/../../includes/header.php';
                     </div>
                 </div>
 
-                <h2 class="h5 fw-bold text-dark mb-1"><?= $h($user['FullName']) ?></h2>
+                <h2 class="h5 fw-bold text-dark mb-1" id="displayHeaderName"><?= $h($user['FullName']) ?></h2>
                 <p class="text-muted small mb-3"><?= $h($user['Email']) ?></p>
 
                 <div class="d-flex flex-wrap justify-content-center gap-2 mb-3">
                     <span class="badge bg-primary-subtle text-primary px-3 py-2 rounded-pill font-mono">
                         <i class="bi bi-shield-check me-1"></i> <?= $h($user['RoleName']) ?>
                     </span>
-                    <?php if (!empty($user['StudentCode'])): ?>
-                        <span class="badge bg-light text-secondary border px-3 py-2 rounded-pill font-mono">
-                            <i class="bi bi-person-badge me-1"></i> <?= $h($user['StudentCode']) ?>
-                        </span>
-                    <?php endif; ?>
+                    <span class="badge bg-light text-secondary border px-3 py-2 rounded-pill font-mono" id="badgeStudentCode" style="<?= empty($user['StudentCode']) ? 'display:none;' : '' ?>">
+                        <i class="bi bi-person-badge me-1"></i> <span id="textStudentCodeBadge"><?= $h($user['StudentCode']) ?></span>
+                    </span>
                 </div>
 
                 <hr class="my-3 opacity-25">
@@ -249,7 +247,7 @@ require_once __DIR__ . '/../../includes/header.php';
                         <span class="text-dark fw-medium"><?= $h(event_fmt_dt($user['CreatedAt'])) ?></span>
                     </div>
                     <div>
-                        <i class="bi bi-circle-fill me-2 <?= $user['IsActive'] ? 'text-success' : 'text-danger' ?>" style="font-size: 0.65rem;"></i> Trạng thái hệ thống:
+                        <i class="bi bi-circle-fill me-2 <?= $user['IsActive'] ? 'text-success' : 'text-danger' ?>" style="font-size: 0.65rem;"></i> Trạng thái tài khoản:
                         <span class="fw-semibold <?= $user['IsActive'] ? 'text-success' : 'text-danger' ?>">
                             <?= $user['IsActive'] ? 'Đang hoạt động' : 'Bị khóa' ?>
                         </span>
@@ -314,17 +312,26 @@ require_once __DIR__ . '/../../includes/header.php';
 
         <!-- CỘT PHẢI: FORM CẬP NHẬT THÔNG TIN & FORM ĐỔI MẬT KHẨU -->
         <div class="col-lg-8">
-            <!-- Khối 1: Cập nhật Thông tin cá nhân -->
-            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+            <!-- Khối 1: Thông tin cá nhân (Có nút chỉnh sửa ở góc trên cùng bên phải) -->
+            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white" id="cardProfileInfo">
                 <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-3">
                     <div class="d-flex align-items-center gap-2">
                         <div class="p-2 rounded-3 bg-primary-subtle text-primary">
-                            <i class="bi bi-pencil-square fs-5"></i>
+                            <i class="bi bi-person-lines-fill fs-5"></i>
                         </div>
                         <div>
                             <h3 class="h5 fw-bold text-dark mb-0">Thông tin cá nhân</h3>
-                            <small class="text-muted">Cập nhật họ tên và mã số sinh viên của bạn</small>
+                            <small class="text-muted">Họ tên, mã số sinh viên và địa chỉ email định danh</small>
                         </div>
+                    </div>
+                    <!-- Nút bật/tắt chế độ chỉnh sửa -->
+                    <div>
+                        <button type="button" id="btnEditProfile" class="btn btn-sm btn-outline-primary <?= $startInEditMode ? 'd-none' : '' ?>">
+                            <i class="bi bi-pencil-square me-1"></i> Chỉnh sửa
+                        </button>
+                        <button type="button" id="btnCancelEditProfile" class="btn btn-sm btn-outline-secondary <?= $startInEditMode ? '' : 'd-none' ?>">
+                            <i class="bi bi-x-lg me-1"></i> Hủy
+                        </button>
                     </div>
                 </div>
 
@@ -338,7 +345,37 @@ require_once __DIR__ . '/../../includes/header.php';
                     </div>
                 <?php endif; ?>
 
-                <form method="POST" action="<?= $profileUrl ?>" novalidate>
+                <!-- 1. CHẾ ĐỘ XEM THÔNG TIN (VIEW MODE) -->
+                <div id="profileViewMode" class="<?= $startInEditMode ? 'd-none' : '' ?>">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="p-3 rounded-3 bg-light border">
+                                <small class="text-muted d-block mb-1">Họ và tên</small>
+                                <span class="fw-bold text-dark fs-6" id="viewFullName"><?= $h($user['FullName']) ?></span>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="p-3 rounded-3 bg-light border">
+                                <small class="text-muted d-block mb-1">Mã số sinh viên (MSSV)</small>
+                                <span class="fw-bold font-mono text-dark fs-6" id="viewStudentCode">
+                                    <?= !empty($user['StudentCode']) ? $h($user['StudentCode']) : '<span class="text-muted fst-italic fw-normal">Chưa cập nhật</span>' ?>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="p-3 rounded-3 bg-light border">
+                                <small class="text-muted d-block mb-1">Địa chỉ Email</small>
+                                <span class="fw-bold text-dark fs-6"><?= $h($user['Email']) ?></span>
+                                <small class="text-muted d-block mt-1">Email là tên đăng nhập định danh duy nhất và không thể thay đổi.</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. CHẾ ĐỘ CHỈNH SỬA (EDIT MODE FORM) -->
+                <form method="POST" action="<?= $profileUrl ?>" id="profileEditForm" class="<?= $startInEditMode ? '' : 'd-none' ?>" novalidate>
                     <?= csrf_field() ?>
                     <input type="hidden" name="action" value="update_profile">
 
@@ -369,7 +406,10 @@ require_once __DIR__ . '/../../includes/header.php';
                         </div>
                     </div>
 
-                    <div class="mt-4 pt-3 border-top d-flex justify-content-end">
+                    <div class="mt-4 pt-3 border-top d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-outline-secondary px-3" id="btnCancelEditBottom">
+                            Hủy
+                        </button>
                         <button type="submit" class="btn btn-primary px-4 shadow-sm">
                             <i class="bi bi-check-lg me-1"></i> Lưu thay đổi
                         </button>
@@ -377,7 +417,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 </form>
             </div>
 
-            <!-- Khối 2: Đổi Mật khẩu -->
+            <!-- Khối 2: Đổi Mật khẩu (Có icon con mắt ẩn/hiện mật khẩu) -->
             <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
                 <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-3">
                     <div class="d-flex align-items-center gap-2">
@@ -410,22 +450,37 @@ require_once __DIR__ . '/../../includes/header.php';
                             <label for="currentPassword" class="form-label fw-semibold small text-dark">
                                 Mật khẩu hiện tại <span class="text-danger">*</span>
                             </label>
-                            <input type="password" class="form-control" id="currentPassword" name="current_password" required autocomplete="current-password">
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="currentPassword" name="current_password" required autocomplete="current-password" placeholder="Nhập mật khẩu đang dùng">
+                                <button class="btn btn-outline-secondary btn-toggle-password" type="button" data-target="currentPassword" tabindex="-1" title="Hiện/ẩn mật khẩu">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
                         </div>
 
                         <div class="col-md-6">
                             <label for="newPassword" class="form-label fw-semibold small text-dark">
                                 Mật khẩu mới <span class="text-danger">*</span>
                             </label>
-                            <input type="password" class="form-control" id="newPassword" name="new_password" required minlength="8" autocomplete="new-password">
-                            <div class="form-text small">Tối thiểu 8 ký tự, nên kết hợp chữ, số và ký tự đặc biệt.</div>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="newPassword" name="new_password" required minlength="8" autocomplete="new-password" placeholder="Tối thiểu 8 ký tự">
+                                <button class="btn btn-outline-secondary btn-toggle-password" type="button" data-target="newPassword" tabindex="-1" title="Hiện/ẩn mật khẩu">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-text small">Tối thiểu 8 ký tự, kết hợp chữ, số và ký tự đặc biệt.</div>
                         </div>
 
                         <div class="col-md-6">
                             <label for="confirmPassword" class="form-label fw-semibold small text-dark">
                                 Xác nhận mật khẩu mới <span class="text-danger">*</span>
                             </label>
-                            <input type="password" class="form-control" id="confirmPassword" name="confirm_password" required minlength="8" autocomplete="new-password">
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="confirmPassword" name="confirm_password" required minlength="8" autocomplete="new-password" placeholder="Nhập lại mật khẩu mới">
+                                <button class="btn btn-outline-secondary btn-toggle-password" type="button" data-target="confirmPassword" tabindex="-1" title="Hiện/ẩn mật khẩu">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -439,5 +494,42 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
     </div>
 </div>
+
+<script>
+// Toggle giữa Chế độ xem và Chế độ chỉnh sửa thông tin cá nhân
+(function () {
+    const btnEdit = document.getElementById('btnEditProfile');
+    const btnCancel = document.getElementById('btnCancelEditProfile');
+    const btnCancelBottom = document.getElementById('btnCancelEditBottom');
+    const viewMode = document.getElementById('profileViewMode');
+    const editForm = document.getElementById('profileEditForm');
+
+    function showEditMode() {
+        if (viewMode && editForm) {
+            viewMode.classList.add('d-none');
+            editForm.classList.remove('d-none');
+        }
+        if (btnEdit && btnCancel) {
+            btnEdit.classList.add('d-none');
+            btnCancel.classList.remove('d-none');
+        }
+    }
+
+    function showViewMode() {
+        if (viewMode && editForm) {
+            editForm.classList.add('d-none');
+            viewMode.classList.remove('d-none');
+        }
+        if (btnEdit && btnCancel) {
+            btnCancel.classList.add('d-none');
+            btnEdit.classList.remove('d-none');
+        }
+    }
+
+    if (btnEdit) btnEdit.addEventListener('click', showEditMode);
+    if (btnCancel) btnCancel.addEventListener('click', showViewMode);
+    if (btnCancelBottom) btnCancelBottom.addEventListener('click', showViewMode);
+})();
+</script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

@@ -226,7 +226,10 @@ require_once __DIR__ . '/../../includes/header.php';
                         <label for="password" class="form-label">Mật khẩu <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-lock"></i></span>
-                            <input type="password" class="form-control border-start-0 ps-0" id="password" name="password" placeholder="Tối thiểu 8 ký tự" minlength="8" required>
+                            <input type="password" class="form-control border-start-0 border-end-0 ps-0" id="password" name="password" placeholder="Tối thiểu 8 ký tự" minlength="8" required>
+                            <button class="btn btn-outline-secondary border-start-0 btn-toggle-password" type="button" data-target="password" tabindex="-1" title="Hiện/ẩn mật khẩu">
+                                <i class="bi bi-eye"></i>
+                            </button>
                         </div>
                     </div>
 
@@ -235,7 +238,10 @@ require_once __DIR__ . '/../../includes/header.php';
                         <label for="confirm_password" class="form-label">Xác nhận mật khẩu <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-shield-check"></i></span>
-                            <input type="password" class="form-control border-start-0 ps-0" id="confirm_password" name="confirm_password" placeholder="Nhập lại mật khẩu ở trên" minlength="8" required>
+                            <input type="password" class="form-control border-start-0 border-end-0 ps-0" id="confirm_password" name="confirm_password" placeholder="Nhập lại mật khẩu ở trên" minlength="8" required>
+                            <button class="btn btn-outline-secondary border-start-0 btn-toggle-password" type="button" data-target="confirm_password" tabindex="-1" title="Hiện/ẩn mật khẩu">
+                                <i class="bi bi-eye"></i>
+                            </button>
                         </div>
                     </div>
 

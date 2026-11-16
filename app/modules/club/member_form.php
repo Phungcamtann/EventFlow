@@ -85,9 +85,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($isEditMode) {
-            // RÀNG BUỘC NGHIỆP VỤ BR03: Bảo vệ Club Manager cuối cùng
+            // Bảo vệ Club Manager cuối cùng
             if ($isManager && $status === 'Inactive') {
-                $errors[] = "Quy tắc BR03: Không thể vô hiệu hóa (Inactive) tài khoản Chủ nhiệm CLB phụ trách duy nhất.";
+                $errors[] = "Không thể vô hiệu hóa (Inactive) tài khoản Chủ nhiệm CLB phụ trách duy nhất.";
             }
 
             if (empty($errors)) {
@@ -190,7 +190,7 @@ require_once __DIR__ . '/../../includes/header.php';
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
                             <span class="badge bg-primary-subtle text-primary px-3 py-1 rounded-pill mb-2 fw-semibold">
-                                <?= $isEditMode ? 'SCR07: Chỉnh sửa vai trò & trạng thái' : 'SCR07: Thêm thành viên vào CLB' ?>
+                                <?= $isEditMode ? 'Chỉnh sửa vai trò & trạng thái' : 'Thêm thành viên vào CLB' ?>
                             </span>
                             <h1 class="h4 fw-bold mb-1 text-dark">
                                 <?= $isEditMode ? 'Cập nhật thành viên CLB' : 'Thêm thành viên mới' ?>
@@ -221,7 +221,7 @@ require_once __DIR__ . '/../../includes/header.php';
                         <div class="alert alert-warning border-0 rounded-3 mb-4 d-flex align-items-center gap-3">
                             <i class="bi bi-shield-exclamation fs-3 text-warning"></i>
                             <div>
-                                <strong class="d-block text-dark">Quy tắc bảo vệ người quản trị (BR03)</strong>
+                                <strong class="d-block text-dark">Lưu ý quản trị</strong>
                                 <span class="small text-secondary">
                                     Tài khoản này là Chủ nhiệm CLB phụ trách chính. Hệ thống ngăn chặn việc chuyển tài khoản sang trạng thái <strong>Inactive</strong>.
                                 </span>
@@ -294,14 +294,14 @@ require_once __DIR__ . '/../../includes/header.php';
                                     Thành Viên Thường (Member)
                                 </option>
                                 <option value="Event Supporter" <?= $currentRole === 'Event Supporter' ? 'selected' : '' ?>>
-                                    Hỗ Trợ Sự Kiện (Event Supporter — Được ủy quyền Điểm danh Check-in SCR14)
+                                    Hỗ Trợ Sự Kiện (Event Supporter — Được ủy quyền Điểm danh)
                                 </option>
                                 <option value="Board Member" <?= $currentRole === 'Board Member' ? 'selected' : '' ?>>
                                     Ban Điều Hành CLB (Board Member)
                                 </option>
                             </select>
                             <div class="form-text text-muted">
-                                <span class="text-primary fw-semibold"><i class="bi bi-info-circle me-1"></i> Lưu ý phân quyền:</span> Thành viên có vai trò <strong>Event Supporter</strong> hoặc <strong>Board Member</strong> ở trạng thái <em>Active</em> sẽ được cấp quyền truy cập tính năng Quản lý danh sách đăng ký (SCR13) và Điểm danh Check-in (SCR14).
+                                <span class="text-primary fw-semibold"><i class="bi bi-info-circle me-1"></i> Lưu ý phân quyền:</span> Thành viên có vai trò <strong>Event Supporter</strong> hoặc <strong>Board Member</strong> ở trạng thái <em>Active</em> sẽ được cấp quyền truy cập tính năng Quản lý danh sách đăng ký và Điểm danh sự kiện.
                             </div>
                         </div>
 
@@ -316,7 +316,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                     Active — Đang sinh hoạt bình thường
                                 </option>
                                 <option value="Inactive" <?= $currentStatus === 'Inactive' ? 'selected' : '' ?> <?= ($isEditMode && $isManager) ? 'disabled' : '' ?>>
-                                    Inactive — Tạm ngưng hoạt động / Rời CLB <?= ($isEditMode && $isManager) ? '(Bị khóa theo BR03)' : '' ?>
+                                    Inactive — Tạm ngưng hoạt động / Rời CLB <?= ($isEditMode && $isManager) ? '(Bị khóa để bảo vệ Chủ nhiệm CLB)' : '' ?>
                                 </option>
                             </select>
                             <div class="form-text text-muted">
