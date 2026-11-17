@@ -189,7 +189,7 @@ require_once __DIR__ . '/../../includes/header.php';
                     </div>
                 <?php endif; ?>
 
-                <form method="POST" action="<?= base_url('auth/register.php') ?>" id="registerForm" novalidate>
+                <form method="POST" action="<?= base_url('app/modules/auth/register.php') ?>" id="registerForm" novalidate>
                     <?= csrf_field() ?>
 
                     <!-- Họ và tên -->

@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (registerForm) {
         registerForm.addEventListener('submit', (e) => {
             const password = document.getElementById('password')?.value;
-            const confirm = document.getElementById('confirmPassword')?.value;
+            const confirm = (document.getElementById('confirm_password') || document.getElementById('confirmPassword'))?.value;
             if (password && confirm && password !== confirm) {
                 e.preventDefault();
                 alert('Mật khẩu xác nhận không khớp! Vui lòng kiểm tra lại.');
