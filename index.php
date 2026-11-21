@@ -29,7 +29,7 @@ try {
         FROM Event e
         LEFT JOIN Club c ON e.ClubID = c.ClubID
         WHERE e.EndTime >= NOW()
-          AND e.Status IN ('Published', 'Cancelled')
+          AND e.Status = 'Published'
         ORDER BY e.StartTime ASC
     ");
     $events = $stmt->fetchAll();
@@ -118,10 +118,7 @@ try {
                 if (isset($evt['RegisteredCount'])) {
                     // Nhãn theo thời gian và tình trạng sự kiện
                     $state = event_state($evt, (int)$evt['RegisteredCount'], $now);
-                    if ($evt['Status'] === 'Cancelled') {
-                        $badgeText = 'Đã hủy';
-                        $bClass = 'badge-cancelled';
-                    } elseif ($now >= $evt['StartTime']) {
+                    if ($now >= $evt['StartTime']) {
                         $badgeText = 'Đang diễn ra';
                         $bClass = 'badge-open';
                     } else {
