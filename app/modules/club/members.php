@@ -65,6 +65,17 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $members = $stmt->fetchAll();
 
+// Xử lý AJAX tra cứu & lọc thành viên Realtime (UAT 07)
+if (isset($_GET['ajax']) && $_GET['ajax'] === 'filter_members') {
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'success' => true,
+        'count'   => count($members),
+        'data'    => $members
+    ]);
+    exit;
+}
+
 // Thống kê nhanh
 $statStmt = $pdo->query("
     SELECT 
@@ -135,7 +146,7 @@ require_once __DIR__ . '/../../includes/header.php';
     <!-- Search & Filter Card -->
     <div class="card border-0 shadow-sm rounded-4 mb-4">
         <div class="card-body p-3 p-md-4">
-            <form method="GET" action="<?= htmlspecialchars($_SERVER['PHP_SELF']) ?>" class="row g-3">
+            <form method="GET" action="<?= htmlspecialchars($_SERVER['PHP_SELF']) ?>" id="filter_member_form" class="row g-3">
                 <div class="col-md-6 col-lg-5">
                     <div class="input-group">
                         <span class="input-group-text bg-white border-end-0 text-muted">
@@ -144,15 +155,17 @@ require_once __DIR__ . '/../../includes/header.php';
                         <input 
                             type="text" 
                             name="search" 
+                            id="member_search_input"
                             class="form-control border-start-0 ps-0" 
                             placeholder="Tìm kiếm theo họ tên, MSSV, email..." 
                             value="<?= htmlspecialchars($search) ?>"
+                            autocomplete="off"
                         >
                     </div>
                 </div>
 
                 <div class="col-sm-6 col-md-3 col-lg-3">
-                    <select name="role" class="form-select">
+                    <select name="role" id="member_role_select" class="form-select">
                         <option value="">Tất cả vai trò</option>
                         <option value="Board Member" <?= $filterRole === 'Board Member' ? 'selected' : '' ?>>Ban Điều Hành</option>
                         <option value="Event Supporter" <?= $filterRole === 'Event Supporter' ? 'selected' : '' ?>>Hỗ Trợ Sự Kiện (Ủy quyền)</option>
@@ -161,7 +174,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 </div>
 
                 <div class="col-sm-6 col-md-3 col-lg-2">
-                    <select name="status" class="form-select">
+                    <select name="status" id="member_status_select" class="form-select">
                         <option value="">Tất cả trạng thái</option>
                         <option value="Active" <?= $filterStatus === 'Active' ? 'selected' : '' ?>>Active (Hoạt động)</option>
                         <option value="Inactive" <?= $filterStatus === 'Inactive' ? 'selected' : '' ?>>Inactive (Tạm ngưng)</option>
@@ -169,14 +182,13 @@ require_once __DIR__ . '/../../includes/header.php';
                 </div>
 
                 <div class="col-md-auto d-flex gap-2">
-                    <button type="submit" class="btn btn-primary">
-                        Lọc
+                    <button type="submit" class="btn btn-primary" id="btn_filter_submit">
+                        <span id="btn_filter_text">Lọc</span>
+                        <span id="btn_filter_spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
                     </button>
-                    <?php if ($search !== '' || $filterRole !== '' || $filterStatus !== ''): ?>
-                        <a href="<?= base_url('app/modules/club/members.php') ?>" class="btn btn-outline-secondary">
-                            Đặt lại
-                        </a>
-                    <?php endif; ?>
+                    <a href="<?= base_url('app/modules/club/members.php') ?>" class="btn btn-outline-secondary" id="btn_reset_filter">
+                        Đặt lại
+                    </a>
                 </div>
             </form>
         </div>
@@ -186,7 +198,7 @@ require_once __DIR__ . '/../../includes/header.php';
     <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
         <div class="card-header bg-white border-bottom border-light p-3 p-md-4 d-flex justify-content-between align-items-center">
             <h2 class="h5 fw-bold mb-0 text-dark">
-                Danh sách thành viên (<?= count($members) ?> kết quả)
+                Danh sách thành viên (<span id="member_count"><?= count($members) ?></span> kết quả)
             </h2>
         </div>
 
@@ -203,7 +215,7 @@ require_once __DIR__ . '/../../includes/header.php';
                         <th class="text-end pe-4" style="width: 120px;">Thao tác</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="member_table_body">
                     <?php if (empty($members)): ?>
                         <tr>
                             <td colspan="7" class="text-center py-5 text-muted">
@@ -288,5 +300,237 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const filterForm = document.getElementById('filter_member_form');
+    const searchInput = document.getElementById('member_search_input');
+    const roleSelect = document.getElementById('member_role_select');
+    const statusSelect = document.getElementById('member_status_select');
+    const btnSubmit = document.getElementById('btn_filter_submit');
+    const btnText = document.getElementById('btn_filter_text');
+    const btnSpinner = document.getElementById('btn_filter_spinner');
+    const btnReset = document.getElementById('btn_reset_filter');
+    const memberCount = document.getElementById('member_count');
+    const tableBody = document.getElementById('member_table_body');
+
+    const editBaseUrl = '<?= base_url("app/modules/club/member_form.php?id=") ?>';
+    let membersAbortController = null;
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '—';
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+            return parts[2].slice(0, 2) + '/' + parts[1] + '/' + parts[0];
+        }
+        return escapeHtml(dateStr);
+    }
+
+    function setLoading(isLoading) {
+        if (isLoading) {
+            if (btnSpinner) btnSpinner.classList.remove('d-none');
+            if (btnText) btnText.classList.add('d-none');
+            tableBody.style.opacity = '0.5';
+        } else {
+            if (btnSpinner) btnSpinner.classList.add('d-none');
+            if (btnText) btnText.classList.remove('d-none');
+            tableBody.style.opacity = '1';
+        }
+    }
+
+    async function fetchMembers() {
+        if (membersAbortController) {
+            membersAbortController.abort();
+        }
+        membersAbortController = new AbortController();
+
+        setLoading(true);
+        const search = searchInput.value.trim();
+        const role = roleSelect.value;
+        const status = statusSelect.value;
+
+        const params = new URLSearchParams();
+        params.set('ajax', 'filter_members');
+        if (search) params.set('search', search);
+        if (role) params.set('role', role);
+        if (status) params.set('status', status);
+
+        // Cập nhật URL trình duyệt (history state) không reload trang
+        const browserParams = new URLSearchParams();
+        if (search) browserParams.set('search', search);
+        if (role) browserParams.set('role', role);
+        if (status) browserParams.set('status', status);
+        const newUrl = window.location.pathname + (browserParams.toString() ? '?' + browserParams.toString() : '');
+        window.history.replaceState({}, '', newUrl);
+
+        try {
+            const response = await fetch('<?= base_url("app/modules/club/members.php") ?>?' + params.toString(), {
+                signal: membersAbortController.signal
+            });
+            const result = await response.json();
+            setLoading(false);
+
+            if (result.success) {
+                renderTable(result.data);
+            }
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                return; // Bị hủy do người dùng gõ tiếp
+            }
+            setLoading(false);
+            console.error('Fetch members error:', error);
+        }
+    }
+
+    function renderTable(members) {
+        memberCount.textContent = members.length;
+        tableBody.innerHTML = '';
+
+        if (!members || members.length === 0) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center py-5 text-muted">
+                        <i class="bi bi-people fs-1 d-block mb-2 text-secondary opacity-50"></i>
+                        Không tìm thấy thành viên nào phù hợp với điều kiện tìm kiếm.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        members.forEach((m, index) => {
+            const isManager = Boolean(Number(m.IsClubManager));
+            const avatarColor = isManager ? '#312E81' : '#4F46E5';
+            const firstLetter = m.FullName ? escapeHtml(m.FullName.charAt(0).toUpperCase()) : 'U';
+            const studentCode = m.StudentCode ? escapeHtml(m.StudentCode) : 'Chưa cập nhật';
+
+            const managerBadge = isManager ? `
+                <span class="badge bg-warning text-dark" style="font-size: 0.65rem;" title="Chủ nhiệm CLB phụ trách">
+                    <i class="bi bi-star-fill"></i> Chủ nhiệm
+                </span>
+            ` : '';
+
+            let roleBadge = '';
+            if (m.MemberRole === 'Board Member') {
+                roleBadge = `
+                    <span class="badge bg-primary-subtle text-primary fw-semibold px-2.5 py-1.5 rounded-pill">
+                        <i class="bi bi-award-fill me-1"></i> Ban Điều Hành
+                    </span>
+                `;
+            } else if (m.MemberRole === 'Event Supporter') {
+                roleBadge = `
+                    <span class="badge bg-info-subtle text-info fw-semibold px-2.5 py-1.5 rounded-pill">
+                        <i class="bi bi-clipboard-check-fill me-1"></i> Hỗ Trợ Sự Kiện
+                    </span>
+                `;
+            } else {
+                roleBadge = `
+                    <span class="badge bg-secondary-subtle text-secondary fw-normal px-2.5 py-1.5 rounded-pill">
+                        <i class="bi bi-person me-1"></i> Thành Viên
+                    </span>
+                `;
+            }
+
+            let statusBadge = '';
+            if (m.Status === 'Active') {
+                statusBadge = `
+                    <span class="badge bg-success-subtle text-success fw-semibold px-2.5 py-1.5 rounded-pill">
+                        <i class="bi bi-check-circle-fill me-1"></i> Đang hoạt động
+                    </span>
+                `;
+            } else {
+                statusBadge = `
+                    <span class="badge bg-danger-subtle text-danger fw-semibold px-2.5 py-1.5 rounded-pill">
+                        <i class="bi bi-dash-circle-fill me-1"></i> Tạm ngưng
+                    </span>
+                `;
+            }
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="ps-4 text-muted small fw-semibold">
+                    ${index + 1}
+                </td>
+                <td>
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="ef-avatar-circle" style="width: 40px; height: 40px; font-size: 0.9rem; background-color: ${avatarColor};">
+                            ${firstLetter}
+                        </div>
+                        <div>
+                            <div class="fw-bold text-dark d-flex align-items-center gap-2">
+                                ${escapeHtml(m.FullName)}
+                                ${managerBadge}
+                            </div>
+                            <div class="small text-muted">
+                                MSSV: ${studentCode}
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <span class="text-dark small">${escapeHtml(m.Email)}</span>
+                </td>
+                <td>
+                    ${roleBadge}
+                </td>
+                <td>
+                    ${statusBadge}
+                </td>
+                <td>
+                    <span class="text-muted small">
+                        ${formatDate(m.JoinedDate)}
+                    </span>
+                </td>
+                <td class="text-end pe-4">
+                    <a 
+                        href="${editBaseUrl}${m.MemberID}" 
+                        class="btn btn-sm btn-outline-primary fw-semibold"
+                        title="Chỉnh sửa vai trò & trạng thái"
+                    >
+                        <i class="bi bi-pencil-square me-1"></i> Sửa
+                    </a>
+                </td>
+            `;
+            tableBody.appendChild(tr);
+        });
+    }
+
+    // Lắng nghe sự kiện thay đổi tại ô tìm kiếm (input event) tức thì không độ trễ
+    searchInput.addEventListener('input', function() {
+        fetchMembers();
+    });
+
+    // Lắng nghe thay đổi dropdown vai trò và trạng thái
+    roleSelect.addEventListener('change', fetchMembers);
+    statusSelect.addEventListener('change', fetchMembers);
+
+    // Chặn submit form thông thường
+    filterForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        fetchMembers();
+    });
+
+    // Xử lý nút Đặt lại (Reset)
+    if (btnReset) {
+        btnReset.addEventListener('click', function(e) {
+            e.preventDefault();
+            searchInput.value = '';
+            roleSelect.value = '';
+            statusSelect.value = '';
+            fetchMembers();
+        });
+    }
+});
+</script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
