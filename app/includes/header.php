@@ -22,19 +22,40 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
     <!-- Bootstrap Icons CDN -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
-    <!-- Custom Design System CSS -->
+    <!-- Custom Design System CSS (Unified Blue Theme & Core Styles) -->
+    <link rel="stylesheet" href="<?= base_url('assets/css/theme-blue.css') ?>?v=<?= filemtime(__DIR__ . '/../../assets/css/theme-blue.css') ?>">
     <link rel="stylesheet" href="<?= base_url('assets/css/style.css') ?>?v=<?= filemtime(__DIR__ . '/../../assets/css/style.css') ?>">
 </head>
 <body>
+
+    <!-- TOP UTILITY TICKER STRIP -->
+    <div class="py-1 text-white border-bottom border-dark border-opacity-25 ef-top-ticker">
+        <div class="container d-flex justify-content-between align-items-center">
+            <span class="text-white-50 text-uppercase fw-semibold d-none d-md-inline font-monospace">
+                EVENTFLOW — NỀN TẢNG QUẢN LÝ & ĐIỂM DANH SỰ KIỆN CLB SINH VIÊN
+            </span>
+            <span class="text-white-50 text-uppercase fw-semibold d-inline d-md-none font-monospace">
+                EVENTFLOW · UEH
+            </span>
+            <span class="text-uppercase fw-bold text-ef-sky font-monospace" style="font-size: 0.72rem;">
+                ĐẠI HỌC KINH TẾ TP. HỒ CHÍ MINH <span class="text-white-50">✱</span> UEH
+            </span>
+        </div>
+    </div>
 
     <!-- TOP NAVBAR -->
     <?php if (empty($hideNavbar)): ?>
     <nav class="navbar navbar-expand-lg ef-navbar sticky-top">
         <div class="container">
-            <!-- Brand Logo -->
+            <!-- Brand Logo: EventFlow -->
             <a class="navbar-brand d-flex align-items-center gap-2" href="<?= base_url() ?>">
-                <img src="<?= base_url('assets/images/logo.png') ?>" alt="EventFlow Logo" class="ef-logo-img">
-                <span class="ef-logo-text">EventFlow</span>
+                <div class="ef-brand-icon">
+                    <i class="bi bi-calendar2-check-fill"></i>
+                </div>
+                <div class="d-flex flex-column">
+                    <span class="fw-bold text-dark lh-1" style="font-family: 'Inter', sans-serif; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em;">Event<span style="color: #2563eb;">Flow</span></span>
+                    <span class="text-muted fw-semibold font-monospace" style="font-size: 0.65rem; letter-spacing: 0.06em;">CAMPUS EVENT PLATFORM · UEH</span>
+                </div>
             </a>
 
             <!-- Mobile toggle button -->

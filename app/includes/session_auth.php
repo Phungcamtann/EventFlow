@@ -205,12 +205,12 @@ function is_authorized_club_member(): bool {
     $memberRole = $_SESSION['user']['MemberRole'] ?? '';
     $clubStatus = $_SESSION['user']['ClubStatus'] ?? '';
     
-    return ($clubStatus === 'Active') && in_array($memberRole, ['Board Member', 'Event Supporter'], true);
+    return ($clubStatus === 'Active') && in_array($memberRole, ['President', 'Vice President', 'Head', 'Vice Head', 'Board Member', 'Event Supporter'], true);
 }
 
 /**
  * Kiểm tra xem người dùng có quyền cập nhật thông tin và hình ảnh CLB không
- * Điều kiện: Club Manager HOẶC (Club Member có Status = 'Active' VÀ MemberRole = 'Board Member')
+ * Điều kiện: Club Manager HOẶC (Club Member có Status = 'Active' VÀ MemberRole IN ('President', 'Vice President', 'Board Member'))
  */
 function can_manage_club_profile(): bool {
     if (!is_logged_in()) {
@@ -221,7 +221,7 @@ function can_manage_club_profile(): bool {
     }
     $memberRole = $_SESSION['user']['MemberRole'] ?? '';
     $clubStatus = $_SESSION['user']['ClubStatus'] ?? '';
-    return ($clubStatus === 'Active') && ($memberRole === 'Board Member');
+    return ($clubStatus === 'Active') && in_array($memberRole, ['President', 'Vice President', 'Board Member'], true);
 }
 
 /**

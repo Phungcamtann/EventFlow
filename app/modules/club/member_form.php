@@ -90,6 +90,9 @@ $availableAccounts = [];
 $selectedAccount = null;
 $errors = [];
 
+// Danh sách phòng ban phục vụ lựa chọn
+$departments = $pdo->query("SELECT DepartmentID, DepartmentCode, DepartmentName FROM Department WHERE ClubID = 1 ORDER BY OrderIndex ASC")->fetchAll();
+
 // Nếu là chế độ Edit
 if ($isEditMode) {
     $stmt = $pdo->prepare("
@@ -138,12 +141,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token()) {
         $errors[] = "Mã xác thực CSRF không hợp lệ hoặc phiên làm việc đã hết hạn. Vui lòng thử lại.";
     } else {
+        $departmentId = !empty($_POST['department_id']) ? (int)$_POST['department_id'] : null;
         $memberRole = trim($_POST['member_role'] ?? 'Member');
         $status = trim($_POST['status'] ?? 'Active');
         $joinedDate = trim($_POST['joined_date'] ?? date('Y-m-d'));
 
         // Kiểm tra hợp lệ dữ liệu vai trò & trạng thái
-        if (!in_array($memberRole, ['Member', 'Board Member', 'Event Supporter'], true)) {
+        $allowedRoles = ['President', 'Vice President', 'Head', 'Vice Head', 'Member', 'Board Member', 'Event Supporter'];
+        if (!in_array($memberRole, $allowedRoles, true)) {
             $errors[] = "Vai trò nội bộ không hợp lệ.";
         }
 
@@ -164,12 +169,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (empty($errors)) {
                 $updateStmt = $pdo->prepare("
                     UPDATE Club_Member 
-                    SET MemberRole = :role,
+                    SET DepartmentID = :deptId,
+                        MemberRole = :role,
                         Status = :status,
                         JoinedDate = :joinedDate
                     WHERE MemberID = :memberId AND ClubID = 1
                 ");
                 $updateStmt->execute([
+                    ':deptId'     => $departmentId,
                     ':role'       => $memberRole,
                     ':status'     => $status,
                     ':joinedDate' => $joinedDate,
@@ -180,6 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($memberData['AccountID'] == current_user_id()) {
                     $_SESSION['user']['MemberRole'] = $memberRole;
                     $_SESSION['user']['ClubStatus'] = $status;
+                    $_SESSION['user']['DepartmentID'] = $departmentId;
                 }
 
                 set_flash('success', "Cập nhật thành viên '{$memberData['FullName']}' thành công!");
@@ -206,11 +214,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 try {
                     // 1. Thêm vào bảng Club_Member
                     $insertStmt = $pdo->prepare("
-                        INSERT INTO Club_Member (AccountID, ClubID, MemberRole, Status, JoinedDate)
-                        VALUES (:accId, 1, :role, :status, :joinedDate)
+                        INSERT INTO Club_Member (AccountID, ClubID, DepartmentID, MemberRole, Status, JoinedDate)
+                        VALUES (:accId, 1, :deptId, :role, :status, :joinedDate)
                     ");
                     $insertStmt->execute([
                         ':accId'      => $accountId,
+                        ':deptId'     => $departmentId,
                         ':role'       => $memberRole,
                         ':status'     => $status,
                         ':joinedDate' => $joinedDate
@@ -422,6 +431,25 @@ require_once __DIR__ . '/../../includes/header.php';
                             </div>
                         <?php endif; ?>
 
+                        <!-- Phòng ban chuyên môn trực thuộc -->
+                        <div class="mb-4">
+                            <label for="department_id" class="form-label fw-bold text-dark">
+                                Phòng ban chuyên môn trực thuộc
+                            </label>
+                            <?php $currentDeptId = $isEditMode ? ($memberData['DepartmentID'] ?? null) : ($_POST['department_id'] ?? null); ?>
+                            <select name="department_id" id="department_id" class="form-select rounded-3">
+                                <option value="">-- Ban Điều Hành (Không thuộc phòng ban) --</option>
+                                <?php foreach ($departments as $dept): ?>
+                                    <option value="<?= $dept['DepartmentID'] ?>" <?= ($currentDeptId == $dept['DepartmentID']) ? 'selected' : '' ?>>
+                                        Phòng <?= htmlspecialchars($dept['DepartmentCode']) ?> — <?= htmlspecialchars($dept['DepartmentName']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="form-text text-muted">
+                                Gán thành viên vào 1 trong 4 phòng ban chuyên môn của BELL UEH (HR, Specialist, Communications, External Relations).
+                            </div>
+                        </div>
+
                         <!-- Vai trò nội bộ CLB (Tầng 2: MemberRole) -->
                         <div class="mb-4">
                             <label for="member_role" class="form-label fw-bold text-dark">
@@ -429,18 +457,30 @@ require_once __DIR__ . '/../../includes/header.php';
                             </label>
                             <?php $currentRole = $isEditMode ? $memberData['MemberRole'] : 'Member'; ?>
                             <select name="member_role" id="member_role" class="form-select rounded-3" required>
-                                <option value="Member" <?= $currentRole === 'Member' ? 'selected' : '' ?>>
-                                    Thành Viên Thường (Member)
+                                <option value="President" <?= $currentRole === 'President' ? 'selected' : '' ?>>
+                                    Chủ nhiệm CLB (President — Ban Điều Hành)
+                                </option>
+                                <option value="Vice President" <?= $currentRole === 'Vice President' ? 'selected' : '' ?>>
+                                    Phó Chủ nhiệm CLB (Vice President — Ban Điều Hành)
+                                </option>
+                                <option value="Head" <?= $currentRole === 'Head' ? 'selected' : '' ?>>
+                                    Trưởng phòng (Head of Department)
+                                </option>
+                                <option value="Vice Head" <?= $currentRole === 'Vice Head' ? 'selected' : '' ?>>
+                                    Phó phòng (Vice Head of Department)
                                 </option>
                                 <option value="Event Supporter" <?= $currentRole === 'Event Supporter' ? 'selected' : '' ?>>
                                     Hỗ Trợ Sự Kiện (Event Supporter — Được ủy quyền Điểm danh)
                                 </option>
+                                <option value="Member" <?= $currentRole === 'Member' ? 'selected' : '' ?>>
+                                    Thành Viên Thường (Member)
+                                </option>
                                 <option value="Board Member" <?= $currentRole === 'Board Member' ? 'selected' : '' ?>>
-                                    Ban Điều Hành CLB (Board Member)
+                                    Ban Điều Hành (Board Member)
                                 </option>
                             </select>
                             <div class="form-text text-muted">
-                                <span class="text-primary fw-semibold"><i class="bi bi-info-circle me-1"></i> Lưu ý phân quyền:</span> Thành viên có vai trò <strong>Event Supporter</strong> hoặc <strong>Board Member</strong> ở trạng thái <em>Active</em> sẽ được cấp quyền truy cập tính năng Quản lý danh sách đăng ký và Điểm danh sự kiện.
+                                <span class="text-primary fw-semibold"><i class="bi bi-info-circle me-1"></i> Lưu ý phân quyền:</span> Cán bộ giữ vai trò <strong>President</strong>, <strong>Vice President</strong> hoặc được chỉ định vào <strong>Event_Staff</strong> sẽ có quyền quản trị và thực hiện điểm danh sự kiện.
                             </div>
                         </div>
 
