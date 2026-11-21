@@ -444,6 +444,20 @@ a:hover {
   background: rgba(129, 140, 248, 0.15);
 }
 
+.ef-auth-subtitle {
+  box-sizing: border-box;
+  max-width: 100%;
+  padding-left: 8px;
+  padding-right: 8px;
+  word-break: break-word;
+  text-wrap: balance;
+}
+
+.event-card-status {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 /* ==========================================================================
    SCROLLBAR & UTILITIES
    ========================================================================== */

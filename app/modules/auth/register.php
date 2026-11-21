@@ -167,11 +167,11 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
 
         <!-- CỘT PHẢI: FORM ĐĂNG KÝ CÓ CUỘN (OVERFLOW-Y AUTO) -->
-        <div class="col-lg-6 bg-white p-4 p-md-5 d-flex flex-column justify-content-center" style="max-height: 85vh; overflow-y: auto;">
-            <div style="max-width: 440px; margin: 0 auto; width: 100%;">
+        <div class="col-lg-6 bg-white p-4 p-md-5 d-flex flex-column" style="max-height: 85vh; overflow-y: auto;">
+            <div style="max-width: 440px; margin: auto; width: 100%;">
                 <div class="mb-4">
                     <h1 class="h3 fw-bold text-dark mb-2">Tạo tài khoản mới</h1>
-                    <p class="text-secondary small mb-0">Đăng ký để tham gia các hoạt động cùng EventFlow.</p>
+                    <p class="text-secondary small mb-0 ef-auth-subtitle">Đăng ký để tham gia các hoạt động cùng EventFlow.</p>
                 </div>
 
                 <!-- Hiển thị lỗi nếu có -->

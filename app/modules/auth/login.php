@@ -153,7 +153,7 @@ require_once __DIR__ . '/../../includes/header.php';
             <div style="max-width: 420px; margin: 0 auto; width: 100%;">
                 <div class="mb-4">
                     <h1 class="h3 fw-bold text-dark mb-2">Chào mừng trở lại</h1>
-                    <p class="text-secondary small mb-0">Đăng nhập để tiếp tục hành trình cùng EventFlow.</p>
+                    <p class="text-secondary small mb-0 ef-auth-subtitle">Đăng nhập để tiếp tục hành trình cùng EventFlow.</p>
                 </div>
 
                 <!-- Thông báo nếu đang có phiên đăng nhập của tài khoản khác -->
