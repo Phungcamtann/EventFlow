@@ -10,6 +10,12 @@ require_once __DIR__ . '/../../includes/event_helpers.php';
 
 require_login();
 
+// Nếu là Cán bộ BĐH hoặc Admin: Điều hướng vào Single Workspace Container
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && (is_club_manager() || is_authorized_club_member() || is_system_admin())) {
+    header('Location: ' . base_url('app/modules/dashboard/index.php#profile'));
+    exit;
+}
+
 $pdo = get_db_connection();
 $userId = (int)current_user_id();
 $profileUrl = base_url('app/modules/profile/index.php');
