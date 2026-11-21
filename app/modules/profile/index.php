@@ -33,7 +33,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // 1. CẬP NHẬT THÔNG TIN CÁ NHÂN
     if ($action === 'update_profile') {
         $fullName = trim($_POST['full_name'] ?? '');
-        $studentCode = trim($_POST['student_code'] ?? '');
 
         if ($fullName === '') {
             $profileErrors[] = 'Họ và tên không được để trống.';
@@ -41,31 +40,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $profileErrors[] = 'Họ và tên không được vượt quá 100 ký tự.';
         }
 
-        if ($studentCode !== '') {
-            if (mb_strlen($studentCode) > 20) {
-                $profileErrors[] = 'Mã số sinh viên không được vượt quá 20 ký tự.';
-            } else {
-                // Kiểm tra trùng MSSV với tài khoản khác
-                $chkStmt = $pdo->prepare('SELECT COUNT(*) FROM Account WHERE StudentCode = :code AND AccountID <> :id');
-                $chkStmt->execute([':code' => $studentCode, ':id' => $userId]);
-                if ($chkStmt->fetchColumn() > 0) {
-                    $profileErrors[] = 'Mã số sinh viên này đã được sử dụng bởi một tài khoản khác.';
-                }
-            }
-        }
-
         if (empty($profileErrors)) {
-            $finalStudentCode = ($studentCode !== '') ? $studentCode : null;
-            $upStmt = $pdo->prepare('UPDATE Account SET FullName = :name, StudentCode = :code WHERE AccountID = :id');
+            $upStmt = $pdo->prepare('UPDATE Account SET FullName = :name WHERE AccountID = :id');
             $upStmt->execute([
                 ':name' => $fullName,
-                ':code' => $finalStudentCode,
                 ':id'   => $userId
             ]);
 
             // Cập nhật lại session hiện tại
             $_SESSION['user']['FullName'] = $fullName;
-            $_SESSION['user']['StudentCode'] = $finalStudentCode;
 
             set_flash('success', 'Cập nhật thông tin cá nhân thành công.');
             header('Location: ' . $profileUrl);
@@ -390,10 +373,10 @@ require_once __DIR__ . '/../../includes/header.php';
 
                         <div class="col-md-6">
                             <label for="studentCode" class="form-label fw-semibold small text-dark">
-                                Mã số sinh viên (MSSV)
+                                Mã số sinh viên (MSSV) <span class="badge bg-light text-muted border ms-1">Cố định</span>
                             </label>
-                            <input type="text" class="form-control font-mono" id="studentCode" name="student_code"
-                                   value="<?= $h($user['StudentCode'] ?? '') ?>" placeholder="VD: 31241020000" maxlength="20">
+                            <input type="text" class="form-control font-mono bg-light" id="studentCode"
+                                   value="<?= $h($user['StudentCode'] ?? '') ?>" readonly>
                             <div class="form-text small">MSSV dùng để tra cứu nhanh khi tham gia điểm danh tại hội trường.</div>
                         </div>
 
