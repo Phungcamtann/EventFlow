@@ -25,9 +25,10 @@ if ($clubIds === []) {
 // TRƯỜNG HỢP 1: Chưa chọn sự kiện -> Hiển thị danh sách sự kiện để chọn
 // ---------------------------------------------------------------------------
 if ($eventId === 0) {
+    $now = event_now($pdo);
     $in = implode(',', array_map('intval', $clubIds));
     $events = $pdo->query("
-        SELECT e.EventID, e.EventName, e.StartTime, e.EndTime, e.Location, e.Status, e.MaxCapacity,
+        SELECT e.*,
                (SELECT COUNT(*) FROM Event_Registration r
                  WHERE r.EventID = e.EventID AND r.Status = 'Registered') AS RegisteredCount,
                (SELECT COUNT(*) FROM Event_Registration r
@@ -89,6 +90,7 @@ if ($eventId === 0) {
                             $reg = (int)$e['RegisteredCount'];
                             $cap = $e['MaxCapacity'] !== null ? (int)$e['MaxCapacity'] : null;
                             $capStr = $cap !== null ? $cap : '∞';
+                            $st = event_state($e, $reg, $now);
                         ?>
                             <tr>
                                 <td class="ps-4">
@@ -103,13 +105,7 @@ if ($eventId === 0) {
                                 <td class="text-center font-mono fw-bold text-primary"><?= $reg ?></td>
                                 <td class="text-center font-mono small text-muted"><?= (int)$e['CancelledCount'] ?></td>
                                 <td>
-                                    <?php if ($e['Status'] === 'Published'): ?>
-                                        <span class="badge bg-success-subtle text-success rounded-pill px-3 py-1">Đang công bố</span>
-                                    <?php elseif ($e['Status'] === 'Cancelled'): ?>
-                                        <span class="badge bg-danger-subtle text-danger rounded-pill px-3 py-1">Đã hủy</span>
-                                    <?php else: ?>
-                                        <span class="badge bg-secondary-subtle text-secondary rounded-pill px-3 py-1">Bản nháp</span>
-                                    <?php endif; ?>
+                                    <span class="badge-pill-custom <?= $h($st['css_class']) ?>"><?= $h($st['label']) ?></span>
                                 </td>
                                 <td class="text-end pe-4 text-nowrap">
                                     <a href="<?= $h($pageUrl . '?event_id=' . (int)$e['EventID']) ?>" class="btn btn-sm btn-primary">
@@ -177,6 +173,8 @@ foreach ($registrations as $r) {
 $capacity = $evt['MaxCapacity'] !== null ? (int)$evt['MaxCapacity'] : null;
 $seatsLeft = $capacity !== null ? max(0, $capacity - $validCount) : null;
 
+$evtState = event_state($evt, $validCount, $now);
+
 $pageTitle = 'Danh sách đăng ký: ' . $evt['EventName'] . ' — EventFlow';
 require_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -195,13 +193,7 @@ require_once __DIR__ . '/../../includes/header.php';
         <div>
             <div class="d-flex align-items-center gap-2 mb-1">
                 <h1 class="h3 fw-bold text-dark mb-0"><?= $h($evt['EventName']) ?></h1>
-                <?php if ($evt['Status'] === 'Published'): ?>
-                    <span class="badge bg-success-subtle text-success rounded-pill">Đang công bố</span>
-                <?php elseif ($evt['Status'] === 'Cancelled'): ?>
-                    <span class="badge bg-danger-subtle text-danger rounded-pill">Đã hủy</span>
-                <?php else: ?>
-                    <span class="badge bg-secondary-subtle text-secondary rounded-pill">Bản nháp</span>
-                <?php endif; ?>
+                <span class="badge-pill-custom <?= $h($evtState['css_class']) ?>"><?= $h($evtState['label']) ?></span>
             </div>
             <p class="text-muted small mb-0">
                 <i class="bi bi-calendar-event me-1"></i><?= $h(event_fmt_dt($evt['StartTime'])) ?> ·

@@ -385,9 +385,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // GET 1: chưa chọn sự kiện → danh sách sự kiện của CLB
 // ---------------------------------------------------------------------------
 if ($eventId === 0) {
+    $now = event_now($pdo);
     $in = implode(',', array_map('intval', $clubIds));
     $events = $pdo->query("
-        SELECT e.EventID, e.EventName, e.StartTime, e.Location, e.Status,
+        SELECT e.*,
                (SELECT COUNT(*) FROM Event_Registration r
                  WHERE r.EventID = e.EventID AND r.Status = 'Registered') AS RegisteredCount
         FROM Event e
@@ -425,12 +426,14 @@ if ($eventId === 0) {
                             </tr>
                         </thead>
                         <tbody>
-                        <?php foreach ($events as $e): ?>
+                        <?php foreach ($events as $e): 
+                            $st = event_state($e, (int)$e['RegisteredCount'], $now);
+                        ?>
                             <tr>
                                 <td class="ps-4 fw-semibold text-dark"><?= $h($e['EventName']) ?></td>
                                 <td class="small text-nowrap"><?= $h(event_fmt_dt($e['StartTime'])) ?></td>
                                 <td class="font-mono small"><?= (int)$e['RegisteredCount'] ?></td>
-                                <td class="small"><?= $e['Status'] === 'Cancelled' ? 'Đã hủy' : 'Đang công bố' ?></td>
+                                <td><span class="badge-pill-custom <?= $h($st['css_class']) ?>"><?= $h($st['label']) ?></span></td>
                                 <td class="text-end pe-4">
                                     <?php if ($e['Status'] !== 'Cancelled'): ?>
                                         <a href="<?= $h($pageUrl . '?event_id=' . (int)$e['EventID']) ?>" class="btn btn-sm btn-primary">Điểm danh</a>

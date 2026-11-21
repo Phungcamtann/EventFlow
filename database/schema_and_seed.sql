@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS Event (
     Location VARCHAR(255) NOT NULL,
     StartTime DATETIME NOT NULL,
     EndTime DATETIME NOT NULL,
+    RegistrationStartTime DATETIME NULL,
     RegistrationDeadline DATETIME NOT NULL,
     MaxCapacity INT NULL,
     BannerImage VARCHAR(255) NULL,

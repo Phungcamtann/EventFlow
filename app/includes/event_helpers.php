@@ -22,9 +22,18 @@ function event_now(PDO $pdo): string {
 }
 
 /**
- * Suy ra trạng thái hiển thị của sự kiện.
+ * Suy ra trạng thái hiển thị của sự kiện theo thời gian thực (State Machine - UAT 19).
  *
- * @param array  $evt        Dòng Event (cần: Status, RegistrationDeadline, MaxCapacity)
+ * 7 trạng thái chuẩn hóa:
+ * 1. draft:        'Bản nháp'          (Status = 'Draft')
+ * 2. cancelled:    'Đã hủy'            (Status = 'Cancelled')
+ * 3. finished:     'Đã kết thúc'       (now >= EndTime)
+ * 4. ongoing:      'Đang diễn ra'      (StartTime <= now < EndTime)
+ * 5. closed:       'Đã đóng đăng ký'   (now > RegistrationDeadline HOẶC hết chỗ)
+ * 6. upcoming:     'Sắp mở đăng ký'    (now < RegistrationStartTime)
+ * 7. open:         'Đang mở đăng ký'   (đang trong giai đoạn nhận đăng ký)
+ *
+ * @param array  $evt        Dòng Event (cần: Status, StartTime, EndTime, RegistrationStartTime, RegistrationDeadline, MaxCapacity)
  * @param int    $registered Số lượt đăng ký có Status = 'Registered'
  * @param string $now        Kết quả event_now()
  * @return array{
@@ -36,6 +45,11 @@ function event_state(array $evt, int $registered, string $now): array {
     $capacity  = ($evt['MaxCapacity'] ?? null) === null ? null : (int)$evt['MaxCapacity'];
     $seatsLeft = $capacity === null ? null : max(0, $capacity - $registered);
     $status    = $evt['Status'] ?? '';
+
+    $startTime = !empty($evt['StartTime']) ? $evt['StartTime'] : null;
+    $endTime   = !empty($evt['EndTime']) ? $evt['EndTime'] : null;
+    $regStart  = !empty($evt['RegistrationStartTime']) ? $evt['RegistrationStartTime'] : null;
+    $deadline  = !empty($evt['RegistrationDeadline']) ? $evt['RegistrationDeadline'] : null;
 
     $state = [
         'key'           => 'open',
@@ -57,27 +71,39 @@ function event_state(array $evt, int $registered, string $now): array {
     } elseif ($status === 'Draft') {
         $state['key']           = 'draft';
         $state['label']         = 'Bản nháp';
-        $state['css_class']     = 'badge-closed';
+        $state['css_class']     = 'badge-draft';
         $state['closed_reason'] = 'draft';
-    } elseif ($now > $evt['RegistrationDeadline']) {
+    } elseif ($endTime !== null && $now >= $endTime) {
+        $state['key']           = 'finished';
+        $state['label']         = 'Đã kết thúc';
+        $state['css_class']     = 'badge-finished';
+        $state['closed_reason'] = 'ended';
+    } elseif ($startTime !== null && $now >= $startTime) {
+        $state['key']           = 'ongoing';
+        $state['label']         = 'Đang diễn ra';
+        $state['css_class']     = 'badge-ongoing';
+        $state['closed_reason'] = 'started';
+    } elseif (($deadline !== null && $now > $deadline) || ($seatsLeft !== null && $seatsLeft === 0)) {
         $state['key']           = 'closed';
         $state['label']         = 'Đã đóng đăng ký';
         $state['css_class']     = 'badge-closed';
-        $state['closed_reason'] = 'deadline';
-    } elseif ($seatsLeft === 0) {
-        $state['key']           = 'closed';
-        $state['label']         = 'Đã đóng đăng ký';
-        $state['css_class']     = 'badge-closed';
-        $state['closed_reason'] = 'full';
+        $state['closed_reason'] = ($seatsLeft !== null && $seatsLeft === 0) ? 'full' : 'deadline';
+    } elseif ($regStart !== null && $now < $regStart) {
+        $state['key']           = 'upcoming';
+        $state['label']         = 'Sắp mở đăng ký';
+        $state['css_class']     = 'badge-upcoming';
+        $state['closed_reason'] = 'upcoming';
     } else {
         $state['is_open'] = true;
 
         if ($seatsLeft !== null && $seatsLeft <= EVENT_LOW_SEATS_THRESHOLD) {
             $state['highlights'][] = "Chỉ còn {$seatsLeft} chỗ";
         }
-        $hoursLeft = (strtotime($evt['RegistrationDeadline']) - strtotime($now)) / 3600;
-        if ($hoursLeft <= EVENT_DEADLINE_SOON_HOURS) {
-            $state['highlights'][] = 'Sắp hết hạn đăng ký';
+        if ($deadline !== null) {
+            $hoursLeft = (strtotime($deadline) - strtotime($now)) / 3600;
+            if ($hoursLeft > 0 && $hoursLeft <= EVENT_DEADLINE_SOON_HOURS) {
+                $state['highlights'][] = 'Sắp hết hạn đăng ký';
+            }
         }
     }
 

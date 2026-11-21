@@ -148,9 +148,6 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <?php endif; ?>
                                     <div>
                                         <div class="fw-semibold text-dark"><?= $h($evt['EventName']) ?></div>
-                                        <?php if ($isEnded && $evt['Status'] === 'Published'): ?>
-                                            <div class="small text-muted">Đã kết thúc</div>
-                                        <?php endif; ?>
                                     </div>
                                 </div>
                             </td>

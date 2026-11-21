@@ -116,15 +116,10 @@ try {
                 $timeStr = $evt['Time'] ?? (!empty($evt['StartTime']) ? date('H:i', strtotime($evt['StartTime'])) . ' - ' . date('H:i', strtotime($evt['EndTime'])) : '');
                 $locStr = $evt['Location'] ?? 'UEH Cơ sở B';
                 if (isset($evt['RegisteredCount'])) {
-                    // Nhãn theo thời gian và tình trạng sự kiện
+                    // Nhãn theo thời gian và tình trạng sự kiện (State Machine - UAT 19)
                     $state = event_state($evt, (int)$evt['RegisteredCount'], $now);
-                    if ($now >= $evt['StartTime']) {
-                        $badgeText = 'Đang diễn ra';
-                        $bClass = 'badge-open';
-                    } else {
-                        $badgeText = 'Sắp diễn ra';
-                        $bClass = 'badge-registered';
-                    }
+                    $badgeText = $state['label'];
+                    $bClass = $state['css_class'];
                     $seatsText = event_seats_text($state);
                     $highlights = $state['highlights'];
                 } else {

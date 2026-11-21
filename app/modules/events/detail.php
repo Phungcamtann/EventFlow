@@ -286,21 +286,28 @@ require_once __DIR__ . '/../../includes/header.php';
                 <div class="card-body p-4">
                     <div class="row g-3 mb-4">
                         <div class="col-sm-6">
-                            <div class="small text-muted"><i class="bi bi-calendar-event me-1 text-primary"></i> Bắt đầu</div>
-                            <div class="fw-semibold text-dark"><?= $h(event_fmt_dt($evt['StartTime'])) ?></div>
-                        </div>
-                        <div class="col-sm-6">
-                            <div class="small text-muted"><i class="bi bi-calendar-check me-1 text-primary"></i> Kết thúc</div>
-                            <div class="fw-semibold text-dark"><?= $h(event_fmt_dt($evt['EndTime'])) ?></div>
+                            <div class="small text-muted"><i class="bi bi-calendar-event me-1 text-primary"></i> Thời gian diễn ra</div>
+                            <div class="fw-semibold text-dark"><?= $h(event_fmt_dt($evt['StartTime'])) ?> — <?= $h(event_fmt_dt($evt['EndTime'])) ?></div>
                         </div>
                         <div class="col-sm-6">
                             <div class="small text-muted"><i class="bi bi-geo-alt me-1 text-primary"></i> Địa điểm</div>
                             <div class="fw-semibold text-dark"><?= $h($evt['Location']) ?></div>
                         </div>
-                        <div class="col-sm-6">
-                            <div class="small text-muted"><i class="bi bi-hourglass-split me-1 text-primary"></i> Hạn đăng ký</div>
-                            <div class="fw-semibold text-dark"><?= $h(event_fmt_dt($evt['RegistrationDeadline'])) ?></div>
-                        </div>
+                        <?php if (!empty($evt['RegistrationStartTime'])): ?>
+                            <div class="col-sm-6">
+                                <div class="small text-muted"><i class="bi bi-calendar-plus me-1 text-primary"></i> Mở đăng ký</div>
+                                <div class="fw-semibold text-dark"><?= $h(event_fmt_dt($evt['RegistrationStartTime'])) ?></div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="small text-muted"><i class="bi bi-hourglass-split me-1 text-primary"></i> Hạn chót đăng ký</div>
+                                <div class="fw-semibold text-dark"><?= $h(event_fmt_dt($evt['RegistrationDeadline'])) ?></div>
+                            </div>
+                        <?php else: ?>
+                            <div class="col-sm-6">
+                                <div class="small text-muted"><i class="bi bi-hourglass-split me-1 text-primary"></i> Hạn chót đăng ký</div>
+                                <div class="fw-semibold text-dark"><?= $h(event_fmt_dt($evt['RegistrationDeadline'])) ?></div>
+                            </div>
+                        <?php endif; ?>
                     </div>
 
                     <h2 class="h6 fw-bold text-dark">Mô tả sự kiện</h2>
@@ -365,10 +372,26 @@ require_once __DIR__ . '/../../includes/header.php';
                         <div class="alert alert-light border small mb-0">
                             <i class="bi bi-info-circle me-1"></i> Chỉ thành viên CLB và sinh viên tham gia mới đăng ký được sự kiện.
                         </div>
-                    <?php elseif ($state['closed_reason'] === 'cancelled'): ?>
+                    <?php elseif ($state['key'] === 'cancelled'): ?>
                         <div class="alert alert-danger small mb-0 mt-3">
                             <i class="bi bi-x-octagon me-1"></i> Sự kiện này đã bị hủy.
                             <?= $isRegistered ? 'Thông tin đăng ký của bạn vẫn được lưu lại.' : '' ?>
+                        </div>
+                    <?php elseif ($state['key'] === 'draft'): ?>
+                        <div class="alert alert-secondary small mb-0 mt-3">
+                            <i class="bi bi-file-earmark-text me-1"></i> Sự kiện đang ở chế độ bản nháp (chưa mở cho người dùng).
+                        </div>
+                    <?php elseif ($state['key'] === 'upcoming'): ?>
+                        <div class="alert alert-primary-subtle border border-primary-subtle small mb-0 mt-3 text-primary">
+                            <i class="bi bi-clock-history me-1"></i> Cổng đăng ký sẽ chính thức mở vào lúc <strong><?= $h(event_fmt_dt($evt['RegistrationStartTime'])) ?></strong>.
+                        </div>
+                    <?php elseif ($state['key'] === 'ongoing'): ?>
+                        <div class="alert alert-info-subtle border border-info-subtle small mb-0 mt-3 text-info-emphasis">
+                            <i class="bi bi-broadcast me-1"></i> Sự kiện đang diễn ra.
+                        </div>
+                    <?php elseif ($state['key'] === 'finished'): ?>
+                        <div class="alert alert-secondary small mb-0 mt-3">
+                            <i class="bi bi-calendar-check me-1"></i> Sự kiện đã kết thúc.
                         </div>
                     <?php elseif (!$isRegistered && $state['closed_reason'] === 'deadline'): ?>
                         <div class="alert alert-secondary small mb-0 mt-3">

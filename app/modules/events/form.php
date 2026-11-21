@@ -52,24 +52,26 @@ $form = [
     'EventName'            => $isEditMode ? $evt['EventName'] : '',
     'Description'          => $isEditMode ? (string)$evt['Description'] : '',
     'Location'             => $isEditMode ? $evt['Location'] : '',
-    'StartTime'            => $isEditMode ? event_dt_to_input($evt['StartTime']) : '',
-    'EndTime'              => $isEditMode ? event_dt_to_input($evt['EndTime']) : '',
-    'RegistrationDeadline' => $isEditMode ? event_dt_to_input($evt['RegistrationDeadline']) : '',
-    'MaxCapacity'          => ($isEditMode && $evt['MaxCapacity'] !== null) ? (string)$evt['MaxCapacity'] : '',
-    'Status'               => $isEditMode ? $evt['Status'] : 'Published',
+    'StartTime'             => $isEditMode ? event_dt_to_input($evt['StartTime']) : '',
+    'EndTime'               => $isEditMode ? event_dt_to_input($evt['EndTime']) : '',
+    'RegistrationStartTime' => ($isEditMode && !empty($evt['RegistrationStartTime'])) ? event_dt_to_input($evt['RegistrationStartTime']) : '',
+    'RegistrationDeadline'  => $isEditMode ? event_dt_to_input($evt['RegistrationDeadline']) : '',
+    'MaxCapacity'           => ($isEditMode && $evt['MaxCapacity'] !== null) ? (string)$evt['MaxCapacity'] : '',
+    'Status'                => $isEditMode ? $evt['Status'] : 'Published',
 ];
 
 // ---------------------------------------------------------------------------
 // Xử lý POST
 // ---------------------------------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $form['EventName']            = trim($_POST['event_name'] ?? '');
-    $form['Description']          = trim($_POST['description'] ?? '');
-    $form['Location']             = trim($_POST['location'] ?? '');
-    $form['StartTime']            = trim($_POST['start_time'] ?? '');
-    $form['EndTime']              = trim($_POST['end_time'] ?? '');
-    $form['RegistrationDeadline'] = trim($_POST['registration_deadline'] ?? '');
-    $form['MaxCapacity']          = trim($_POST['max_capacity'] ?? '');
+    $form['EventName']             = trim($_POST['event_name'] ?? '');
+    $form['Description']           = trim($_POST['description'] ?? '');
+    $form['Location']              = trim($_POST['location'] ?? '');
+    $form['StartTime']             = trim($_POST['start_time'] ?? '');
+    $form['EndTime']               = trim($_POST['end_time'] ?? '');
+    $form['RegistrationStartTime'] = trim($_POST['registration_start_time'] ?? '');
+    $form['RegistrationDeadline']  = trim($_POST['registration_deadline'] ?? '');
+    $form['MaxCapacity']           = trim($_POST['max_capacity'] ?? '');
     if ($canChooseStatus) {
         $form['Status'] = trim($_POST['status'] ?? 'Published');
     }
@@ -96,6 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $start    = $form['StartTime'] === '' ? null : event_input_to_dt($form['StartTime']);
         $end      = $form['EndTime'] === '' ? null : event_input_to_dt($form['EndTime']);
+        $regStart = $form['RegistrationStartTime'] === '' ? null : event_input_to_dt($form['RegistrationStartTime']);
         $deadline = $form['RegistrationDeadline'] === '' ? null : event_input_to_dt($form['RegistrationDeadline']);
 
         if ($form['StartTime'] === '') {
@@ -115,6 +118,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // --- Ràng buộc thời gian ---
+        if ($form['RegistrationStartTime'] !== '' && $regStart === null) {
+            $errors[] = 'Thời gian mở đăng ký không hợp lệ.';
+        }
+        if ($regStart !== null && $deadline !== null && $regStart >= $deadline) {
+            $errors[] = 'Thời gian mở đăng ký phải diễn ra trước hạn chót đăng ký.';
+        }
+        if ($regStart !== null && $start !== null && $regStart >= $start) {
+            $errors[] = 'Thời gian mở đăng ký phải diễn ra trước thời gian bắt đầu sự kiện.';
+        }
         if ($start !== null && $end !== null && $end <= $start) {
             $errors[] = 'Thời gian kết thúc phải sau thời gian bắt đầu.';
         }
@@ -200,7 +212,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $up = $pdo->prepare("
                             UPDATE Event
                             SET EventName = :name, Description = :descr, Location = :loc,
-                                StartTime = :st, EndTime = :et, RegistrationDeadline = :dl,
+                                StartTime = :st, EndTime = :et, RegistrationStartTime = :rst, RegistrationDeadline = :dl,
                                 MaxCapacity = :cap, Status = :status, BannerImage = :banner
                             WHERE EventID = :id AND ClubID = :c
                         ");
@@ -210,6 +222,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             ':loc'    => $form['Location'],
                             ':st'     => $start,
                             ':et'     => $end,
+                            ':rst'    => $regStart,
                             ':dl'     => $deadline,
                             ':cap'    => $capacity,
                             ':status' => $form['Status'],
@@ -225,8 +238,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $ins = $pdo->prepare("
                         INSERT INTO Event
-                            (ClubID, EventName, Description, Location, StartTime, EndTime, RegistrationDeadline, MaxCapacity, Status, BannerImage)
-                        VALUES (:c, :name, :descr, :loc, :st, :et, :dl, :cap, :status, :banner)
+                            (ClubID, EventName, Description, Location, StartTime, EndTime, RegistrationStartTime, RegistrationDeadline, MaxCapacity, Status, BannerImage)
+                        VALUES (:c, :name, :descr, :loc, :st, :et, :rst, :dl, :cap, :status, :banner)
                     ");
                     $ins->execute([
                         ':c'      => $clubId,
@@ -235,6 +248,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ':loc'    => $form['Location'],
                         ':st'     => $start,
                         ':et'     => $end,
+                        ':rst'    => $regStart,
                         ':dl'     => $deadline,
                         ':cap'    => $capacity,
                         ':status' => $form['Status'],
@@ -338,23 +352,27 @@ require_once __DIR__ . '/../../includes/header.php';
                         </div>
 
                         <div class="row g-3 mb-4">
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <label for="start_time" class="form-label fw-bold text-dark">Thời gian bắt đầu <span class="text-danger">*</span></label>
                                 <input type="datetime-local" class="form-control rounded-3" id="start_time" name="start_time"
                                        value="<?= $h($form['StartTime']) ?>" required>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <label for="end_time" class="form-label fw-bold text-dark">Thời gian kết thúc <span class="text-danger">*</span></label>
                                 <input type="datetime-local" class="form-control rounded-3" id="end_time" name="end_time"
                                        value="<?= $h($form['EndTime']) ?>" required>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
+                                <label for="registration_start_time" class="form-label fw-bold text-dark">Thời gian mở đăng ký</label>
+                                <input type="datetime-local" class="form-control rounded-3" id="registration_start_time" name="registration_start_time"
+                                       value="<?= $h($form['RegistrationStartTime']) ?>">
+                                <div class="form-text text-muted">Để trống nếu mở đăng ký ngay khi công bố (hoặc đặt thời điểm tương lai để sự kiện ở trạng thái "Sắp mở đăng ký").</div>
+                            </div>
+                            <div class="col-md-6">
                                 <label for="registration_deadline" class="form-label fw-bold text-dark">Hạn chót đăng ký <span class="text-danger">*</span></label>
                                 <input type="datetime-local" class="form-control rounded-3" id="registration_deadline" name="registration_deadline"
                                        value="<?= $h($form['RegistrationDeadline']) ?>" required>
-                            </div>
-                            <div class="col-12 form-text text-muted mt-0">
-                                Hạn chót đăng ký phải nhỏ hơn hoặc bằng thời gian bắt đầu; thời gian kết thúc phải sau thời gian bắt đầu.
+                                <div class="form-text text-muted">Phải trước hoặc bằng thời gian bắt đầu sự kiện.</div>
                             </div>
                         </div>
 
