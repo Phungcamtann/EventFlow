@@ -82,6 +82,7 @@ body {
   line-height: 1.6;
   margin: 0;
   padding: 0;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -90,6 +91,7 @@ body {
 
 main.main-content {
   flex: 1 0 auto;
+  overflow-x: hidden;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -512,4 +514,73 @@ a:hover {
 .badge-cancelled {
   background: var(--bs-danger-bg-subtle);
   color: var(--bs-danger-text-emphasis);
+}
+
+@media (max-width: 991.98px) {
+  .ef-navbar {
+    height: auto;
+    min-height: 64px;
+    padding: 8px 0;
+  }
+
+  .ef-navbar .navbar-toggler {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 8px 12px;
+  }
+
+  .ef-navbar .navbar-collapse {
+    flex-basis: 100%;
+    max-height: calc(100vh - 64px);
+    overflow-y: auto;
+    padding-top: 8px;
+  }
+
+  .ef-navbar .navbar-nav {
+    gap: 0 !important;
+  }
+
+  .ef-navbar .ef-nav-link {
+    font-size: 0.9rem;
+    padding: 10px 12px !important;
+    white-space: normal;
+  }
+
+  .ef-navbar .dropdown-menu {
+    position: static;
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  .ef-navbar .dropdown-item {
+    white-space: normal;
+    padding: 10px 12px;
+  }
+
+  .ef-navbar .navbar-collapse > .d-flex {
+    flex-wrap: wrap;
+    gap: 8px !important;
+    margin-top: 8px !important;
+  }
+
+  .ef-navbar .navbar-collapse > .d-flex > .btn {
+    flex: 1 1 120px;
+  }
+
+  .ef-role-pill {
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .btn {
+    min-height: 44px;
+  }
+
+  .ef-hero-banner {
+    padding: 28px 20px;
+  }
+
+  .ef-login-brand-panel {
+    padding: 32px 24px;
+  }
 }

@@ -128,7 +128,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 <!-- Bottom Event Preview Card (Theo đúng Figma 01) -->
                 <div class="position-relative z-1 mt-5">
                     <div class="card bg-white p-3 border-0 shadow-sm rounded-4 text-dark">
-                        <div class="d-flex justify-content-between align-items-start">
+                        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
                             <div>
                                 <span class="badge bg-light text-secondary rounded-pill font-mono small mb-2 px-2 py-1" style="font-size: 0.7rem;">
                                     SỰ KIỆN SẮP DIỄN RA
