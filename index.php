@@ -28,7 +28,8 @@ try {
                  WHERE r.EventID = e.EventID AND r.Status = 'Registered') AS RegisteredCount
         FROM Event e
         LEFT JOIN Club c ON e.ClubID = c.ClubID
-        WHERE e.Status IN ('Published', 'Cancelled')
+        WHERE e.EndTime >= NOW()
+          AND e.Status IN ('Published', 'Cancelled')
         ORDER BY e.StartTime ASC
     ");
     $events = $stmt->fetchAll();
@@ -115,10 +116,18 @@ try {
                 $timeStr = $evt['Time'] ?? (!empty($evt['StartTime']) ? date('H:i', strtotime($evt['StartTime'])) . ' - ' . date('H:i', strtotime($evt['EndTime'])) : '');
                 $locStr = $evt['Location'] ?? 'UEH Cơ sở B';
                 if (isset($evt['RegisteredCount'])) {
-                    // Dữ liệu từ DB: trạng thái suy ra từ Status + hạn đăng ký + số chỗ
+                    // Nhãn theo thời gian và tình trạng sự kiện
                     $state = event_state($evt, (int)$evt['RegisteredCount'], $now);
-                    $badgeText = $state['label'];
-                    $bClass = $state['css_class'];
+                    if ($evt['Status'] === 'Cancelled') {
+                        $badgeText = 'Đã hủy';
+                        $bClass = 'badge-cancelled';
+                    } elseif ($now >= $evt['StartTime']) {
+                        $badgeText = 'Đang diễn ra';
+                        $bClass = 'badge-open';
+                    } else {
+                        $badgeText = 'Sắp diễn ra';
+                        $bClass = 'badge-registered';
+                    }
                     $seatsText = event_seats_text($state);
                     $highlights = $state['highlights'];
                 } else {
@@ -155,7 +164,7 @@ try {
                         <div class="card-body p-4 d-flex flex-column justify-content-between">
                             <div>
                                 <!-- Date Badge & Status Badge -->
-                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="event-card-status d-flex justify-content-between align-items-center mb-3">
                                     <span class="badge bg-light text-secondary border px-2 py-1 rounded-pill small font-mono">
                                         <i class="bi bi-calendar3 me-1"></i> <?= htmlspecialchars($dBadge) ?>
                                     </span>
