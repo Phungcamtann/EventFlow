@@ -46,6 +46,10 @@
                             <span>Đại học Kinh tế TP. Hồ Chí Minh (UEH) — 279 Nguyễn Tri Phương, Q.10</span>
                         </div>
                         <div class="d-flex align-items-center gap-2 mb-1.5">
+                            <i class="bi bi-facebook text-info"></i>
+                            <a href="https://www.facebook.com/bellueh" target="_blank" rel="noopener noreferrer" class="text-decoration-none text-white-50 hover-white">Fanpage: CLB Tiếng Anh BELL UEH</a>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 mb-1.5">
                             <i class="bi bi-envelope-fill text-info"></i>
                             <a href="mailto:eventflow.support@ueh.edu.vn" class="text-decoration-none text-white-50">eventflow.support@ueh.edu.vn</a>
                         </div>

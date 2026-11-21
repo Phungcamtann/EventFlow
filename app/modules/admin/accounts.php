@@ -10,6 +10,12 @@ require_once __DIR__ . '/../../includes/session_auth.php';
 // Kiểm tra quyền nghiêm ngặt: Chỉ System Administrator mới được phép truy cập
 require_role('System Administrator');
 
+// Tích hợp Single Workspace Shell: Điều hướng tức thời vào Container Quản trị tài khoản
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    header('Location: ' . base_url('app/modules/dashboard/index.php#admin-accounts'));
+    exit;
+}
+
 $pdo = get_db_connection();
 $errors = [];
 $successMessage = '';

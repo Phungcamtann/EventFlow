@@ -6,6 +6,12 @@ require_once __DIR__ . '/../../includes/event_helpers.php';
 
 require_login();
 
+// Nếu là Cán bộ BĐH hoặc Admin: Điều hướng vào Single Workspace Container
+if (is_club_manager() || is_authorized_club_member() || is_system_admin()) {
+    header('Location: ' . base_url('app/modules/dashboard/index.php#my-events'));
+    exit;
+}
+
 $pdo    = get_db_connection();
 $h      = static fn($v): string => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
 $userId = (int)current_user_id();

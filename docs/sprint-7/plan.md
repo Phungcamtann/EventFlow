@@ -21,53 +21,49 @@
 
 ### Giai đoạn 2: Triển khai 4 Phase Sprint 7 (Blueprint v2.0)
 
-#### 🚀 Phase 1: Chuẩn Hóa CSDL 11 Bảng & Cơ Cấu BELL CLUB UEH (UAT 05) — ĐÃ HOÀN THÀNH (SẴN SÀNG COMMIT)
+#### 🚀 Phase 1: Chuẩn Hóa CSDL 11 Bảng & Cơ Cấu BELL CLUB UEH (UAT 05) — ĐÃ HOÀN THÀNH (Đã commit `f2d08b6`)
 - [x] Nâng cấp tài liệu kỹ thuật lên **Blueprint v2.0** (`docs/eventflow_vibe_code_design_specification.html`).
 - [x] **Chạy Migration CSDL 11 bảng quan hệ (MySQL InnoDB):**
-  - [x] Tạo mới 4 bảng: `Department` (Phòng ban), `Event_Staff` (Phân công BTC sự kiện), `Recruitment_Campaign` (Đợt tuyển quân), `Recruitment_Application` (Hồ sơ ứng tuyển).
-  - [x] Bổ sung các cột mới vào các bảng hiện có:
-    - `Account`: Thêm `Phone`, `Cohort` (K48-K52), `Major`, `AvatarUrl`, `PasswordMustChange`.
-    - `Club`: Thêm `ShortName`, `Vision`, `Mission`, `Email`, `Phone`, `FacebookUrl`, `Address`.
-    - `Club_Member`: Thêm `DepartmentID`, mở rộng `MemberRole` ('President', 'Vice President', 'Head', 'Vice Head', 'Member'), `Bio`.
-    - `Event`: Thêm `MinStaffRequired` (mặc định 2).
-    - `Event_Registration`: Thêm `RegistrationType` ('Member', 'Guest'), `GuestName`, `GuestEmail`, `GuestPhone`, `GuestStudentCode`, cho phép `AccountID NULL`.
+  - [x] Tạo mới 4 bảng: `Department`, `Event_Staff`, `Recruitment_Campaign`, `Recruitment_Application`.
+  - [x] Bổ sung các cột mới vào các bảng hiện có (`Account`, `Club`, `Club_Member`, `Event`, `Event_Registration`).
 - [x] **Nạp Seed Data chuẩn cho BELL CLUB UEH:**
-  - [x] Cập nhật hồ sơ CLB: Tên đầy đủ, Tầm nhìn, Sứ mệnh, Liên hệ, Fanpage, Địa chỉ Cơ sở B.
-  - [x] Tạo 4 phòng ban chuyên môn:
-    1. `Human Resources (HR)`: Chăm sóc thành viên, gắn kết, tuyển quân, nội bộ.
-    2. `Specialist (SPEC)`: Học thuật, Speaking Group (SGP/SGE), No Vietnamese Day.
-    3. `Communications (COMS)`: Truyền thông số, hình ảnh, bài viết, video.
-    4. `External Relations (ER)`: Quan hệ đối ngoại, nhà tài trợ, diễn giả.
-  - [x] Tạo 10 tài khoản & gán thành viên ban lãnh đạo thực tế từ PDF:
-    1. **Nguyễn Minh Anh**: President (Chủ nhiệm CLB) - Ban Điều Hành
-    2. **Trần Hoàng Nam**: Vice President (Phó Chủ nhiệm CLB) - Ban Điều Hành
-    3. **Phạm Thu Trang**: Head of Human Resources
-    4. **Nguyễn Văn Bình**: Vice Head of Human Resources
-    5. **Trần Minh Khang**: Head of Specialist
-    6. **Lê Thảo Vy**: Vice Head of Specialist
-    7. **Nguyễn Hoàng Long**: Head of Communications
-    8. **Phạm Ngọc Mai**: Vice Head of Communications
-    9. **Võ Thành Đạt**: Head of External Relations
-    10. **Đặng Khánh Linh**: Vice Head of External Relations
-    *(Mật khẩu mặc định toàn bộ tài khoản: `password123`)*
-  - [x] Nạp phân công ban tổ chức (`Event_Staff`) mẫu đảm bảo tối thiểu 2 cán bộ lãnh đạo cho các sự kiện hiện có.
+  - [x] Cập nhật hồ sơ CLB, 4 phòng ban (`HR`, `SPEC`, `COMS`, `ER`) và 10 cán bộ lãnh đạo thực tế từ PDF.
 - [x] **Nâng cấp giao diện Trang thông tin CLB (`app/modules/club/info.php`):**
-  - [x] Áp dụng phong cách bố cục tinh gọn, hiện đại lấy cảm hứng từ cấu trúc phân mục của `bellclubueh.net` nhưng **đồng bộ trọn vẹn theo hệ màu Xanh EventFlow (`assets/css/theme-blue.css`)**, giữ nguyên nhận diện nền tảng **EventFlow**.
-  - [x] Giữ nguyên Logo & Định danh hệ thống **EventFlow** trên toàn bộ Header, Top Ticker và Footer.
-  - [x] Hiển thị Khối Ban Điều Hành (Executive Board) gồm Chủ nhiệm & Phó Chủ nhiệm dạng thẻ Polaroid với điểm nhấn xanh.
-  - [x] Hiển thị 4 Khối Phòng Ban Chuyên Môn (HR, SPEC, COMS, ER) với badge mã phòng, mô tả vai trò, hoạt động trọng tâm và cán bộ phụ trách (Head, Vice Head) theo bảng màu xanh công nghệ.
-  - [x] Khối Tinh Thần B.E.L.L: Bonding, English, Learning, Liveliness.
-  - [x] Hiển thị đầy đủ Tầm nhìn, Sứ mệnh, Địa điểm Cơ sở B, Kênh liên hệ Fanpage và Banner Tuyển Quân Gen 27.
-  - [x] Tối ưu quyền hạn: Chỉ Chủ nhiệm / Phó chủ nhiệm mới hiển thị nút quản trị CLB.
-- [x] Cập nhật giao diện `members.php` và `member_form.php` hỗ trợ lọc và chỉ định phòng ban cùng 10 chức danh lãnh đạo.
-- [ ] **Kiểm thử thủ công và chờ người dùng duyệt để commit `SP7_Fix_UAT05`.**
+  - [x] Thiết kế theo phong cách hiện đại tham khảo từ `bellclubueh.net`, đồng bộ bảng màu Xanh EventFlow (`assets/css/theme-blue.css`) và font chuẩn Inter/Roboto.
+  - [x] Hiển thị Ban Điều Hành (Polaroid cards), 4 Phòng Ban (HR, SPEC, COMS, ER), Giá trị B.E.L.L, Banner Tuyển quân Gen 27.
+- [x] Thống nhất bộ font Inter/Roboto toàn hệ thống và giữ nguyên nhận diện nền tảng EventFlow.
+- [x] **Đã commit:** `f2d08b6 SP7_Fix_UAT05`.
 
 ---
 
-#### ⏳ Phase 2: Dual-Portal Navigation & Lịch Tương Tác Notion Calendar (UAT 18, 20, 06, 13)
-- [ ] Xây dựng Public Top-nav, Banner Slider, Khối 4 Sự kiện Hot, Footer Fanpage.
-- [ ] Xây dựng Workspace Left-Sidebar Navigation cố định hiện đại. Dọn sạch các nút truy cập trùng lặp.
-- [ ] Xây dựng Notion Calendar (`calendar.php`) với 2 chế độ: Lịch Tháng (Event pills) & Lịch Tuần (Timeline 07:00-22:00 có vạch đỏ giờ thực).
+#### 🚀 Phase 2: Dual-Portal Layout & Lịch Tương Tác Notion Calendar (UAT 18, 20, 06, 13) — ĐANG TRIỂN KHAI
+- [ ] **Public Portal & Top Navigation (`app/includes/header.php`, `app/includes/footer.php`):**
+  - [ ] Chuẩn hóa thanh điều hướng công khai: Trang chủ | Câu Lạc Bộ | Sự kiện | Lịch sự kiện | Đăng nhập / Bàn làm việc BĐH.
+  - [ ] Loại bỏ hoàn toàn các nút truy cập trùng lặp ngoài menu: Không để nút Sửa CLB hoặc Điểm danh rải rác trên Top-nav (UAT 06, 13).
+  - [ ] Nút "Sửa thông tin CLB" chỉ hiển thị duy nhất trên `app/modules/club/info.php` dạng nút hành động nổi khi đăng nhập là President hoặc Vice President.
+- [ ] **Đại tu Trang chủ Công chúng (`index.php`):**
+  - [ ] Mở quyền truy cập tự do cho khách vãng lai (không bắt buộc đăng nhập).
+  - [ ] Banner Slider (Bootstrap Carousel) trình chiếu 3 slide hoạt động nổi bật của CLB BELL UEH.
+  - [ ] Khối 4 Sự Kiện Hot (4 cards dạng lưới hiển thị danh mục, thời gian, địa điểm, trạng thái thời gian thực và CTA Xem chi tiết).
+  - [ ] Mini Dot Calendar Widget: Khối lịch tháng thu nhỏ có dấu chấm tròn màu xanh dưới các ngày có sự kiện.
+  - [ ] Nút điều hướng "Xem tất cả sự kiện →" dẫn đến trang danh mục công khai.
+- [ ] **Trang Danh mục Sự kiện Công khai (`app/modules/events/index.php`):**
+  - [ ] Hiển thị danh mục sự kiện công khai với bộ lọc trạng thái (Đang mở ĐK, Sắp mở ĐK...), tìm kiếm theo tên và phòng ban phụ trách.
+- [ ] **Mô-đun Lịch Sự Kiện Notion Calendar (`app/modules/events/calendar.php`) (UAT 18):**
+  - [ ] Thanh điều khiển: Tiêu đề Tháng/Năm, chuyển tháng/tuần `< >`, nút `Today` quay về hôm nay, nút toggle chế độ xem `Tháng` / `Tuần`.
+  - [ ] **Chế độ Lịch Tháng (Month View Grid):**
+    - Lưới 7 cột (Sun – Sat), ô ngày có số ngày và danh sách **Event Pills** mang phong cách Notion (Emoji icon, tên rút gọn, pill màu pastel theo phòng ban/trạng thái).
+    - Bấm vào pill mở Modal/Offcanvas xem nhanh thông tin sự kiện.
+  - [ ] **Chế độ Lịch Tuần (Week / Timeline View):**
+    - Trục ngang 7 ngày trong tuần được chọn (đánh dấu ngày Hôm nay nổi bật).
+    - Trục dọc từ **07:00 đến 22:00** (15 khung giờ).
+    - **Vạch đỏ thời gian thực (Current Time Red Line):** Vạch ngang màu đỏ định vị chính xác vị trí thời gian hiện tại kèm nhãn giờ trực tiếp (VD: `10:15 AM`).
+    - Các khối sự kiện được căn vị trí `top` và `height` theo `StartTime` và `EndTime`, màu sắc trực quan theo phòng ban.
+  - [ ] Tích hợp API/Dữ liệu JSON tức thời giúp chuyển đổi tháng/tuần không độ trễ.
+- [ ] **Khung Giao Diện Workspace (Left-Sidebar) (`app/includes/workspace_layout.php`) & Dashboard (`app/modules/dashboard/index.php`):**
+  - [ ] Thanh điều hướng cố định bên trái (Modern Left-Sidebar Navigation) cho Ban Điều Hành: Dashboard, Lịch Notion, Quản trị Sự kiện, Nhân sự & Phòng ban, Tuyển quân, Tài khoản.
+  - [ ] Trang Dashboard BĐH (`app/modules/dashboard/index.php`) tổng hợp chỉ số, lối tắt nghiệp vụ và widget Mini Dot Calendar.
+- [ ] **Kiểm thử thủ công và chờ người dùng duyệt để commit `SP7_Fix_UAT18_20_06_13`.**
 
 #### ⏳ Phase 3: Unified Event Console & Staffing RBAC & My Events Dual-Tab (UAT 14, 15, 16, 08, 11, 10)
 - [ ] Hợp nhất `console.php` với 4 tabs: Tổng quan, Điểm danh Realtime Polling 3s, Phân công BTC (ràng buộc min 2 BĐH), Thống kê.

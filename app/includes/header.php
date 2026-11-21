@@ -63,59 +63,31 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
                 <i class="bi bi-list fs-2 text-dark"></i>
             </button>
 
-            <!-- Navigation Links -->
+            <!-- Navigation Links (Thống nhất Top-nav công chúng: Trang chủ | Câu Lạc Bộ | Sự kiện) -->
             <div class="collapse navbar-collapse" id="efNavbarContent">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4 gap-1">
                     <li class="nav-item">
-                        <a class="nav-link ef-nav-link" href="<?= base_url('index.php') ?>">Khám phá</a>
+                        <a class="nav-link ef-nav-link" href="<?= base_url('index.php') ?>">Trang chủ</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link ef-nav-link" href="<?= base_url('app/modules/club/info.php') ?>">Thông tin CLB</a>
+                        <a class="nav-link ef-nav-link" href="<?= base_url('app/modules/club/info.php') ?>">Câu Lạc Bộ</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link ef-nav-link" href="<?= base_url('app/modules/events/index.php') ?>">Sự kiện</a>
                     </li>
 
                     <?php if (is_logged_in()): ?>
-                        <li class="nav-item">
-                            <a class="nav-link ef-nav-link" href="<?= base_url('app/modules/events/my_events.php') ?>">Sự kiện của tôi</a>
-                        </li>
-
-                        <!-- Menu nghiệp vụ dành cho Club Manager -->
-                        <?php if (is_club_manager()): ?>
-                            <li class="nav-item dropdown">
-                                <a class="nav-link ef-nav-link dropdown-toggle text-primary fw-semibold" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="bi bi-gear-fill me-1"></i> Quản lý CLB
-                                </a>
-                                <ul class="dropdown-menu border-0 shadow-sm rounded-3 mt-2">
-                                    <li><a class="dropdown-item py-2" href="<?= base_url('app/modules/club/members.php') ?>"><i class="bi bi-people me-2"></i> Danh sách thành viên</a></li>
-                                    <li><a class="dropdown-item py-2" href="<?= base_url('app/modules/club/edit.php') ?>"><i class="bi bi-pencil-square me-2"></i> Chỉnh sửa thông tin CLB</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item py-2" href="<?= base_url('app/modules/events/manage.php') ?>"><i class="bi bi-calendar-event me-2"></i> Quản lý sự kiện nội bộ</a></li>
-                                    <li><a class="dropdown-item py-2" href="<?= base_url('app/modules/attendance/checkin.php') ?>"><i class="bi bi-clipboard-check me-2"></i> Điểm danh sự kiện</a></li>
-                                    <li><a class="dropdown-item py-2" href="<?= base_url('app/modules/attendance/stats.php') ?>"><i class="bi bi-bar-chart-line me-2"></i> Báo cáo thống kê</a></li>
-                                </ul>
-                            </li>
-                        <?php endif; ?>
-
-                        <!-- Menu ủy quyền hỗ trợ dành cho Authorized Club Member (không phải Manager) -->
-                        <?php if (!is_club_manager() && is_authorized_club_member()): ?>
+                        <!-- Lối tắt trực tiếp vào Không Gian Quản Lý CLB dành cho Ban Điều Hành -->
+                        <?php if (is_club_manager() || is_authorized_club_member()): ?>
                             <li class="nav-item">
-                                <a class="nav-link ef-nav-link text-success fw-semibold" href="<?= base_url('app/modules/attendance/checkin.php') ?>">
-                                    <i class="bi bi-clipboard-check me-1"></i> Hỗ trợ điểm danh
+                                <a class="nav-link ef-nav-link text-primary fw-bold d-inline-flex align-items-center gap-1.5 px-3 py-1.5 rounded-pill bg-primary-subtle ms-lg-2" href="<?= base_url('app/modules/dashboard/index.php#stats') ?>">
+                                    <i class="bi bi-sliders text-primary"></i> Quản lý CLB
                                 </a>
                             </li>
-                            <?php if (can_manage_club_profile()): ?>
-                                <li class="nav-item">
-                                    <a class="nav-link ef-nav-link text-primary fw-semibold" href="<?= base_url('app/modules/club/edit.php') ?>">
-                                        <i class="bi bi-pencil-square me-1"></i> Cập nhật CLB
-                                    </a>
-                                </li>
-                            <?php endif; ?>
-                        <?php endif; ?>
-
-                        <!-- Menu Quản trị Hệ thống dành riêng cho System Administrator -->
-                        <?php if (is_system_admin()): ?>
+                        <?php elseif (is_system_admin()): ?>
                             <li class="nav-item">
-                                <a class="nav-link ef-nav-link text-danger fw-semibold" href="<?= base_url('app/modules/admin/accounts.php') ?>">
-                                    <i class="bi bi-shield-lock-fill me-1"></i> Quản trị tài khoản
+                                <a class="nav-link ef-nav-link text-danger fw-semibold d-inline-flex align-items-center gap-1.5 px-3 py-1.5 rounded-pill bg-danger-subtle ms-lg-2" href="<?= base_url('app/modules/dashboard/index.php#admin-accounts') ?>">
+                                    <i class="bi bi-shield-lock-fill me-1 text-danger"></i> Quản trị tài khoản
                                 </a>
                             </li>
                         <?php endif; ?>
@@ -164,13 +136,25 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
                                     </small>
                                 </li>
                                 <li>
-                                    <a class="dropdown-item py-2" href="<?= base_url('app/modules/profile/index.php') ?>">
+                                    <a class="dropdown-item py-2" href="<?= (is_club_manager() || is_authorized_club_member() || is_system_admin()) ? base_url('app/modules/dashboard/index.php#profile') : base_url('app/modules/profile/index.php') ?>">
                                         <i class="bi bi-person me-2 text-primary"></i> Hồ sơ cá nhân
                                     </a>
                                 </li>
+                                <li>
+                                    <a class="dropdown-item py-2" href="<?= (is_club_manager() || is_authorized_club_member() || is_system_admin()) ? base_url('app/modules/dashboard/index.php#my-events') : base_url('app/modules/events/my_events.php') ?>">
+                                        <i class="bi bi-bookmark-check me-2 text-primary"></i> Sự kiện của tôi
+                                    </a>
+                                </li>
+                                <?php if (is_club_manager() || is_authorized_club_member()): ?>
+                                    <li>
+                                        <a class="dropdown-item py-2 text-primary fw-semibold" href="<?= base_url('app/modules/dashboard/index.php#stats') ?>">
+                                            <i class="bi bi-sliders me-2"></i> Quản lý CLB
+                                        </a>
+                                    </li>
+                                <?php endif; ?>
                                 <?php if (is_system_admin()): ?>
                                     <li>
-                                        <a class="dropdown-item py-2 text-danger" href="<?= base_url('app/modules/admin/accounts.php') ?>">
+                                        <a class="dropdown-item py-2 text-danger" href="<?= base_url('app/modules/dashboard/index.php#admin-accounts') ?>">
                                             <i class="bi bi-shield-lock me-2"></i> Quản trị tài khoản
                                         </a>
                                     </li>
@@ -184,12 +168,9 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
                             </ul>
                         </div>
                     <?php else: ?>
-                        <!-- Guest actions -->
-                        <a href="<?= base_url('app/modules/auth/login.php') ?>" class="btn btn-outline-primary btn-sm px-3">
-                            Đăng nhập
-                        </a>
-                        <a href="<?= base_url('app/modules/auth/register.php') ?>" class="btn btn-primary btn-sm px-3">
-                            Đăng ký
+                        <!-- Guest actions: Nút Đăng nhập nổi bật theo UAT 20 -->
+                        <a href="<?= base_url('app/modules/auth/login.php') ?>" class="btn btn-primary rounded-pill px-3.5 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5 shadow-sm" style="font-size: 0.85rem;">
+                            <i class="bi bi-box-arrow-in-right"></i> Đăng nhập
                         </a>
                     <?php endif; ?>
                 </div>

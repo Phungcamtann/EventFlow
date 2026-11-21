@@ -163,7 +163,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                 <i class="bi bi-stars"></i> Tinh thần B.E.L.L
                             </a>
                             <?php if (can_manage_club_profile()): ?>
-                                <a href="<?= base_url('app/modules/club/edit.php') ?>" class="btn btn-outline-light rounded-pill px-3 py-2 fw-semibold ms-md-auto">
+                                <a href="<?= base_url('app/modules/dashboard/index.php#club-info') ?>" class="btn btn-outline-light rounded-pill px-3 py-2 fw-semibold ms-md-auto">
                                     <i class="bi bi-pencil-square me-1"></i> Quản trị CLB
                                 </a>
                             <?php endif; ?>

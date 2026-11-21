@@ -11,6 +11,12 @@ require_once __DIR__ . '/../../includes/session_auth.php';
 // Kiểm tra quyền Club Manager
 require_role('Club Manager');
 
+// Tích hợp Single Workspace Shell: Điều hướng tức thời vào Container Thành viên & 4 Ban
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    header('Location: ' . base_url('app/modules/dashboard/index.php#members'));
+    exit;
+}
+
 $pdo = get_db_connection();
 
 // Thông số tìm kiếm & bộ lọc
@@ -107,29 +113,23 @@ $stats = $statStmt->fetch();
 // Danh sách phòng ban phục vụ dropdown filter
 $deptsList = $pdo->query("SELECT DepartmentCode, DepartmentName FROM Department WHERE ClubID = 1 ORDER BY OrderIndex ASC")->fetchAll();
 
-$pageTitle = "Quản lý nhân sự CLB BELL UEH — EventFlow";
-require_once __DIR__ . '/../../includes/header.php';
+require_once __DIR__ . '/../../includes/workspace_layout.php';
+workspace_header("Thành viên & 4 Phòng Ban CLB BELL", "members", ["Thành viên CLB" => null]);
 ?>
 
-<div class="container py-4">
-    <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb" class="mb-4">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="<?= base_url('index.php') ?>" class="text-decoration-none text-muted">Trang chủ</a></li>
-            <li class="breadcrumb-item"><a href="<?= base_url('app/modules/club/info.php') ?>" class="text-decoration-none text-muted">Thông tin CLB</a></li>
-            <li class="breadcrumb-item active text-dark fw-semibold" aria-current="page">Quản lý nhân sự & Thành viên</li>
-        </ol>
-    </nav>
-
+<div>
     <!-- Header & Action -->
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
         <div>
             <h1 class="h3 fw-bold mb-1 text-dark">Quản lý Nhân sự & Cơ cấu Phòng Ban</h1>
             <p class="text-muted small mb-0">Theo dõi cơ cấu Ban Điều Hành, 4 phòng ban chuyên môn và thành viên CLB BELL UEH.</p>
         </div>
-        <div>
-            <a href="<?= base_url('app/modules/club/member_form.php?action=add') ?>" class="btn btn-primary shadow-sm fw-semibold">
+        <div class="d-flex gap-2">
+            <a href="<?= base_url('app/modules/club/member_form.php?action=add') ?>" class="btn btn-ef-primary btn-sm shadow-sm fw-semibold">
                 <i class="bi bi-person-plus-fill me-1"></i> Thêm thành viên mới
+            </a>
+            <a href="<?= base_url('app/modules/club/info.php') ?>" class="btn btn-outline-secondary btn-sm rounded-pill">
+                <i class="bi bi-building me-1"></i> Xem hồ sơ CLB
             </a>
         </div>
     </div>
@@ -641,4 +641,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<?php require_once __DIR__ . '/../../includes/footer.php'; ?>
+<?php workspace_footer(); ?>
