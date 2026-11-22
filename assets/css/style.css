@@ -63,7 +63,7 @@
   --neutral-900:  #0F172A;
 
   /* SEMANTIC TOKENS */
-  --color-bg:       #D5DEF2;   /* ★ Tông xanh tím xám dịu mắt (Muted Slate Periwinkle) - chống chói triệt để */
+  --color-bg:       #f1f5f9;   /* ★ Slate-100 Canvas chuẩn hóa 60-30-10 Rule - tương phản sắc nét với thẻ trắng */
   --color-surface:  #FFFFFF;
   --color-success:  #10B981;
   --color-warning:  #F59E0B;

@@ -240,7 +240,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $pageTitle = $isApplyMode ? 'Ứng tuyển BELL Gen 27' : 'Đăng nhập';
-$hideNavbar = true;
+// Giữ hiển thị Top-nav thống nhất toàn hệ thống (UAT Review)
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
@@ -605,11 +605,11 @@ require_once __DIR__ . '/../../includes/header.php';
                             <div class="col-md-4">
                                 <label class="form-label small fw-semibold mb-1">Khóa sinh viên <span class="text-danger">*</span></label>
                                 <select name="apply_cohort" class="form-select form-select-sm rounded-3" required>
-                                    <option value="K50" selected>K50 (Năm 1)</option>
-                                    <option value="K49">K49 (Năm 2)</option>
-                                    <option value="K48">K48 (Năm 3)</option>
+                                    <option value="K50" selected>K50</option>
+                                    <option value="K49">K49</option>
+                                    <option value="K48">K48</option>
+                                    <option value="K47">K47</option>
                                     <option value="K51">K51</option>
-                                    <option value="K52">K52</option>
                                 </select>
                             </div>
                             <div class="col-md-8">

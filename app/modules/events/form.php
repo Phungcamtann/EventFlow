@@ -483,14 +483,20 @@ require_once __DIR__ . '/../../includes/header.php';
                                     Tối thiểu 2 cán bộ BĐH (UAT 10)
                                 </span>
                             </div>
-                            <p class="text-muted small mb-3">Chọn các cán bộ được cấp quyền điều hành và mở bàn điểm danh cho sự kiện này:</p>
+                            <p class="text-muted small mb-2">Chọn các cán bộ được cấp quyền điều hành và mở bàn điểm danh cho sự kiện này:</p>
 
-                            <div class="row g-2">
+                            <!-- Search box for staff -->
+                            <div class="input-group input-group-sm mb-2">
+                                <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                                <input type="text" class="form-control border-start-0" id="formStaffSearchInput" placeholder="Lọc theo tên cán bộ, vai trò..." oninput="filterFormStaff(this.value)">
+                            </div>
+
+                            <div class="row g-2 overflow-y-auto p-2 rounded-2 bg-white border" id="formStaffListWrapper" style="max-height: 260px;">
                                 <?php foreach ($availableStaff as $stf): 
                                     $checked = in_array((int)$stf['AccountID'], $currentStaffIds, true);
                                 ?>
-                                    <div class="col-md-6">
-                                        <div class="p-3 border rounded-3 bg-light d-flex align-items-center justify-content-between">
+                                    <div class="col-md-6 form-staff-card" data-text="<?= htmlspecialchars(mb_strtolower($stf['FullName'] . ' ' . $stf['MemberRole'] . ' ' . ($stf['DepartmentCode'] ?? ''), 'UTF-8')) ?>">
+                                        <div class="p-3 border rounded-3 bg-light d-flex align-items-center justify-content-between h-100">
                                             <div class="form-check mb-0">
                                                 <input class="form-check-input staff-checkbox" type="checkbox" name="staff_ids[]" value="<?= (int)$stf['AccountID'] ?>" id="staff_<?= (int)$stf['AccountID'] ?>" <?= $checked ? 'checked' : '' ?>>
                                                 <label class="form-check-label ps-2" for="staff_<?= (int)$stf['AccountID'] ?>" style="cursor: pointer;">
@@ -556,6 +562,15 @@ require_once __DIR__ . '/../../includes/header.php';
             box.classList.add('d-none');
         }
     });
+
+    function filterFormStaff(val) {
+        var q = (val || '').toLowerCase().trim();
+        document.querySelectorAll('.form-staff-card').forEach(function(c) {
+            var t = c.getAttribute('data-text') || '';
+            c.style.display = (q === '' || t.includes(q)) ? '' : 'none';
+        });
+    }
+    window.filterFormStaff = filterFormStaff;
 
     var bannerInput = document.getElementById('banner_image');
     var bannerPrevBox = document.getElementById('newBannerPreviewContainer');

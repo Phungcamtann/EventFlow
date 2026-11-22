@@ -85,7 +85,7 @@ foreach ($rawEvents as $evt) {
             </nav>
             <div class="d-flex align-items-center gap-2">
                 <a href="<?= base_url('app/modules/events/calendar.php') ?>" class="btn btn-sm btn-ef-outline">
-                    <i class="bi bi-calendar3 me-1"></i> Xem dạng Lịch Notion
+                    <i class="bi bi-calendar3 me-1"></i> Xem lịch sự kiện
                 </a>
             </div>
         </div>
@@ -101,54 +101,66 @@ foreach ($rawEvents as $evt) {
             </p>
         </div>
 
-        <!-- Filter & Search Controls -->
+        <!-- Filter & Search Controls (Tìm kiếm Realtime + Bộ lọc Thu gọn) -->
         <div class="ef-card-editorial p-3 mb-4">
-            <form method="GET" action="" class="row g-2 align-items-center">
-                <!-- Search Input -->
-                <div class="col-md-5">
-                    <div class="input-group">
-                        <span class="input-group-text bg-white border-end-0 text-muted">
-                            <i class="bi bi-search"></i>
-                        </span>
-                        <input type="text" name="search" class="form-control border-start-0" 
-                               placeholder="Tìm tên sự kiện, địa điểm, chủ đề..." 
-                               value="<?= htmlspecialchars($search) ?>">
+            <form method="GET" action="" id="eventsFilterForm">
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <!-- Search Input (Realtime + Expanded) -->
+                    <div class="flex-grow-1" style="min-width: 260px;">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0 text-muted">
+                                <i class="bi bi-search"></i>
+                            </span>
+                            <input type="text" name="search" id="eventCatalogSearch" class="form-control border-start-0" 
+                                   placeholder="Tìm tên sự kiện, chủ đề, địa điểm..." 
+                                   value="<?= htmlspecialchars($search) ?>" oninput="filterEventsRealtime()">
+                        </div>
                     </div>
-                </div>
 
-                <!-- State Filter -->
-                <div class="col-6 col-md-3">
-                    <select name="state" class="form-select">
-                        <option value="">-- Tất cả trạng thái --</option>
-                        <option value="REG_OPEN" <?= $filterState === 'REG_OPEN' ? 'selected' : '' ?>>Đang mở đăng ký</option>
-                        <option value="UPCOMING" <?= $filterState === 'UPCOMING' ? 'selected' : '' ?>>Sắp mở đăng ký</option>
-                        <option value="REG_CLOSED" <?= $filterState === 'REG_CLOSED' ? 'selected' : '' ?>>Đã đóng đăng ký</option>
-                        <option value="HAPPENING" <?= $filterState === 'HAPPENING' ? 'selected' : '' ?>>Đang diễn ra</option>
-                        <option value="ENDED" <?= $filterState === 'ENDED' ? 'selected' : '' ?>>Đã kết thúc</option>
-                    </select>
-                </div>
+                    <!-- Collapsible Funnel Filter Button -->
+                    <button type="button" class="btn btn-outline-secondary d-flex align-items-center gap-1.5" data-bs-toggle="collapse" data-bs-target="#filterFunnelCollapse" aria-expanded="<?= ($filterState !== '' || $filterCategory !== '') ? 'true' : 'false' ?>">
+                        <i class="bi bi-funnel"></i>
+                        <span>Bộ lọc</span>
+                        <?php if ($filterState !== '' || $filterCategory !== ''): ?>
+                            <span class="badge bg-primary rounded-pill ms-1">Đang lọc</span>
+                        <?php endif; ?>
+                    </button>
 
-                <!-- Category Filter -->
-                <div class="col-6 col-md-2">
-                    <select name="category" class="form-select">
-                        <option value="">-- Danh mục --</option>
-                        <option value="SPEAK" <?= $filterCategory === 'SPEAK' ? 'selected' : '' ?>>Speaking</option>
-                        <option value="DEBATE" <?= $filterCategory === 'DEBATE' ? 'selected' : '' ?>>Debate</option>
-                        <option value="WORKSHOP" <?= $filterCategory === 'WORKSHOP' ? 'selected' : '' ?>>Workshop</option>
-                        <option value="CULTURE" <?= $filterCategory === 'CULTURE' ? 'selected' : '' ?>>Culture/Gala</option>
-                    </select>
-                </div>
-
-                <!-- Submit & Clear Buttons -->
-                <div class="col-md-2 d-flex gap-2">
-                    <button type="submit" class="btn btn-ef-primary w-100 btn-sm">
+                    <button type="submit" class="btn btn-ef-primary px-3">
                         Lọc
                     </button>
                     <?php if ($search !== '' || $filterState !== '' || $filterCategory !== ''): ?>
-                        <a href="<?= base_url('app/modules/events/index.php') ?>" class="btn btn-outline-secondary btn-sm" title="Xóa bộ lọc">
+                        <a href="<?= base_url('app/modules/events/index.php') ?>" class="btn btn-outline-secondary" title="Xóa bộ lọc">
                             <i class="bi bi-x-lg"></i>
                         </a>
                     <?php endif; ?>
+                </div>
+
+                <!-- Collapsible Funnel Drawer -->
+                <div class="collapse <?= ($filterState !== '' || $filterCategory !== '') ? 'show' : '' ?> pt-3 mt-3 border-top" id="filterFunnelCollapse">
+                    <div class="row g-3">
+                        <div class="col-sm-6 col-md-4">
+                            <label class="form-label small fw-bold text-dark">Trạng thái sự kiện</label>
+                            <select name="state" class="form-select form-select-sm" onchange="this.form.submit()">
+                                <option value="">-- Tất cả trạng thái --</option>
+                                <option value="REG_OPEN" <?= $filterState === 'REG_OPEN' ? 'selected' : '' ?>>Đang mở đăng ký</option>
+                                <option value="UPCOMING" <?= $filterState === 'UPCOMING' ? 'selected' : '' ?>>Sắp mở đăng ký</option>
+                                <option value="REG_CLOSED" <?= $filterState === 'REG_CLOSED' ? 'selected' : '' ?>>Đã đóng đăng ký</option>
+                                <option value="HAPPENING" <?= $filterState === 'HAPPENING' ? 'selected' : '' ?>>Đang diễn ra</option>
+                                <option value="ENDED" <?= $filterState === 'ENDED' ? 'selected' : '' ?>>Đã kết thúc</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-6 col-md-4">
+                            <label class="form-label small fw-bold text-dark">Danh mục / Phân loại</label>
+                            <select name="category" class="form-select form-select-sm" onchange="this.form.submit()">
+                                <option value="">-- Tất cả danh mục --</option>
+                                <option value="SPEAK" <?= $filterCategory === 'SPEAK' ? 'selected' : '' ?>>Speaking Group</option>
+                                <option value="DEBATE" <?= $filterCategory === 'DEBATE' ? 'selected' : '' ?>>Debate Masterclass</option>
+                                <option value="WORKSHOP" <?= $filterCategory === 'WORKSHOP' ? 'selected' : '' ?>>Workshop & Học thuật</option>
+                                <option value="CULTURE" <?= $filterCategory === 'CULTURE' ? 'selected' : '' ?>>Văn hóa & Gala</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
             </form>
         </div>
@@ -164,7 +176,7 @@ foreach ($rawEvents as $evt) {
                 </a>
             </div>
         <?php else: ?>
-            <div class="row g-4">
+            <div class="row g-4" id="eventCatalogGrid">
                 <?php 
                 $catBadges = [
                     'SPEAK'   => ['tag' => 'SPEAKING', 'class' => 'badge-ef-blue'],
@@ -180,65 +192,100 @@ foreach ($rawEvents as $evt) {
                     $timeStr = date('H:i', strtotime($evt['StartTime'])) . ' - ' . date('H:i', strtotime($evt['EndTime']));
                     $seatsText = event_seats_text($state);
                 ?>
-                    <div class="col-md-6 col-lg-4">
-                        <div class="ef-card-editorial h-100 p-4 d-flex flex-column justify-content-between position-relative">
+                    <div class="col-md-6 col-lg-4 event-catalog-card" data-title="<?= htmlspecialchars(mb_strtolower($evt['EventName'], 'UTF-8')) ?>" data-loc="<?= htmlspecialchars(mb_strtolower($evt['Location'], 'UTF-8')) ?>">
+                        <div class="ef-card-editorial h-100 overflow-hidden d-flex flex-column justify-content-between position-relative">
                             <div>
-                                <!-- Top Badges -->
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <span class="badge <?= $catMeta['class'] ?> rounded-pill px-2.5 py-1 font-monospace" style="font-size: 0.7rem;">
-                                        <?= $catMeta['tag'] ?>
-                                    </span>
-                                    <span class="badge-pill-custom <?= $state['css_class'] ?>" style="font-size: 0.7rem;">
-                                        <?= htmlspecialchars($state['label']) ?>
-                                    </span>
-                                </div>
-
-                                <!-- Event Title -->
-                                <h3 class="h5 fw-bold text-dark mb-2 lh-base" style="min-height: 52px;">
-                                    <?= htmlspecialchars($evt['EventName']) ?>
-                                </h3>
-
-                                <!-- Description Excerpt -->
-                                <p class="text-secondary small mb-3 lh-base text-truncate-2" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 40px;">
-                                    <?= htmlspecialchars($evt['Description']) ?>
-                                </p>
-
-                                <!-- Meta Info List -->
-                                <div class="small text-secondary d-flex flex-column gap-1.5 mb-4">
-                                    <div class="d-flex align-items-center gap-2">
-                                        <i class="bi bi-calendar3 text-ef-primary"></i>
-                                        <span class="font-monospace"><?= $dBadge ?></span>
-                                    </div>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <i class="bi bi-clock text-ef-primary"></i>
-                                        <span><?= $timeStr ?></span>
-                                    </div>
-                                    <div class="d-flex align-items-center gap-2 text-truncate" title="<?= htmlspecialchars($evt['Location']) ?>">
-                                        <i class="bi bi-geo-alt text-ef-primary flex-shrink-0"></i>
-                                        <span class="text-truncate"><?= htmlspecialchars($evt['Location']) ?></span>
-                                    </div>
-                                    <?php if ($seatsText !== null): ?>
-                                        <div class="d-flex align-items-center gap-2 font-monospace" style="font-size: 0.78rem;">
-                                            <i class="bi bi-people text-ef-primary"></i>
-                                            <span>Đã đăng ký: <strong><?= htmlspecialchars($seatsText) ?></strong></span>
+                                <!-- Banner Thumbnail Image (Khôi phục hiển thị ảnh banner) -->
+                                <div class="position-relative overflow-hidden" style="height: 160px; background: linear-gradient(135deg, #1e3a8a, #0b192c);">
+                                    <?php if (!empty($evt['BannerImage']) && file_exists(__DIR__ . '/../../../' . $evt['BannerImage'])): ?>
+                                        <img src="<?= base_url($evt['BannerImage']) ?>" alt="<?= htmlspecialchars($evt['EventName']) ?>" class="w-100 h-100 object-fit-cover">
+                                    <?php else: ?>
+                                        <!-- Gradient Pattern Thumbnail with Category Icon -->
+                                        <div class="w-100 h-100 d-flex flex-column align-items-center justify-content-center text-white" style="background: radial-gradient(circle at 80% 20%, rgba(37,99,235,0.45) 0%, rgba(15,23,42,0.95) 100%);">
+                                            <i class="bi <?= $evt['category'] === 'DEBATE' ? 'bi-chat-square-quote-fill' : ($evt['category'] === 'WORKSHOP' ? 'bi-mortarboard-fill' : ($evt['category'] === 'CULTURE' ? 'bi-stars' : 'bi-mic-fill')) ?> fs-1 text-white-50 mb-1"></i>
+                                            <span class="font-monospace small text-white-50" style="font-size: 0.72rem; letter-spacing: 0.1em;"><?= $catMeta['tag'] ?> · BELL UEH</span>
                                         </div>
                                     <?php endif; ?>
+                                    <div class="position-absolute top-0 end-0 m-2.5">
+                                        <span class="badge-pill-custom <?= $state['css_class'] ?>" style="font-size: 0.7rem; box-shadow: 0 2px 6px rgba(0,0,0,0.25);">
+                                            <?= htmlspecialchars($state['label']) ?>
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div class="p-4">
+                                    <!-- Category Tag -->
+                                    <div class="mb-2">
+                                        <span class="badge <?= $catMeta['class'] ?> rounded-pill px-2.5 py-1 font-monospace" style="font-size: 0.68rem;">
+                                            <?= $catMeta['tag'] ?>
+                                        </span>
+                                    </div>
+
+                                    <!-- Event Title -->
+                                    <h3 class="h5 fw-bold text-dark mb-2 lh-base" style="min-height: 52px;">
+                                        <?= htmlspecialchars($evt['EventName']) ?>
+                                    </h3>
+
+                                    <!-- Description Excerpt -->
+                                    <p class="text-secondary small mb-3 lh-base text-truncate-2" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 40px;">
+                                        <?= htmlspecialchars($evt['Description']) ?>
+                                    </p>
+
+                                    <!-- Meta Info List -->
+                                    <div class="small text-secondary d-flex flex-column gap-2 mb-2">
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-calendar3 text-ef-primary me-2"></i>
+                                            <span class="font-monospace"><?= $dBadge ?></span>
+                                        </div>
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-clock text-ef-primary me-2"></i>
+                                            <span><?= $timeStr ?></span>
+                                        </div>
+                                        <div class="d-flex align-items-center text-truncate" title="<?= htmlspecialchars($evt['Location']) ?>">
+                                            <i class="bi bi-geo-alt text-ef-primary me-2 flex-shrink-0"></i>
+                                            <span class="text-truncate"><?= htmlspecialchars($evt['Location']) ?></span>
+                                        </div>
+                                        <?php if ($seatsText !== null): ?>
+                                            <div class="d-flex align-items-center font-monospace" style="font-size: 0.78rem;">
+                                                <i class="bi bi-people text-ef-primary me-2"></i>
+                                                <span>Đã đăng ký: <strong><?= htmlspecialchars($seatsText) ?></strong></span>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
                             </div>
 
                             <!-- Bottom Action -->
-                            <div class="pt-3 border-top border-light d-flex justify-content-between align-items-center">
-                                <span class="badge bg-light text-muted border font-monospace" style="font-size: 0.7rem;">
-                                    BELL CLUB UEH
-                                </span>
-                                <a href="<?= base_url('app/modules/events/detail.php?id=' . (int)$evt['EventID']) ?>" class="btn btn-sm btn-ef-primary">
-                                    Chi tiết & Đăng ký <i class="bi bi-arrow-right ms-1"></i>
-                                </a>
+                            <div class="p-4 pt-0">
+                                <div class="pt-3 border-top border-light d-flex justify-content-between align-items-center">
+                                    <span class="badge bg-light text-muted border font-monospace" style="font-size: 0.7rem;">
+                                        BELL CLUB UEH
+                                    </span>
+                                    <a href="<?= base_url('app/modules/events/detail.php?id=' . (int)$evt['EventID']) ?>" class="btn btn-sm btn-ef-primary">
+                                        Chi tiết & Đăng ký <i class="bi bi-arrow-right ms-1"></i>
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </div>
                 <?php endforeach; ?>
             </div>
+
+            <script>
+            function filterEventsRealtime() {
+                const q = document.getElementById('eventCatalogSearch').value.toLowerCase().trim();
+                const cards = document.querySelectorAll('.event-catalog-card');
+                cards.forEach(c => {
+                    const title = c.getAttribute('data-title') || '';
+                    const loc = c.getAttribute('data-loc') || '';
+                    if (q === '' || title.includes(q) || loc.includes(q)) {
+                        c.style.display = '';
+                    } else {
+                        c.style.display = 'none';
+                    }
+                });
+            }
+            </script>
         <?php endif; ?>
 
     </div>

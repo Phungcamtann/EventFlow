@@ -192,13 +192,15 @@ $todayDay = ((int)date('Y') === $currentYear && (int)date('m') === $currentMonth
                 </div>
             </div>
 
-            <!-- Carousel Controls -->
-            <button class="carousel-control-prev" type="button" data-bs-target="#homeBannerCarousel" data-bs-slide="prev">
-                <span class="carousel-control-prev-icon" aria-label="Previous"></span>
-            </button>
-            <button class="carousel-control-next" type="button" data-bs-target="#homeBannerCarousel" data-bs-slide="next">
-                <span class="carousel-control-next-icon" aria-label="Next"></span>
-            </button>
+            <!-- Carousel Controls (Đưa xuống góc dưới bên phải tinh tế, không che lấp chữ) -->
+            <div class="position-absolute bottom-0 end-0 m-4 d-flex gap-2" style="z-index: 10;">
+                <button class="btn btn-dark btn-sm rounded-circle d-flex align-items-center justify-content-center shadow-sm" type="button" data-bs-target="#homeBannerCarousel" data-bs-slide="prev" style="width: 38px; height: 38px; background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(255, 255, 255, 0.25);" aria-label="Previous slide">
+                    <i class="bi bi-chevron-left text-white fs-6"></i>
+                </button>
+                <button class="btn btn-dark btn-sm rounded-circle d-flex align-items-center justify-content-center shadow-sm" type="button" data-bs-target="#homeBannerCarousel" data-bs-slide="next" style="width: 38px; height: 38px; background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(255, 255, 255, 0.25);" aria-label="Next slide">
+                    <i class="bi bi-chevron-right text-white fs-6"></i>
+                </button>
+            </div>
         </div>
 
 
@@ -275,23 +277,23 @@ $todayDay = ((int)date('Y') === $currentYear && (int)date('m') === $currentMonth
                                     </h3>
 
                                     <!-- Meta Info -->
-                                    <div class="small text-secondary d-flex flex-column gap-1.5 mb-3">
-                                        <div class="d-flex align-items-center gap-1.5">
-                                            <i class="bi bi-calendar3 text-ef-primary"></i>
+                                    <div class="small text-secondary d-flex flex-column gap-2 mb-3">
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-calendar3 text-ef-primary me-2"></i>
                                             <span class="font-monospace"><?= $dBadge ?></span>
                                         </div>
-                                        <div class="d-flex align-items-center gap-1.5">
-                                            <i class="bi bi-clock text-ef-primary"></i>
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-clock text-ef-primary me-2"></i>
                                             <span><?= $timeStr ?></span>
                                         </div>
-                                        <div class="d-flex align-items-center gap-1.5 text-truncate" title="<?= htmlspecialchars($evt['Location']) ?>">
-                                            <i class="bi bi-geo-alt text-ef-primary flex-shrink-0"></i>
+                                        <div class="d-flex align-items-center text-truncate" title="<?= htmlspecialchars($evt['Location']) ?>">
+                                            <i class="bi bi-geo-alt text-ef-primary me-2 flex-shrink-0"></i>
                                             <span class="text-truncate"><?= htmlspecialchars($evt['Location']) ?></span>
                                         </div>
                                         <?php if ($seatsText !== null): ?>
-                                            <div class="d-flex align-items-center gap-1.5 font-monospace" style="font-size: 0.75rem;">
-                                                <i class="bi bi-people text-ef-primary"></i>
-                                                <span>Đã đăng ký: <?= htmlspecialchars($seatsText) ?></span>
+                                            <div class="d-flex align-items-center font-monospace" style="font-size: 0.75rem;">
+                                                <i class="bi bi-people text-ef-primary me-2"></i>
+                                                <span>Đã đăng ký: <strong><?= htmlspecialchars($seatsText) ?></strong></span>
                                             </div>
                                         <?php endif; ?>
                                     </div>
@@ -380,9 +382,6 @@ $todayDay = ((int)date('Y') === $currentYear && (int)date('m') === $currentMonth
                                 </span>
                                 <h3 class="h5 fw-bold text-dark mt-1 mb-0">Lịch Hoạt Động CLB</h3>
                             </div>
-                            <a href="<?= base_url('app/modules/events/calendar.php') ?>" class="btn btn-sm btn-link text-ef-primary p-0 text-decoration-none fw-semibold" style="font-size: 0.82rem;">
-                                Xem Lịch Sự Kiện <i class="bi bi-arrow-right"></i>
-                            </a>
                         </div>
 
                         <!-- Calendar Grid -->
@@ -454,7 +453,7 @@ $todayDay = ((int)date('Y') === $currentYear && (int)date('m') === $currentMonth
                     </div>
 
                     <a href="<?= base_url('app/modules/events/calendar.php') ?>" class="btn btn-outline-primary btn-sm w-100 rounded-pill fw-semibold">
-                        <i class="bi bi-calendar3 me-1.5"></i> Chuyển sang Lịch Tuần & Lịch Tháng
+                        <i class="bi bi-calendar3 me-1.5"></i> Xem lịch sự kiện
                     </a>
                 </div>
             </div>

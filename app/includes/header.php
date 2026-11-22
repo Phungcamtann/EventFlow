@@ -47,11 +47,9 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
     <?php if (empty($hideNavbar)): ?>
     <nav class="navbar navbar-expand-lg ef-navbar sticky-top">
         <div class="container">
-            <!-- Brand Logo: EventFlow -->
+            <!-- Brand Logo: EventFlow (Logo chữ E cũ + Tên thương hiệu & Slogan) -->
             <a class="navbar-brand d-flex align-items-center gap-2" href="<?= base_url() ?>">
-                <div class="ef-brand-icon">
-                    <i class="bi bi-calendar2-check-fill"></i>
-                </div>
+                <img src="<?= base_url('assets/images/logo.png') ?>" alt="EventFlow" class="rounded-3 shadow-xs" style="width: 38px; height: 38px; object-fit: contain;">
                 <div class="d-flex flex-column">
                     <span class="fw-bold text-dark lh-1" style="font-family: 'Inter', sans-serif; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em;">Event<span style="color: #2563eb;">Flow</span></span>
                     <span class="text-muted fw-semibold font-monospace" style="font-size: 0.65rem; letter-spacing: 0.06em;">CAMPUS EVENT PLATFORM · UEH</span>
@@ -63,9 +61,9 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
                 <i class="bi bi-list fs-2 text-dark"></i>
             </button>
 
-            <!-- Navigation Links (Thống nhất Top-nav công chúng: Trang chủ | Câu Lạc Bộ | Sự kiện) -->
+            <!-- Navigation Links (Căn giữa navbar-nav mx-auto: 3 links cho khách / 4 links cho Cán bộ) -->
             <div class="collapse navbar-collapse" id="efNavbarContent">
-                <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4 gap-1">
+                <ul class="navbar-nav mx-auto mb-2 mb-lg-0 gap-2">
                     <li class="nav-item">
                         <a class="nav-link ef-nav-link" href="<?= base_url('index.php') ?>">Trang chủ</a>
                     </li>
@@ -168,9 +166,10 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
                             </ul>
                         </div>
                     <?php else: ?>
-                        <!-- Guest actions: Nút Đăng nhập nổi bật theo UAT 20 -->
-                        <a href="<?= base_url('app/modules/auth/login.php') ?>" class="btn btn-primary rounded-pill px-3.5 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5 shadow-sm" style="font-size: 0.85rem;">
-                            <i class="bi bi-box-arrow-in-right"></i> Đăng nhập
+                        <!-- Guest actions: Nút Đăng nhập chuẩn hóa khoảng cách icon & text -->
+                        <a href="<?= base_url('app/modules/auth/login.php') ?>" class="btn btn-ef-primary rounded-pill px-3.5 py-1.5 fw-semibold d-inline-flex align-items-center gap-2 shadow-sm" style="font-size: 0.875rem;">
+                            <i class="bi bi-box-arrow-in-right"></i>
+                            <span>Đăng nhập</span>
                         </a>
                     <?php endif; ?>
                 </div>
@@ -179,15 +178,37 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
     </nav>
     <?php endif; ?>
 
-    <!-- FLASH MESSAGES ALERT -->
+    <!-- FLOATING TOAST NOTIFICATION (AUTO DISMISS 3.5S WITH PROGRESS BAR) -->
     <?php if ($flash): ?>
-        <div class="container mt-3">
-            <div class="alert alert-<?= htmlspecialchars($flash['type']) ?> alert-dismissible fade show shadow-sm border-0 rounded-3 d-flex align-items-center" role="alert">
-                <i class="bi bi-info-circle-fill me-2 fs-5"></i>
-                <div><?= htmlspecialchars($flash['message']) ?></div>
-                <button type="button" class="btn-close shadow-none" data-bs-dismiss="alert" aria-label="Close"></button>
+    <div id="efToastContainer" class="position-fixed top-0 end-0 p-3" style="z-index: 1090; margin-top: 52px;">
+        <div id="efToast" class="toast show align-items-center border-0 shadow-lg bg-white rounded-3 overflow-hidden" role="alert" aria-live="assertive" aria-atomic="true" style="min-width: 320px; max-width: 420px; border: 1px solid #e2e8f0 !important;">
+            <div class="d-flex align-items-center p-3">
+                <div class="me-3 fs-4 text-<?= htmlspecialchars($flash['type'] === 'danger' ? 'danger' : ($flash['type'] === 'warning' ? 'warning' : 'primary')) ?>">
+                    <i class="bi <?= $flash['type'] === 'danger' ? 'bi-exclamation-triangle-fill' : ($flash['type'] === 'warning' ? 'bi-exclamation-circle-fill' : 'bi-check-circle-fill') ?>"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="fw-bold text-dark fs-6 mb-0.5">Thông báo hệ thống</div>
+                    <div class="text-secondary small"><?= htmlspecialchars($flash['message']) ?></div>
+                </div>
+                <button type="button" class="btn-close ms-2 me-0 shadow-none" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="ef-toast-progress-wrapper" style="height: 3px; background: #e2e8f0; width: 100%;">
+                <div class="ef-toast-progress-bar bg-<?= htmlspecialchars($flash['type'] === 'danger' ? 'danger' : ($flash['type'] === 'warning' ? 'warning' : 'primary')) ?>" style="height: 100%; width: 100%;"></div>
             </div>
         </div>
+    </div>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const toastEl = document.getElementById('efToast');
+        if (toastEl) {
+            setTimeout(function() {
+                toastEl.classList.remove('show');
+                const container = document.getElementById('efToastContainer');
+                if (container) container.remove();
+            }, 3500);
+        }
+    });
+    </script>
     <?php endif; ?>
 
     <!-- MAIN BODY WRAPPER -->

@@ -1,15 +1,13 @@
     </main>
 
-    <!-- FOOTER COMPONENT (EVENTFLOW PLATFORM BRANDING) -->
-    <footer class="mt-auto text-white py-5" style="background-color: #080f1a; border-top: 2px solid #2563eb;">
+    <!-- FOOTER COMPONENT (EVENTFLOW PLATFORM BRANDING - MIDNIGHT NAVY #0f172a) -->
+    <footer class="mt-auto text-white py-5" style="background-color: #0f172a; border-top: 2px solid #2563eb;">
         <div class="container">
             <div class="row g-4 mb-4">
                 <!-- Col 1: Platform Brand & Mission -->
                 <div class="col-lg-5">
                     <div class="d-flex align-items-center gap-2 mb-3">
-                        <div class="ef-brand-icon shadow-sm" style="width: 36px; height: 36px; font-size: 1.05rem;">
-                            <i class="bi bi-calendar2-check-fill"></i>
-                        </div>
+                        <img src="<?= base_url('assets/images/logo.png') ?>" alt="EventFlow" class="rounded-3 shadow-sm" style="width: 36px; height: 36px; object-fit: contain;">
                         <span class="fw-bold text-white fs-5" style="font-family: 'Inter', sans-serif; font-weight: 800; letter-spacing: -0.5px;">
                             Event<span style="color: #60a5fa;">Flow</span>
                         </span>

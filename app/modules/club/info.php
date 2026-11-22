@@ -38,6 +38,38 @@ $eventCountStmt = $pdo->prepare("SELECT COUNT(*) FROM Event WHERE ClubID = :club
 $eventCountStmt->execute([':clubId' => $club['ClubID']]);
 $totalEvents = (int)$eventCountStmt->fetchColumn();
 
+// 3. Dữ liệu Mini Dot Calendar tháng hiện tại (Thống nhất với Trang chủ & Dashboard)
+$currentYear = (int)date('Y');
+$currentMonth = (int)date('m');
+$firstDayTimestamp = mktime(0, 0, 0, $currentMonth, 1, $currentYear);
+$daysInMonth = (int)date('t', $firstDayTimestamp);
+$firstDayOfWeek = (int)date('w', $firstDayTimestamp); // 0 = CN, 1 = T2,...
+$todayDay = (int)date('j');
+
+$calStmt = $pdo->prepare("
+    SELECT EventID, EventName, StartTime, EndTime 
+    FROM Event 
+    WHERE ClubID = :cid 
+      AND StartTime >= :startOfMonth 
+      AND StartTime <= :endOfMonth
+      AND Status = 'Published'
+    ORDER BY StartTime ASC
+");
+$startOfMonth = date('Y-m-01 00:00:00');
+$endOfMonth = date('Y-m-t 23:59:59');
+$calStmt->execute([
+    ':cid' => $club['ClubID'],
+    ':startOfMonth' => $startOfMonth,
+    ':endOfMonth' => $endOfMonth
+]);
+$monthEvents = $calStmt->fetchAll();
+
+$eventDays = [];
+foreach ($monthEvents as $mEvt) {
+    $d = (int)date('j', strtotime($mEvt['StartTime']));
+    $eventDays[$d][] = $mEvt;
+}
+
 // 3. Lấy danh sách Ban Điều Hành (President & Vice President)
 $execStmt = $pdo->prepare("
     SELECT cm.*, a.FullName, a.Email, a.StudentCode, a.Phone, a.Cohort, a.Major, a.AvatarUrl
@@ -563,17 +595,70 @@ require_once __DIR__ . '/../../includes/header.php';
                     </div>
                 </div>
 
-                <!-- Explore Events Banner -->
-                <div class="ef-card-editorial p-4 text-center">
-                    <div class="rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px; background-color: var(--ef-blue-50); color: var(--ef-blue-600);">
-                        <i class="bi bi-calendar2-event fs-3"></i>
+                <!-- Mini Dot Calendar (Thống nhất chuẩn với Trang chủ) -->
+                <div class="ef-card-editorial p-4">
+                    <div class="mb-3">
+                        <span class="badge badge-ef-blue rounded-pill px-2.5 py-1 font-monospace" style="font-size: 0.7rem;">
+                            LỊCH THÁNG <?= date('m/Y') ?>
+                        </span>
+                        <h4 class="h6 fw-bold text-dark font-display mt-1 mb-0">Lịch Hoạt Động BELL</h4>
                     </div>
-                    <h4 class="h6 fw-bold text-dark font-display mb-2">Tham Gia Cùng BELL</h4>
-                    <p class="small text-muted mb-3">
-                        Khám phá các buổi Speaking Circle định kỳ, Workshop tranh biện và sự kiện tiếng Anh tại UEH.
-                    </p>
-                    <a href="<?= base_url('index.php') ?>" class="btn btn-ef-dark w-100">
-                        Xem lịch sự kiện <i class="bi bi-arrow-right ms-1"></i>
+
+                    <!-- Calendar Grid -->
+                    <div class="mini-calendar border rounded-3 p-3 bg-white mb-3">
+                        <div class="row g-0 text-center text-muted font-monospace small mb-2 fw-semibold" style="font-size: 0.72rem;">
+                            <div class="col">CN</div>
+                            <div class="col">T2</div>
+                            <div class="col">T3</div>
+                            <div class="col">T4</div>
+                            <div class="col">T5</div>
+                            <div class="col">T6</div>
+                            <div class="col">T7</div>
+                        </div>
+
+                        <div class="row g-0 text-center" style="font-size: 0.8rem;">
+                            <?php for ($empty = 0; $empty < $firstDayOfWeek; $empty++): ?>
+                                <div class="col py-1 text-muted opacity-25">·</div>
+                            <?php endfor; ?>
+
+                            <?php
+                            $colCount = $firstDayOfWeek;
+                            for ($day = 1; $day <= $daysInMonth; $day++):
+                                $hasEvents = isset($eventDays[$day]);
+                                $isToday = ($day === $todayDay);
+                                if ($colCount > 0 && $colCount % 7 === 0) {
+                                    echo '</div><div class="row g-0 text-center" style="font-size: 0.8rem;">';
+                                }
+                                $colCount++;
+                            ?>
+                                <div class="col py-1 position-relative">
+                                    <span class="d-inline-flex align-items-center justify-content-center rounded-circle <?= $isToday ? 'bg-primary text-white fw-bold' : ($hasEvents ? 'fw-bold text-dark' : 'text-secondary') ?>" 
+                                          style="width: 28px; height: 28px; font-size: 0.78rem;">
+                                        <?= $day ?>
+                                    </span>
+                                    <?php if ($hasEvents): ?>
+                                        <div class="d-flex justify-content-center mt-0.5">
+                                            <span class="rounded-circle" style="width: 5px; height: 5px; background-color: #2563eb;" title="<?= count($eventDays[$day]) ?> sự kiện"></span>
+                                        </div>
+                                    <?php else: ?>
+                                        <div style="height: 5px;" class="mt-0.5"></div>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endfor; ?>
+
+                            <?php while ($colCount % 7 !== 0): $colCount++; ?>
+                                <div class="col py-1 text-muted opacity-25">·</div>
+                            <?php endwhile; ?>
+                        </div>
+                    </div>
+
+                    <div class="small text-muted font-monospace d-flex align-items-center justify-content-between mb-3">
+                        <span><span class="d-inline-block rounded-circle me-1" style="width: 6px; height: 6px; background-color: #2563eb;"></span> Ngày có sự kiện</span>
+                        <span><?= count($monthEvents) ?> sự kiện tháng này</span>
+                    </div>
+
+                    <a href="<?= base_url('app/modules/events/calendar.php') ?>" class="btn btn-outline-primary btn-sm w-100 rounded-pill fw-semibold">
+                        <i class="bi bi-calendar3 me-1.5"></i> Xem lịch sự kiện
                     </a>
                 </div>
 

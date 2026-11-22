@@ -97,11 +97,6 @@ foreach ($events as $evt) {
                     <li class="breadcrumb-item active text-dark fw-bold" aria-current="page">Lịch Sự Kiện</li>
                 </ol>
             </nav>
-            <?php if (is_club_manager() || is_authorized_club_member()): ?>
-                <a href="<?= base_url('app/modules/dashboard/index.php') ?>" class="btn btn-sm btn-outline-primary rounded-pill">
-                    <i class="bi bi-sliders me-1"></i> Quản lý CLB
-                </a>
-            <?php endif; ?>
         </div>
 
         <!-- ==========================================
@@ -314,6 +309,7 @@ foreach ($events as $evt) {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    max-width: 100%;
     transition: all 0.15s ease;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
@@ -322,11 +318,20 @@ foreach ($events as $evt) {
     box-shadow: 0 2px 5px rgba(37, 99, 235, 0.15);
     color: #1e40af;
 }
+.notion-event-pill strong {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 .notion-event-pill .pill-sub {
     font-size: 0.65rem;
     color: #64748b;
     display: block;
     margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Week Timeline Grid */

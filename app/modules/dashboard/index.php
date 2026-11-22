@@ -35,13 +35,15 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'get_attendance_status') {
     header('Content-Type: application/json; charset=utf-8');
     $cEvtId = (int)($_GET['event_id'] ?? $_GET['id'] ?? 1);
     $syncStmt = $pdo->prepare("
-        SELECT r.RegID, a.FullName, a.StudentCode,
+        SELECT r.RegID, 
+               COALESCE(a.FullName, r.GuestName) AS FullName, 
+               COALESCE(a.StudentCode, r.GuestStudentCode) AS StudentCode,
                att.AttendanceStatus, att.CheckInAt
         FROM Event_Registration r
-        JOIN Account a ON a.AccountID = r.AccountID
+        LEFT JOIN Account a ON a.AccountID = r.AccountID
         LEFT JOIN Attendance att ON att.RegID = r.RegID
         WHERE r.EventID = :eid AND r.Status = 'Registered'
-        ORDER BY a.FullName ASC
+        ORDER BY FullName ASC
     ");
     $syncStmt->execute([':eid' => $cEvtId]);
     $syncRows = $syncStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -150,12 +152,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
+        // Xử lý upload ảnh Banner/Poster sự kiện nếu có
+        $bannerPath = null;
+        if (isset($_FILES['banner_image']) && $_FILES['banner_image']['error'] === UPLOAD_ERR_OK) {
+            $file = $_FILES['banner_image'];
+            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            $allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+            if (in_array($ext, $allowed, true) && $file['size'] <= 5 * 1024 * 1024) {
+                $uploadDir = __DIR__ . '/../../../uploads/events/';
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0755, true);
+                }
+                $bannerName = 'event_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+                if (move_uploaded_file($file['tmp_name'], $uploadDir . $bannerName)) {
+                    $bannerPath = 'uploads/events/' . $bannerName;
+                }
+            }
+        }
+
         try {
             $pdo->beginTransaction();
             $stmt = $pdo->prepare("
                 INSERT INTO Event (ClubID, EventName, Description, Location, StartTime, EndTime, 
-                                   RegistrationStartTime, RegistrationDeadline, MaxCapacity, MinStaffRequired, Status, CreatedAt)
-                VALUES (:cid, :name, :desc, :loc, :start, :end, :rstart, :rend, :cap, 2, 'Published', :now)
+                                   RegistrationStartTime, RegistrationDeadline, MaxCapacity, MinStaffRequired, BannerImage, Status, CreatedAt)
+                VALUES (:cid, :name, :desc, :loc, :start, :end, :rstart, :rend, :cap, 2, :banner, 'Published', :now)
             ");
             $stmt->execute([
                 ':cid'    => $clubId,
@@ -167,6 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':rstart' => $regStart ?: $now,
                 ':rend'   => $regEnd ?: $start,
                 ':cap'    => $cap,
+                ':banner' => $bannerPath,
                 ':now'    => $now
             ]);
             $newEventId = (int)$pdo->lastInsertId();
@@ -576,13 +597,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $evtName = $expEvt['EventName'] ?? 'Event';
 
         $expStmt = $pdo->prepare("
-            SELECT r.RegID, a.FullName, a.StudentCode, a.Email, a.Phone, a.Major, a.Cohort,
+            SELECT r.RegID, 
+                   COALESCE(a.FullName, r.GuestName) AS FullName, 
+                   COALESCE(a.StudentCode, r.GuestStudentCode) AS StudentCode, 
+                   COALESCE(a.Email, r.GuestEmail) AS Email, 
+                   COALESCE(a.Phone, r.GuestPhone) AS Phone, 
+                   COALESCE(a.Major, 'Khách vãng lai') AS Major, 
+                   COALESCE(a.Cohort, 'Khách') AS Cohort,
                    r.RegDate, att.AttendanceStatus, att.CheckInAt
             FROM Event_Registration r
-            JOIN Account a ON a.AccountID = r.AccountID
+            LEFT JOIN Account a ON a.AccountID = r.AccountID
             LEFT JOIN Attendance att ON att.RegID = r.RegID
             WHERE r.EventID = :eid AND r.Status = 'Registered'
-            ORDER BY a.FullName ASC
+            ORDER BY FullName ASC
         ");
         $expStmt->execute([':eid' => $cEvtId]);
         $attendees = $expStmt->fetchAll();
@@ -650,7 +677,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $newAccountId = (int)$existAcc['AccountID'];
                 $upAcc = $pdo->prepare("
                     UPDATE Account 
-                    SET RoleID = 2, 
+                    SET RoleID = 3, 
                         PasswordMustChange = 1,
                         FullName = :name,
                         Phone = :phone,
@@ -673,7 +700,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         RoleID, PasswordMustChange, IsActive, CreatedAt
                     ) VALUES (
                         :email, :hash, :name, :code, :phone, :cohort, :major,
-                        2, 1, 1, NOW()
+                        3, 1, 1, NOW()
                     )
                 ");
                 $insAcc->execute([
@@ -1033,15 +1060,21 @@ if ($consoleEventId > 0) {
 
         // Query attendees
         $attStmt = $pdo->prepare("
-            SELECT r.RegID, a.AccountID, a.FullName, a.StudentCode, a.Email, a.Phone, a.Major, a.Cohort,
+            SELECT r.RegID, r.RegistrationType, a.AccountID, 
+                   COALESCE(a.FullName, r.GuestName) AS FullName, 
+                   COALESCE(a.StudentCode, r.GuestStudentCode) AS StudentCode, 
+                   COALESCE(a.Email, r.GuestEmail) AS Email, 
+                   COALESCE(a.Phone, r.GuestPhone) AS Phone, 
+                   COALESCE(a.Major, 'Khách vãng lai') AS Major, 
+                   COALESCE(a.Cohort, 'Khách') AS Cohort,
                    r.RegDate, att.AttendanceID, att.AttendanceStatus, att.CheckInAt, att.CheckedInBy,
                    checker.FullName AS CheckedByName
             FROM Event_Registration r
-            JOIN Account a ON a.AccountID = r.AccountID
+            LEFT JOIN Account a ON a.AccountID = r.AccountID
             LEFT JOIN Attendance att ON att.RegID = r.RegID
             LEFT JOIN Account checker ON checker.AccountID = att.CheckedInBy
             WHERE r.EventID = :eid AND r.Status = 'Registered'
-            ORDER BY a.FullName ASC
+            ORDER BY FullName ASC
         ");
         $attStmt->execute([':eid' => $consoleEventId]);
         $consoleAttendees = $attStmt->fetchAll();
@@ -1167,18 +1200,18 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
         <div class="row g-4">
 
             <!-- ==============================================================
-                 CỘT TRÁI: LEFT MENU ĐIỀU HƯỚNG (SLIDE-IN ANIMATION, MIDNIGHT NAVY)
+                 CỘT TRÁI: LEFT MENU ĐIỀU HƯỚNG (LIGHT THEME CHUẨN SẠCH SẼ)
                  ============================================================== -->
             <div class="col-lg-3 col-xl-2">
-                <aside class="ef-card-editorial p-3 sticky-top shadow-sm ef-workspace-left-menu" style="top: 85px; background-color: #0b192c; color: #ffffff; border-radius: 16px;">
+                <aside class="ef-card-editorial p-3 sticky-top shadow-sm ef-workspace-left-menu" style="top: 85px; background-color: #ffffff; color: #1e293b; border: 1px solid #e2e8f0; border-radius: 16px;">
                     <!-- User Snapshot Card -->
-                    <div class="d-flex align-items-center gap-2.5 p-2.5 rounded-3 mb-3 border border-secondary border-opacity-25" style="background: rgba(255, 255, 255, 0.04);">
+                    <div class="d-flex align-items-center gap-2.5 p-2.5 rounded-3 mb-3 border" style="background: #f8fafc; border-color: #e2e8f0 !important;">
                         <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-sm flex-shrink-0" 
                              style="width: 38px; height: 38px; font-size: 0.85rem; background: linear-gradient(135deg, #2563eb, #1d4ed8);">
                             <?= $initials ?>
                         </div>
                         <div class="overflow-hidden">
-                            <div class="fw-bold text-white small text-truncate"><?= htmlspecialchars($userAcc['FullName']) ?></div>
+                            <div class="fw-bold text-dark small text-truncate"><?= htmlspecialchars($userAcc['FullName']) ?></div>
                             <span class="badge badge-ef-sky font-monospace" style="font-size: 0.62rem;">
                                 <?= htmlspecialchars($roleBadge) ?>
                             </span>
@@ -1187,7 +1220,7 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
 
                     <!-- Navigation Groups -->
                     <nav class="d-flex flex-column gap-1">
-                        <div class="text-uppercase text-secondary font-monospace fw-bold px-2.5 pt-1 pb-1" style="font-size: 0.68rem; letter-spacing: 0.08em;">
+                        <div class="text-uppercase text-muted font-monospace fw-bold px-2.5 pt-1 pb-1" style="font-size: 0.68rem; letter-spacing: 0.08em;">
                             TỔNG QUAN
                         </div>
                         <a href="#stats" class="workspace-nav-link" data-block="stats" onclick="switchWorkspaceBlock('stats', event)">
@@ -1197,7 +1230,7 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                             <i class="bi bi-calendar3 me-2"></i> Lịch Sự Kiện
                         </a>
 
-                        <div class="text-uppercase text-secondary font-monospace fw-bold px-2.5 pt-2.5 pb-1" style="font-size: 0.68rem; letter-spacing: 0.08em;">
+                        <div class="text-uppercase text-muted font-monospace fw-bold px-2.5 pt-2.5 pb-1" style="font-size: 0.68rem; letter-spacing: 0.08em;">
                             QUẢN TRỊ SỰ KIỆN
                         </div>
                         <a href="#events" class="workspace-nav-link" data-block="events" onclick="switchWorkspaceBlock('events', event)">
@@ -1212,25 +1245,25 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                             <i class="bi bi-bookmark-check me-2"></i> Sự kiện của tôi
                         </a>
 
-                        <div class="text-uppercase text-secondary font-monospace fw-bold px-2.5 pt-2.5 pb-1" style="font-size: 0.68rem; letter-spacing: 0.08em;">
+                        <div class="text-uppercase text-muted font-monospace fw-bold px-2.5 pt-2.5 pb-1" style="font-size: 0.68rem; letter-spacing: 0.08em;">
                             TỔ CHỨC & CLB
                         </div>
                         <a href="#members" class="workspace-nav-link" data-block="members" onclick="switchWorkspaceBlock('members', event)">
-                            <i class="bi bi-people-fill me-2"></i> Thành viên & 4 Ban
+                            <i class="bi bi-people-fill me-2"></i> Nhân sự
                         </a>
                         <a href="#club-info" class="workspace-nav-link" data-block="club-info" onclick="switchWorkspaceBlock('club-info', event)">
                             <i class="bi bi-building me-2"></i> Thông tin CLB
                         </a>
                         <?php if (can_manage_recruitment()): ?>
                             <a href="#recruitment" class="workspace-nav-link" data-block="recruitment" onclick="switchWorkspaceBlock('recruitment', event)">
-                                <i class="bi bi-person-lines-fill me-2 text-info"></i> Tuyển quân Gen 27
+                                <i class="bi bi-person-lines-fill me-2 text-primary"></i> Đơn Ứng Tuyển
                                 <?php if ($pendingRecruitmentCount > 0): ?>
                                     <span class="badge bg-warning text-dark ms-auto" style="font-size: 0.65rem; font-weight: 700;"><?= $pendingRecruitmentCount ?></span>
                                 <?php endif; ?>
                             </a>
                         <?php endif; ?>
 
-                        <div class="text-uppercase text-secondary font-monospace fw-bold px-2.5 pt-2.5 pb-1" style="font-size: 0.68rem; letter-spacing: 0.08em;">
+                        <div class="text-uppercase text-muted font-monospace fw-bold px-2.5 pt-2.5 pb-1" style="font-size: 0.68rem; letter-spacing: 0.08em;">
                             HỆ THỐNG
                         </div>
                         <a href="#profile" class="workspace-nav-link" data-block="profile" onclick="switchWorkspaceBlock('profile', event)">
@@ -1270,18 +1303,15 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                 <button type="button" class="btn btn-sm btn-ef-primary shadow-sm" onclick="switchWorkspaceBlock('create-event', event)">
                                     <i class="bi bi-plus-lg me-1"></i> Tạo Sự Kiện Mới
                                 </button>
-                                <button type="button" class="btn btn-sm btn-ef-outline" onclick="switchWorkspaceBlock('calendar', event)">
-                                    <i class="bi bi-calendar3 me-1"></i> Mở Lịch Hoạt Động
-                                </button>
                             </div>
                         </div>
 
-                        <!-- 4 KPI Cards -->
+                        <!-- 4 KPI Cards (Tăng chiều cao, khoảng cách thông thoáng chuẩn Grid 8) -->
                         <div class="row g-3 mb-4">
                             <div class="col-sm-6 col-xl-3">
-                                <div class="ef-card-editorial p-3.5 h-100 d-flex align-items-center gap-3">
+                                <div class="ef-card-editorial p-4 h-100 d-flex align-items-center gap-3" style="min-height: 105px;">
                                     <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" 
-                                         style="width: 48px; height: 48px; background: #eff6ff; color: #2563eb; font-size: 1.3rem;">
+                                         style="width: 50px; height: 50px; background: #eff6ff; color: #2563eb; font-size: 1.35rem;">
                                         <i class="bi bi-people-fill"></i>
                                     </div>
                                     <div>
@@ -1294,9 +1324,9 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                 </div>
                             </div>
                             <div class="col-sm-6 col-xl-3">
-                                <div class="ef-card-editorial p-3.5 h-100 d-flex align-items-center gap-3">
+                                <div class="ef-card-editorial p-4 h-100 d-flex align-items-center gap-3" style="min-height: 105px;">
                                     <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" 
-                                         style="width: 48px; height: 48px; background: #e0e7ff; color: #4f46e5; font-size: 1.3rem;">
+                                         style="width: 50px; height: 50px; background: #e0e7ff; color: #4f46e5; font-size: 1.35rem;">
                                         <i class="bi bi-calendar-check-fill"></i>
                                     </div>
                                     <div>
@@ -1309,9 +1339,9 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                 </div>
                             </div>
                             <div class="col-sm-6 col-xl-3">
-                                <div class="ef-card-editorial p-3.5 h-100 d-flex align-items-center gap-3">
+                                <div class="ef-card-editorial p-4 h-100 d-flex align-items-center gap-3" style="min-height: 105px;">
                                     <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" 
-                                         style="width: 48px; height: 48px; background: #f0fdfa; color: #0d9488; font-size: 1.3rem;">
+                                         style="width: 50px; height: 50px; background: #f0fdfa; color: #0d9488; font-size: 1.35rem;">
                                         <i class="bi bi-ticket-perforated-fill"></i>
                                     </div>
                                     <div>
@@ -1324,9 +1354,9 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                 </div>
                             </div>
                             <div class="col-sm-6 col-xl-3">
-                                <div class="ef-card-editorial p-3.5 h-100 d-flex align-items-center gap-3">
+                                <div class="ef-card-editorial p-4 h-100 d-flex align-items-center gap-3" style="min-height: 105px;">
                                     <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" 
-                                         style="width: 48px; height: 48px; background: #fef3c7; color: #d97706; font-size: 1.3rem;">
+                                         style="width: 50px; height: 50px; background: #fef3c7; color: #d97706; font-size: 1.35rem;">
                                         <i class="bi bi-person-lines-fill"></i>
                                     </div>
                                     <div>
@@ -1411,16 +1441,11 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                             <div class="col-lg-4">
                                 <div class="ef-card-editorial p-4 h-100 d-flex flex-column justify-content-between">
                                     <div>
-                                        <div class="d-flex justify-content-between align-items-center mb-3">
-                                            <div>
-                                                <span class="badge badge-ef-blue rounded-pill px-2.5 py-1 font-monospace" style="font-size: 0.7rem;">
-                                                    LỊCH THÁNG <?= date('m/Y') ?>
-                                                </span>
-                                                <h3 class="h5 fw-bold text-dark mt-1 mb-0">Lịch Hoạt Động CLB</h3>
-                                            </div>
-                                            <button type="button" class="btn btn-sm btn-link text-ef-primary p-0 text-decoration-none fw-semibold" style="font-size: 0.82rem;" onclick="switchWorkspaceBlock('calendar', event)">
-                                                Xem Lịch Sự Kiện <i class="bi bi-arrow-right"></i>
-                                            </button>
+                                        <div class="mb-3">
+                                            <span class="badge badge-ef-blue rounded-pill px-2.5 py-1 font-monospace" style="font-size: 0.7rem;">
+                                                LỊCH THÁNG <?= date('m/Y') ?>
+                                            </span>
+                                            <h3 class="h5 fw-bold text-dark mt-1 mb-0">Lịch Hoạt Động CLB</h3>
                                         </div>
 
                                         <div class="mini-calendar border rounded-3 p-3 bg-white mb-3">
@@ -1862,6 +1887,9 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                                                 <td class="ps-3 py-2.5 font-monospace text-muted"><?= $cStt++ ?></td>
                                                                 <td class="py-2.5 font-monospace fw-semibold text-primary">
                                                                     <?= htmlspecialchars($ca['StudentCode'] ?: '—') ?>
+                                                                    <?php if (empty($ca['AccountID'])): ?>
+                                                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill ms-1 font-sans" style="font-size: 0.62rem; font-weight: 600;">Khách</span>
+                                                                    <?php endif; ?>
                                                                 </td>
                                                                 <td class="py-2.5">
                                                                     <div class="fw-bold text-dark"><?= htmlspecialchars($ca['FullName']) ?></div>
@@ -2122,7 +2150,7 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                         </div>
 
                         <div class="ef-card-editorial p-4 p-md-5">
-                            <form method="POST" action="<?= base_url('app/modules/dashboard/index.php') ?>" class="needs-validation">
+                            <form method="POST" action="<?= base_url('app/modules/dashboard/index.php') ?>" class="needs-validation" enctype="multipart/form-data">
                                 <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
                                 <input type="hidden" name="action" value="create_event">
 
@@ -2135,6 +2163,13 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold text-dark small">Số lượng vé tối đa <span class="text-danger">*</span></label>
                                         <input type="number" name="capacity" class="form-control font-monospace" value="50" min="5" max="1000" required>
+                                    </div>
+
+                                    <!-- Upload Banner / Poster -->
+                                    <div class="col-12">
+                                        <label class="form-label fw-bold text-dark small">Ảnh Banner / Poster sự kiện</label>
+                                        <input type="file" name="banner_image" class="form-control" accept="image/*">
+                                        <div class="form-text text-muted small">Định dạng JPG, PNG, WEBP (tối đa 5MB). Kích thước chuẩn khuyến nghị: 1200x630px.</div>
                                     </div>
 
                                     <div class="col-12">
@@ -2173,12 +2208,19 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                                 </label>
                                                 <span class="badge bg-primary-subtle text-primary font-monospace" style="font-size: 0.72rem;">Yêu cầu tối thiểu 2 cán bộ BĐH (UAT 10)</span>
                                             </div>
-                                            <p class="text-secondary small mb-3">Chọn các thành viên Ban Điều Hành điều phối sự kiện và vận hành điểm danh:</p>
+                                            <p class="text-secondary small mb-2">Chọn các thành viên Ban Điều Hành điều phối sự kiện và vận hành điểm danh:</p>
                                             
-                                            <div class="row g-2">
+                                            <!-- Staff Search Filter -->
+                                            <div class="input-group input-group-sm mb-2">
+                                                <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                                                <input type="text" id="staffFilterInput" class="form-control border-start-0" placeholder="Lọc theo tên cán bộ, vai trò, phòng ban..." oninput="filterStaffList(this.value)">
+                                            </div>
+
+                                            <!-- Scrollable Staff Container -->
+                                            <div class="row g-2 overflow-y-auto p-2 rounded-2 bg-white border" id="staffListWrapper" style="max-height: 250px;">
                                                 <?php foreach ($boardStaffList as $staff): ?>
-                                                    <div class="col-md-6 col-lg-4">
-                                                        <div class="form-check p-2.5 rounded-2 bg-white border">
+                                                    <div class="col-md-6 col-lg-4 staff-checkbox-item" data-text="<?= htmlspecialchars(mb_strtolower($staff['FullName'] . ' ' . $staff['MemberRole'] . ' ' . $staff['DepartmentCode'], 'UTF-8')) ?>">
+                                                        <div class="form-check p-2.5 rounded-2 bg-light border h-100">
                                                             <input class="form-check-input ms-0 me-2" type="checkbox" name="staff_ids[]" value="<?= $staff['AccountID'] ?>" id="staff_<?= $staff['AccountID'] ?>"
                                                                 <?= ($staff['AccountID'] == $userId || $staff['MemberRole'] === 'President') ? 'checked' : '' ?>>
                                                             <label class="form-check-label small fw-semibold text-dark text-truncate w-100" for="staff_<?= $staff['AccountID'] ?>">
@@ -2335,6 +2377,19 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                             </div>
                         </div>
 
+                        <!-- Search & Department Filter -->
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-5">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-white border-end-0 text-muted">
+                                        <i class="bi bi-search"></i>
+                                    </span>
+                                    <input type="text" id="memberSearchInput" class="form-control border-start-0" 
+                                           placeholder="Tìm theo tên, MSSV, email, chức danh..." oninput="filterMembersRealtime()">
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Department Filter Pills -->
                         <div class="d-flex gap-2 flex-wrap mb-4">
                             <button type="button" class="btn btn-sm rounded-pill px-3 active btn-primary dept-filter-btn" data-dept="ALL" onclick="filterDeptMembers('ALL', this)">
@@ -2432,16 +2487,23 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                             </div>
                         </div>
 
-                        <!-- Card 1: Tổng quan Hồ sơ CLB -->
-                        <div class="ef-card-editorial p-4 p-md-5 mb-4">
+                        <!-- Card 1: Tổng quan Hồ sơ CLB (Chế độ xem mặc định) -->
+                        <div class="ef-card-editorial p-4 p-md-5 mb-4" id="clubInfoViewCard">
                             <div class="d-flex align-items-center justify-content-between mb-3">
                                 <div>
                                     <h2 class="h4 fw-bold text-dark mb-1"><?= htmlspecialchars($club['ClubName'] ?? 'BELL Club') ?></h2>
                                     <p class="text-muted font-monospace small mb-0"><?= htmlspecialchars($club['ShortName'] ?? 'BELL UEH') ?> · Thành lập năm 1995 · Trực thuộc Đoàn - Hội UEH</p>
                                 </div>
-                                <span class="badge rounded-pill bg-primary-subtle text-primary font-monospace px-3 py-2">
-                                    Active Club
-                                </span>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge rounded-pill bg-primary-subtle text-primary font-monospace px-3 py-2">
+                                        Active Club
+                                    </span>
+                                    <?php if (can_manage_club_profile()): ?>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="toggleClubInfoEdit(true)">
+                                            <i class="bi bi-pencil-square me-1"></i> Chỉnh sửa
+                                        </button>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                             <p class="text-secondary lh-base mb-4"><?= nl2br(htmlspecialchars($club['Description'] ?? '')) ?></p>
 
@@ -2473,14 +2535,19 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                             </div>
                         </div>
 
-                        <!-- Card 2: Chỉnh sửa thông tin CLB (Dành cho President/Vice President) -->
+                        <!-- Card 2: Chỉnh sửa thông tin CLB (Chế độ form bật tắt linh hoạt) -->
                         <?php if (can_manage_club_profile()): ?>
-                            <div class="ef-card-editorial p-4 p-md-5">
-                                <div class="border-bottom pb-3 mb-4">
-                                    <h3 class="h5 fw-bold text-dark mb-1">
-                                        <i class="bi bi-pencil-square text-primary me-2"></i>Chỉnh Sửa Thông Tin Câu Lạc Bộ
-                                    </h3>
-                                    <p class="text-secondary small mb-0">Cập nhật nội dung giới thiệu, sứ mệnh và kênh truyền thông của CLB BELL UEH.</p>
+                            <div class="ef-card-editorial p-4 p-md-5 mb-4 d-none" id="clubInfoEditCard">
+                                <div class="d-flex align-items-center justify-content-between border-bottom pb-3 mb-4">
+                                    <div>
+                                        <h3 class="h5 fw-bold text-dark mb-1">
+                                            <i class="bi bi-pencil-square text-primary me-2"></i>Chỉnh Sửa Thông Tin Câu Lạc Bộ
+                                        </h3>
+                                        <p class="text-secondary small mb-0">Cập nhật nội dung giới thiệu, sứ mệnh và kênh truyền thông của CLB BELL UEH.</p>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="toggleClubInfoEdit(false)">
+                                        <i class="bi bi-x-lg me-1"></i> Đóng
+                                    </button>
                                 </div>
 
                                 <form method="POST" action="<?= base_url('app/modules/dashboard/index.php') ?>">
@@ -2526,7 +2593,8 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                         </div>
 
                                         <div class="col-12 text-end pt-2">
-                                            <button type="submit" class="btn btn-ef-primary px-4">
+                                            <button type="button" class="btn btn-outline-secondary me-2 rounded-pill px-3" onclick="toggleClubInfoEdit(false)">Hủy bỏ</button>
+                                            <button type="submit" class="btn btn-ef-primary px-4 rounded-pill">
                                                 <i class="bi bi-check-lg me-1"></i> Lưu Cập Nhật Thông Tin CLB
                                             </button>
                                         </div>
@@ -2550,11 +2618,16 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                         </div>
 
                         <div class="row g-4">
-                            <!-- Cột trái: Cập nhật thông tin -->
+                            <!-- Cột trái: Cập nhật thông tin (Chế độ xem mặc định, bật form bằng bút chì) -->
                             <div class="col-lg-7">
                                 <div class="ef-card-editorial p-4 p-md-5 h-100">
-                                    <h2 class="h5 fw-bold text-dark mb-3">Thông Tin Tài Khoản</h2>
-                                    <form method="POST" action="<?= base_url('app/modules/dashboard/index.php') ?>">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h2 class="h5 fw-bold text-dark mb-0">Thông Tin Tài Khoản</h2>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" id="btnToggleProfileEdit" onclick="toggleProfileEdit()">
+                                            <i class="bi bi-pencil-square me-1"></i> Chỉnh sửa
+                                        </button>
+                                    </div>
+                                    <form method="POST" action="<?= base_url('app/modules/dashboard/index.php') ?>" id="profileEditForm">
                                         <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
                                         <input type="hidden" name="action" value="update_profile">
 
@@ -2565,7 +2638,7 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
 
                                         <div class="mb-3">
                                             <label class="form-label small fw-bold text-dark">Họ và tên <span class="text-danger">*</span></label>
-                                            <input type="text" name="full_name" class="form-control" value="<?= htmlspecialchars($userAcc['FullName']) ?>" required>
+                                            <input type="text" name="full_name" id="prof_fullname" class="form-control profile-field" value="<?= htmlspecialchars($userAcc['FullName']) ?>" required disabled>
                                         </div>
 
                                         <div class="row g-3 mb-3">
@@ -2575,23 +2648,25 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                             </div>
                                             <div class="col-md-6">
                                                 <label class="form-label small fw-bold text-dark">Khóa sinh viên</label>
-                                                <input type="text" name="cohort" class="form-control font-monospace" value="<?= htmlspecialchars($userAcc['Cohort'] ?? '') ?>" placeholder="Ví dụ: K48">
+                                                <input type="text" name="cohort" id="prof_cohort" class="form-control font-monospace profile-field" value="<?= htmlspecialchars($userAcc['Cohort'] ?? '') ?>" placeholder="Ví dụ: K48" disabled>
                                             </div>
                                         </div>
 
                                         <div class="mb-3">
                                             <label class="form-label small fw-bold text-dark">Số điện thoại liên hệ</label>
-                                            <input type="text" name="phone" class="form-control font-monospace" value="<?= htmlspecialchars($userAcc['Phone'] ?? '') ?>" placeholder="090xxxxxxx">
+                                            <input type="text" name="phone" id="prof_phone" class="form-control font-monospace profile-field" value="<?= htmlspecialchars($userAcc['Phone'] ?? '') ?>" placeholder="090xxxxxxx" disabled>
                                         </div>
 
                                         <div class="mb-4">
                                             <label class="form-label small fw-bold text-dark">Chuyên ngành đào tạo tại UEH</label>
-                                            <input type="text" name="major" class="form-control" value="<?= htmlspecialchars($userAcc['Major'] ?? '') ?>" placeholder="Ví dụ: Kinh doanh quốc tế">
+                                            <input type="text" name="major" id="prof_major" class="form-control profile-field" value="<?= htmlspecialchars($userAcc['Major'] ?? '') ?>" placeholder="Ví dụ: Kinh doanh quốc tế" disabled>
                                         </div>
 
-                                        <button type="submit" class="btn btn-ef-primary px-4">
-                                            <i class="bi bi-check-lg me-1"></i> Lưu Thay Đổi Thông Tin
-                                        </button>
+                                        <div class="text-center pt-2 d-none" id="profileSaveBtnWrapper">
+                                            <button type="submit" class="btn btn-ef-primary px-5 rounded-pill shadow-sm">
+                                                <i class="bi bi-check-lg me-1"></i> Lưu Thay Đổi Thông Tin
+                                            </button>
+                                        </div>
                                     </form>
                                 </div>
                             </div>
@@ -2885,7 +2960,7 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                          ====================================================== -->
                     <?php if (can_manage_recruitment()): ?>
                     <div id="block-recruitment" class="workspace-content-block d-none">
-                        <!-- Header -->
+                        <!-- Header (Gỡ bỏ nút mở cổng theo yêu cầu PDF Review) -->
                         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
                             <div>
                                 <div class="d-flex align-items-center gap-2 mb-1">
@@ -2897,11 +2972,6 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                 <p class="text-secondary small mb-0">
                                     Sàng lọc hồ sơ, xem CV PDF, lên lịch phỏng vấn và tự động kích hoạt tài khoản tân thành viên kèm mật khẩu khởi tạo <code>Ueh@&lt;MSSV&gt;</code>.
                                 </p>
-                            </div>
-                            <div class="d-flex gap-2">
-                                <a href="<?= base_url('app/modules/recruitment/apply.php') ?>" target="_blank" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-semibold shadow-xs">
-                                    <i class="bi bi-box-arrow-up-right me-1"></i> Mở Cổng Ứng Tuyển
-                                </a>
                             </div>
                         </div>
 
@@ -2970,25 +3040,24 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                             </div>
                         </div>
 
-                        <!-- Danh Sách Ứng Viên -->
+                        <!-- Danh Sách Ứng Viên (Tái cấu trúc bảng: Lồng phòng ban dưới tên, gộp nút xem chi tiết đơn) -->
                         <div class="ef-card-editorial p-0 overflow-hidden shadow-sm">
                             <div class="table-responsive">
                                 <table class="table table-hover align-middle mb-0" id="recTable">
                                     <thead class="bg-light text-secondary font-monospace small" style="font-size: 0.75rem;">
                                         <tr>
-                                            <th class="ps-3 py-3">ỨNG VIÊN & MSSV</th>
+                                            <th class="ps-3 py-3">ỨNG VIÊN & PHÒNG BAN</th>
                                             <th class="py-3">KHÓA / NGÀNH</th>
-                                            <th class="py-3">PHÒNG BAN</th>
-                                            <th class="py-3">HỒ SƠ & CV</th>
+                                            <th class="py-3 text-center">ĐƠN ỨNG TUYỂN</th>
                                             <th class="py-3">LỊCH HẸN & GHI CHÚ</th>
                                             <th class="py-3 text-center">TRẠNG THÁI</th>
-                                            <th class="pe-3 py-3 text-end" style="min-width: 200px;">THAO TÁC</th>
+                                            <th class="pe-3 py-3 text-end" style="min-width: 220px;">THAO TÁC</th>
                                         </tr>
                                     </thead>
                                     <tbody class="border-top-0" id="recTableBody">
                                         <?php if (empty($recruitmentApplications)): ?>
                                             <tr>
-                                                <td colspan="7" class="text-center py-5 text-muted">
+                                                <td colspan="6" class="text-center py-5 text-muted">
                                                     <i class="bi bi-inbox fs-2 text-secondary d-block mb-2"></i>
                                                     Chưa có hồ sơ ứng tuyển nào trong đợt tuyển quân này. Hãy chia sẻ link Cổng Ứng Tuyển đến các bạn sinh viên!
                                                 </td>
@@ -2996,11 +3065,24 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                         <?php else: ?>
                                             <?php foreach ($recruitmentApplications as $ra): 
                                                 $deptCode = $ra['DepartmentCode'];
-                                                $badgeClass = 'bg-secondary';
-                                                if ($deptCode === 'HR') $badgeClass = 'bg-purple-subtle text-purple border border-purple-subtle';
-                                                elseif ($deptCode === 'SPEC') $badgeClass = 'bg-warning-subtle text-warning-emphasis border border-warning-subtle';
-                                                elseif ($deptCode === 'COMS') $badgeClass = 'bg-primary-subtle text-primary border border-primary-subtle';
-                                                elseif ($deptCode === 'ER') $badgeClass = 'bg-success-subtle text-success border border-success-subtle';
+                                                $badgeClass = 'badge-dept-spec';
+                                                if ($deptCode === 'HR') $badgeClass = 'badge-dept-hr';
+                                                elseif ($deptCode === 'SPEC') $badgeClass = 'badge-dept-spec';
+                                                elseif ($deptCode === 'COMS') $badgeClass = 'badge-dept-coms';
+                                                elseif ($deptCode === 'ER') $badgeClass = 'badge-dept-er';
+
+                                                $appDetailPayload = [
+                                                    'name' => $ra['FullName'],
+                                                    'code' => $ra['StudentCode'],
+                                                    'email' => $ra['Email'],
+                                                    'phone' => $ra['Phone'],
+                                                    'cohort' => $ra['Cohort'],
+                                                    'major' => $ra['Major'],
+                                                    'dept' => $ra['DepartmentName'] . ' (' . $deptCode . ')',
+                                                    'deptClass' => $badgeClass,
+                                                    'intro' => $ra['IntroText'],
+                                                    'cvUrl' => !empty($ra['CV_Path']) ? base_url($ra['CV_Path']) : ''
+                                                ];
                                             ?>
                                                 <tr class="rec-row" 
                                                     data-name="<?= htmlspecialchars(mb_strtolower($ra['FullName'], 'UTF-8')) ?>" 
@@ -3010,10 +3092,12 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                                     data-status="<?= htmlspecialchars($ra['Status']) ?>">
                                                     <td class="ps-3 py-3">
                                                         <div class="fw-bold text-dark"><?= htmlspecialchars($ra['FullName']) ?></div>
-                                                        <div class="small text-muted font-monospace">
+                                                        <div class="small text-muted font-monospace mb-1">
                                                             <?= htmlspecialchars($ra['StudentCode']) ?> &bull; <?= htmlspecialchars($ra['Email']) ?>
                                                         </div>
-                                                        <div class="small text-muted"><?= htmlspecialchars($ra['Phone']) ?></div>
+                                                        <span class="badge <?= $badgeClass ?> rounded-pill px-2.5 py-0.5" style="font-size: 0.72rem;">
+                                                            <?= htmlspecialchars($ra['DepartmentName']) ?> (<?= htmlspecialchars($deptCode) ?>)
+                                                        </span>
                                                     </td>
                                                     <td class="py-3">
                                                         <span class="badge bg-light text-dark border font-monospace small px-2 py-1 mb-1 d-inline-block">
@@ -3021,23 +3105,11 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                                         </span>
                                                         <div class="small text-secondary"><?= htmlspecialchars($ra['Major']) ?></div>
                                                     </td>
-                                                    <td class="py-3">
-                                                        <span class="badge <?= $badgeClass ?> rounded-pill px-2.5 py-1 fw-semibold">
-                                                            <?= htmlspecialchars($ra['DepartmentName']) ?> (<?= htmlspecialchars($deptCode) ?>)
-                                                        </span>
-                                                    </td>
-                                                    <td class="py-3">
-                                                        <div class="d-flex align-items-center gap-1.5 flex-wrap">
-                                                            <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2.5 py-1 shadow-2xs" 
-                                                                    onclick="showIntroModal('<?= htmlspecialchars($ra['FullName']) ?>', '<?= htmlspecialchars(addslashes($ra['IntroText'])) ?>')">
-                                                                <i class="bi bi-chat-left-quote me-1"></i>Đoạn giới thiệu
-                                                            </button>
-                                                            <?php if (!empty($ra['CV_Path'])): ?>
-                                                                <a href="<?= base_url($ra['CV_Path']) ?>" target="_blank" class="btn btn-xs btn-outline-primary rounded-pill px-2.5 py-1 shadow-2xs">
-                                                                    <i class="bi bi-file-earmark-pdf me-1"></i>Xem CV PDF
-                                                                </a>
-                                                            <?php endif; ?>
-                                                        </div>
+                                                    <td class="py-3 text-center">
+                                                        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 shadow-2xs" 
+                                                                onclick="showApplicationDetailModal(<?= htmlspecialchars(json_encode($appDetailPayload), ENT_QUOTES, 'UTF-8') ?>)">
+                                                            <i class="bi bi-file-earmark-person me-1"></i>Xem chi tiết đơn
+                                                        </button>
                                                     </td>
                                                     <td class="py-3" style="max-width: 220px;">
                                                         <?php if (!empty($ra['InterviewDate'])): ?>
@@ -3069,16 +3141,16 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                                         <?php endif; ?>
                                                     </td>
                                                     <td class="pe-3 py-3 text-end">
-                                                        <div class="d-inline-flex align-items-center gap-1">
+                                                        <div class="d-inline-flex align-items-center gap-2">
                                                             <!-- Lên lịch phỏng vấn -->
-                                                            <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-2 shadow-xs" 
+                                                            <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-2.5 shadow-xs" 
                                                                     onclick="openScheduleModal(<?= $ra['ApplicationID'] ?>, '<?= htmlspecialchars($ra['FullName']) ?>', '<?= !empty($ra['InterviewDate']) ? date('Y-m-d\TH:i', strtotime($ra['InterviewDate'])) : '' ?>', '<?= htmlspecialchars(addslashes($ra['InterviewNote'] ?? '')) ?>')" 
                                                                     title="Lên lịch phỏng vấn">
                                                                 <i class="bi bi-calendar-plus"></i>
                                                             </button>
 
                                                             <!-- Ghi chú / Đánh giá -->
-                                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 shadow-xs" 
+                                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 shadow-xs" 
                                                                     onclick="openRecordModal(<?= $ra['ApplicationID'] ?>, '<?= htmlspecialchars($ra['FullName']) ?>', '<?= htmlspecialchars(addslashes($ra['InterviewNote'] ?? '')) ?>')" 
                                                                     title="Ghi chú & Đánh giá">
                                                                 <i class="bi bi-pencil-square"></i>
@@ -3099,7 +3171,7 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
 
                                                             <!-- Từ chối -->
                                                             <?php if ($ra['Status'] !== 'Approved' && $ra['Status'] !== 'Rejected'): ?>
-                                                                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 shadow-xs" 
+                                                                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2.5 shadow-xs" 
                                                                         onclick="openRejectModal(<?= $ra['ApplicationID'] ?>, '<?= htmlspecialchars($ra['FullName']) ?>')" 
                                                                         title="Từ chối hồ sơ">
                                                                     <i class="bi bi-x-circle"></i>
@@ -3127,6 +3199,69 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
 <!-- ==========================================================================
      CÁC MODAL PHỤ TRỢ QUẢN LÝ TUYỂN QUÂN (UAT 02, 09)
      ========================================================================== -->
+<!-- Modal Xem Toàn Bộ Đơn Ứng Tuyển & CV (Theo yêu cầu PDF Review) -->
+<div class="modal fade" id="modalViewApplicationDetail" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-light border-bottom py-3 px-4">
+                <h5 class="modal-title fw-bold text-dark fs-6">
+                    <i class="bi bi-file-earmark-person text-primary me-2"></i>Chi Tiết Hồ Sơ Ứng Tuyển: <span id="appDetailName"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <div class="p-3 rounded-3 bg-light border h-100">
+                            <span class="text-muted font-monospace small d-block mb-1">MSSV & EMAIL</span>
+                            <div class="fw-bold text-dark" id="appDetailCodeEmail"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 rounded-3 bg-light border h-100">
+                            <span class="text-muted font-monospace small d-block mb-1">SỐ ĐIỆN THOẠI & KHÓA</span>
+                            <div class="fw-bold text-dark" id="appDetailPhoneCohort"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 rounded-3 bg-light border h-100">
+                            <span class="text-muted font-monospace small d-block mb-1">CHUYÊN NGÀNH TẠI UEH</span>
+                            <div class="fw-bold text-dark" id="appDetailMajor"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 rounded-3 bg-light border h-100">
+                            <span class="text-muted font-monospace small d-block mb-1">PHÒNG BAN ỨNG TUYỂN</span>
+                            <div><span class="badge rounded-pill px-3 py-1 font-monospace" id="appDetailDeptBadge"></span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-bold text-dark small"><i class="bi bi-chat-left-quote text-primary me-1"></i> Đoạn Giới Thiệu Bản Thân (&lt; 100 từ):</label>
+                    <div class="p-3 rounded-3 border bg-white text-secondary" id="appDetailIntro" style="line-height: 1.7; white-space: pre-wrap; font-size: 0.92rem;"></div>
+                </div>
+
+                <div class="p-3 rounded-3 border bg-light d-flex align-items-center justify-content-between" id="appDetailCvBox">
+                    <div class="d-flex align-items-center gap-2.5">
+                        <i class="bi bi-file-earmark-pdf-fill text-danger fs-2"></i>
+                        <div>
+                            <div class="fw-bold text-dark small">Hồ sơ năng lực / File CV PDF</div>
+                            <small class="text-muted">Định dạng file PDF đã được hệ thống xác thực an toàn</small>
+                        </div>
+                    </div>
+                    <a href="#" target="_blank" class="btn btn-sm btn-primary rounded-pill px-3 shadow-xs" id="appDetailCvLink">
+                        <i class="bi bi-box-arrow-up-right me-1"></i> Mở xem CV PDF
+                    </a>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-0 py-2.5 px-4">
+                <button type="button" class="btn btn-sm btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal 1: Xem Giới Thiệu Bản Thân (< 100 từ) -->
 <div class="modal fade" id="modalViewIntro" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -3275,7 +3410,7 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
     display: flex;
     align-items: center;
     padding: 0.65rem 0.85rem;
-    color: #94a3b8;
+    color: #475569;
     text-decoration: none;
     font-size: 0.85rem;
     font-weight: 500;
@@ -3285,14 +3420,14 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
     cursor: pointer;
 }
 .workspace-nav-link:hover {
-    color: #ffffff;
-    background: rgba(255, 255, 255, 0.08);
+    color: #0f172a;
+    background: #f1f5f9;
 }
 .workspace-nav-link.active {
-    color: #ffffff;
-    background: linear-gradient(90deg, rgba(37, 99, 235, 0.35), rgba(37, 99, 235, 0.15));
+    color: #1d4ed8;
+    background: #eff6ff;
     font-weight: 600;
-    border-left: 3px solid #38bdf8;
+    border-left: 3px solid #2563eb;
 }
 
 /* Lịch Notion Styles */
@@ -3781,18 +3916,36 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // 3. Lọc bảng Thành viên theo Phòng ban
+let currentSelectedDept = 'ALL';
 function filterDeptMembers(deptKey, btnElement) {
+    currentSelectedDept = deptKey;
     document.querySelectorAll('.dept-filter-btn').forEach(b => {
         b.classList.remove('active', 'btn-primary');
         b.classList.add('btn-outline-secondary');
     });
     btnElement.classList.add('active', 'btn-primary');
     btnElement.classList.remove('btn-outline-secondary');
+    filterMembersRealtime();
+}
 
+function filterMembersRealtime() {
+    const q = (document.getElementById('memberSearchInput')?.value || '').toLowerCase().trim();
     const rows = document.querySelectorAll('.member-row');
     rows.forEach(r => {
-        const dept = r.getAttribute('data-dept');
-        r.style.display = (deptKey === 'ALL' || dept === deptKey) ? '' : 'none';
+        const dept = r.getAttribute('data-dept') || '';
+        const text = r.textContent.toLowerCase();
+        const matchesDept = (currentSelectedDept === 'ALL' || dept === currentSelectedDept);
+        const matchesQuery = (q === '' || text.includes(q));
+        r.style.display = (matchesDept && matchesQuery) ? '' : 'none';
+    });
+}
+
+function filterStaffList(query) {
+    const q = (query || '').toLowerCase().trim();
+    const items = document.querySelectorAll('.staff-checkbox-item');
+    items.forEach(it => {
+        const text = it.getAttribute('data-text') || '';
+        it.style.display = (q === '' || text.includes(q)) ? '' : 'none';
     });
 }
 
@@ -4025,8 +4178,72 @@ function filterDeptMembers(deptKey, btnElement) {
 })();
 
 // ============================================================================
+// BẬT TẮT CHỈNH SỬA THÔNG TIN CLB & HỒ SƠ CÁ NHÂN (UX PENCIL TOGGLE)
+// ============================================================================
+function toggleClubInfoEdit(showEdit) {
+    const vCard = document.getElementById('clubInfoViewCard');
+    const eCard = document.getElementById('clubInfoEditCard');
+    if (vCard && eCard) {
+        if (showEdit) {
+            vCard.classList.add('d-none');
+            eCard.classList.remove('d-none');
+            eCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+            eCard.classList.add('d-none');
+            vCard.classList.remove('d-none');
+            vCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+}
+
+let isProfileEditing = false;
+function toggleProfileEdit() {
+    isProfileEditing = !isProfileEditing;
+    const btn = document.getElementById('btnToggleProfileEdit');
+    const saveWrapper = document.getElementById('profileSaveBtnWrapper');
+    const fields = document.querySelectorAll('.profile-field');
+    
+    fields.forEach(f => {
+        f.disabled = !isProfileEditing;
+    });
+    
+    if (isProfileEditing) {
+        if (btn) btn.innerHTML = '<i class="bi bi-x-lg me-1"></i> Hủy chỉnh sửa';
+        if (saveWrapper) saveWrapper.classList.remove('d-none');
+    } else {
+        if (btn) btn.innerHTML = '<i class="bi bi-pencil-square me-1"></i> Chỉnh sửa';
+        if (saveWrapper) saveWrapper.classList.add('d-none');
+    }
+}
+
+// ============================================================================
 // JAVASCRIPT HỖ TRỢ QUẢN LÝ TUYỂN QUÂN (UAT 02, 09)
 // ============================================================================
+function showApplicationDetailModal(d) {
+    document.getElementById('appDetailName').textContent = d.name;
+    document.getElementById('appDetailCodeEmail').textContent = d.code + ' • ' + d.email;
+    document.getElementById('appDetailPhoneCohort').textContent = d.phone + ' • ' + d.cohort;
+    document.getElementById('appDetailMajor').textContent = d.major;
+    
+    const badge = document.getElementById('appDetailDeptBadge');
+    badge.textContent = d.dept;
+    badge.className = 'badge rounded-pill px-3 py-1 font-monospace ' + d.deptClass;
+    
+    document.getElementById('appDetailIntro').textContent = d.intro || '(Ứng viên chưa cung cấp đoạn giới thiệu)';
+    
+    const cvBox = document.getElementById('appDetailCvBox');
+    const cvLink = document.getElementById('appDetailCvLink');
+    if (d.cvUrl) {
+        cvBox.classList.remove('d-none');
+        cvLink.href = d.cvUrl;
+    } else {
+        cvBox.classList.add('d-none');
+    }
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalViewApplicationDetail'));
+    modal.show();
+}
+
 function showIntroModal(name, intro) {
     document.getElementById('introModalTitle').innerHTML = '<i class="bi bi-chat-left-quote text-primary me-2"></i>Giới thiệu bản thân: ' + name;
     document.getElementById('introModalBody').textContent = intro || '(Ứng viên chưa cung cấp đoạn giới thiệu)';
