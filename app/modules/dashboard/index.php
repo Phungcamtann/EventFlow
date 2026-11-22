@@ -1764,25 +1764,25 @@ $roleBadge = format_club_member_role($_SESSION['user']['MemberRole'] ?? $_SESSIO
                         <?php else: 
                             $cState = event_state($consoleEvt, $consoleStats['total'], $now);
                         ?>
-                            <!-- Selected Event Context Banner (Gọn gàng, không có nút thoát / xem công khai thừa) -->
-                            <div class="ef-card-editorial p-3.5 mb-4 bg-white border rounded-3 shadow-xs">
-                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                            <!-- Selected Event Context Banner (Gọn gàng, độ cao và khoảng cách cân đối) -->
+                            <div class="ef-card-editorial p-4 mb-4 bg-white border rounded-3 shadow-xs" style="padding: 18px 24px !important; min-height: 85px;">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
                                     <div>
-                                        <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
-                                            <h2 class="h5 fw-bold text-dark mb-0"><?= htmlspecialchars($consoleEvt['EventName']) ?></h2>
-                                            <span class="badge-pill-custom <?= $cState['css_class'] ?>" style="font-size: 0.72rem;">
+                                        <div class="d-flex align-items-center gap-2.5 flex-wrap mb-2">
+                                            <h2 class="h5 fw-bold text-dark mb-0 fs-5"><?= htmlspecialchars($consoleEvt['EventName']) ?></h2>
+                                            <span class="badge-pill-custom <?= $cState['css_class'] ?>" style="font-size: 0.75rem; padding: 4px 10px;">
                                                 <?= htmlspecialchars($cState['label']) ?>
                                             </span>
                                             <?php if ($consoleStaffRole): ?>
-                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace" style="font-size: 0.72rem;">
-                                                    <i class="bi bi-person-badge me-1"></i><?= htmlspecialchars($consoleStaffRole) ?>
+                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2.5 py-1" style="font-size: 0.74rem;">
+                                                    <i class="bi bi-person-badge me-1.5"></i><?= htmlspecialchars($consoleStaffRole) ?>
                                                 </span>
                                             <?php endif; ?>
                                         </div>
-                                        <div class="text-muted small d-flex flex-wrap gap-3">
-                                            <span><i class="bi bi-geo-alt text-primary me-1"></i><?= htmlspecialchars($consoleEvt['Location']) ?></span>
-                                            <span><i class="bi bi-clock text-primary me-1"></i><?= date('H:i, d/m/Y', strtotime($consoleEvt['StartTime'])) ?> - <?= date('H:i, d/m/Y', strtotime($consoleEvt['EndTime'])) ?></span>
-                                            <span><i class="bi bi-people text-primary me-1"></i>Sức chứa tối đa: <strong><?= (int)$consoleEvt['MaxCapacity'] ?> vé</strong></span>
+                                        <div class="text-muted small d-flex flex-wrap gap-4 mt-2" style="font-size: 0.84rem;">
+                                            <span class="d-inline-flex align-items-center"><i class="bi bi-geo-alt text-primary me-1.5 fs-6"></i><?= htmlspecialchars($consoleEvt['Location']) ?></span>
+                                            <span class="d-inline-flex align-items-center"><i class="bi bi-clock text-primary me-1.5 fs-6"></i><?= date('H:i, d/m/Y', strtotime($consoleEvt['StartTime'])) ?> - <?= date('H:i, d/m/Y', strtotime($consoleEvt['EndTime'])) ?></span>
+                                            <span class="d-inline-flex align-items-center"><i class="bi bi-people text-primary me-1.5 fs-6"></i>Sức chứa tối đa: <strong class="ms-1"><?= (int)$consoleEvt['MaxCapacity'] ?> vé</strong></span>
                                         </div>
                                     </div>
                                 </div>
@@ -1843,19 +1843,22 @@ $roleBadge = format_club_member_role($_SESSION['user']['MemberRole'] ?? $_SESSIO
                             <ul class="nav nav-pills nav-justified ef-console-tabs mb-4 p-1.5 bg-white border rounded-3 gap-2 shadow-xs w-100" id="consoleTabs" role="tablist">
                                 <li class="nav-item flex-fill" role="presentation">
                                     <button class="nav-link active w-100 rounded-2 py-2.5 px-3 fw-semibold small d-flex align-items-center justify-content-center text-center" id="c-tab-edit" data-bs-toggle="pill" data-bs-target="#c-pane-edit" type="button" role="tab">
-                                        <i class="bi bi-pencil-square me-1.5"></i>1. Thông Tin & Chỉnh Sửa
+                                        <i class="bi bi-pencil-square me-2.5 fs-6"></i>
+                                        <span>1. Thông Tin & Chỉnh Sửa</span>
                                     </button>
                                 </li>
                                 <li class="nav-item flex-fill" role="presentation">
                                     <button class="nav-link w-100 rounded-2 py-2.5 px-3 fw-semibold small d-flex align-items-center justify-content-center text-center" id="c-tab-checkin" data-bs-toggle="pill" data-bs-target="#c-pane-checkin" type="button" role="tab">
-                                        <i class="bi bi-qr-code-scan me-1.5"></i>2. Bàn Điểm Danh Realtime
-                                        <span class="badge bg-success ms-1.5 rounded-pill font-monospace" id="consoleTabBadgeChecked"><?= $consoleStats['checked'] ?>/<?= $consoleStats['total'] ?></span>
+                                        <i class="bi bi-qr-code-scan me-2.5 fs-6"></i>
+                                        <span>2. Bàn Điểm Danh Realtime</span>
+                                        <span class="badge bg-success ms-2.5 rounded-pill font-monospace" id="consoleTabBadgeChecked"><?= $consoleStats['checked'] ?>/<?= $consoleStats['total'] ?></span>
                                     </button>
                                 </li>
                                 <li class="nav-item flex-fill" role="presentation">
                                     <button class="nav-link w-100 rounded-2 py-2.5 px-3 fw-semibold small d-flex align-items-center justify-content-center text-center" id="c-tab-staff" data-bs-toggle="pill" data-bs-target="#c-pane-staff" type="button" role="tab">
-                                        <i class="bi bi-people-fill me-1.5"></i>3. Ban Tổ Chức & Phân Công
-                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1.5 rounded-pill font-monospace" id="consoleTabBadgeStaff"><?= $staffCheckedCount ?>/<?= count($consoleStaffList) ?> có mặt</span>
+                                        <i class="bi bi-people-fill me-2.5 fs-6"></i>
+                                        <span>3. Ban Tổ Chức & Phân Công</span>
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-2.5 rounded-pill font-monospace" id="consoleTabBadgeStaff"><?= $staffCheckedCount ?>/<?= count($consoleStaffList) ?> có mặt</span>
                                     </button>
                                 </li>
                             </ul>
@@ -2162,50 +2165,126 @@ $roleBadge = format_club_member_role($_SESSION['user']['MemberRole'] ?? $_SESSIO
                                             </div>
                                         </div>
 
-                                        <!-- Form phân công thêm cán bộ -->
+                                        <!-- Khối phân công thêm cán bộ -->
                                         <div class="col-lg-5">
-                                            <div class="ef-card-editorial p-4 bg-white border rounded-3 shadow-xs h-100">
-                                                <h3 class="h6 fw-bold text-dark mb-3 pb-2 border-bottom">
-                                                    <i class="bi bi-person-plus text-primary me-1.5"></i>Phân Công Cán Bộ Mới
-                                                </h3>
+                                            <div class="ef-card-editorial p-4 bg-white border rounded-3 shadow-xs h-100 d-flex flex-column">
+                                                <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-shrink-0">
+                                                    <h3 class="h6 fw-bold text-dark mb-0 d-flex align-items-center">
+                                                        <i class="bi bi-person-plus text-primary me-2 fs-5"></i>
+                                                        <span>Phân Công Cán Bộ Mới</span>
+                                                    </h3>
+                                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace" id="candidateCountBadge">
+                                                        <?= count($availableStaffCandidates) ?> Cán bộ sẵn sàng
+                                                    </span>
+                                                </div>
 
                                                 <?php if (empty($availableStaffCandidates)): ?>
-                                                    <p class="text-muted small mb-0">Tất cả thành viên trong Ban Điều Hành CLB đã được phân công vào sự kiện này.</p>
+                                                    <div class="text-center py-5 my-auto text-muted">
+                                                        <i class="bi bi-person-check fs-1 d-block mb-2 text-success opacity-75"></i>
+                                                        <div class="fw-semibold text-dark">Toàn bộ BĐH đã được phân công</div>
+                                                        <div class="small text-muted mt-1">Tất cả cán bộ trong Ban Điều Hành CLB hiện đã có mặt trong Ban Tổ Chức sự kiện này.</div>
+                                                    </div>
                                                 <?php else: ?>
-                                                    <form method="POST" action="<?= base_url('app/modules/dashboard/index.php') ?>" class="d-flex flex-column gap-3">
-                                                        <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
-                                                        <input type="hidden" name="action" value="console_add_staff">
-                                                        <input type="hidden" name="event_id" value="<?= (int)$consoleEvt['EventID'] ?>">
-
-                                                        <div>
-                                                            <label class="form-label small fw-bold text-dark">Chọn thành viên BĐH <span class="text-danger">*</span></label>
-                                                            <select name="staff_account_id" class="form-select form-select-sm" required>
-                                                                <option value="">-- Chọn cán bộ BĐH --</option>
-                                                                <?php foreach ($availableStaffCandidates as $cand): ?>
-                                                                    <option value="<?= (int)$cand['AccountID'] ?>">
-                                                                        <?= htmlspecialchars($cand['FullName']) ?> (<?= htmlspecialchars(format_club_member_role($cand['MemberRole'])) ?> - <?= htmlspecialchars($cand['DepartmentName'] ?? 'CLB') ?>)
-                                                                    </option>
-                                                                <?php endforeach; ?>
-                                                            </select>
+                                                    <!-- Thanh tìm kiếm Realtime & Nút phễu lọc -->
+                                                    <div class="mb-3 flex-shrink-0">
+                                                        <div class="input-group input-group-sm">
+                                                            <span class="input-group-text bg-white border-end-0 text-muted ps-2.5 pe-2">
+                                                                <i class="bi bi-search"></i>
+                                                            </span>
+                                                            <input type="text" id="candidateSearchInput" class="form-control border-start-0 border-end-0 ps-1" placeholder="Tìm theo tên cán bộ, chức vụ, ban..." oninput="filterConsoleCandidates()">
+                                                            <button class="btn btn-outline-secondary border-start-0 d-flex align-items-center gap-1.5 px-2.5" type="button" data-bs-toggle="collapse" data-bs-target="#candidateFilterCollapse" aria-expanded="false" title="Mở bộ lọc phòng ban">
+                                                                <i class="bi bi-funnel text-primary"></i>
+                                                                <span class="font-monospace small d-none d-sm-inline" style="font-size: 0.72rem;">Bộ lọc</span>
+                                                            </button>
                                                         </div>
 
-                                                        <div>
-                                                            <label class="form-label small fw-bold text-dark">Vai trò phụ trách trong sự kiện <span class="text-danger">*</span></label>
-                                                            <select name="staff_role" class="form-select form-select-sm" required>
-                                                                <option value="Organizer">Trưởng Ban Tổ Chức (Organizer)</option>
-                                                                <option value="Checkin_Lead">Trưởng Bàn Điểm Danh (Checkin_Lead)</option>
-                                                                <option value="Support" selected>Ban Hỗ Trợ & Hậu Cần (Support)</option>
-                                                                <option value="MC">Dẫn Chương Trình (MC)</option>
-                                                            </select>
-                                                            <div class="form-text small text-muted font-monospace" style="font-size: 0.72rem;">
-                                                                Cán bộ được phân công sẽ có quyền mở bàn check-in sự kiện này (RBAC Tầng 3).
+                                                        <!-- Khung mở rộng của Bộ lọc phễu -->
+                                                        <div class="collapse mt-2" id="candidateFilterCollapse">
+                                                            <div class="p-2.5 bg-light rounded-3 border">
+                                                                <div class="d-flex align-items-center justify-content-between mb-1.5">
+                                                                    <span class="small fw-bold text-dark font-monospace" style="font-size: 0.7rem;">LỌC THEO PHÒNG BAN:</span>
+                                                                    <button type="button" class="btn btn-link btn-xs p-0 text-decoration-none small text-muted" onclick="resetCandidateDeptFilter()">Xóa lọc</button>
+                                                                </div>
+                                                                <div class="d-flex flex-wrap gap-1" id="candidateDeptFilterPills">
+                                                                    <button type="button" class="btn btn-xs rounded-pill dept-filter-pill active btn-primary px-2 py-0.5" data-dept="all" style="font-size: 0.7rem;" onclick="selectCandidateDeptFilter('all', this)">Tất cả</button>
+                                                                    <button type="button" class="btn btn-xs rounded-pill dept-filter-pill btn-white border px-2 py-0.5" data-dept="HR" style="font-size: 0.7rem;" onclick="selectCandidateDeptFilter('HR', this)">HR</button>
+                                                                    <button type="button" class="btn btn-xs rounded-pill dept-filter-pill btn-white border px-2 py-0.5" data-dept="SPEC" style="font-size: 0.7rem;" onclick="selectCandidateDeptFilter('SPEC', this)">SPEC</button>
+                                                                    <button type="button" class="btn btn-xs rounded-pill dept-filter-pill btn-white border px-2 py-0.5" data-dept="COMS" style="font-size: 0.7rem;" onclick="selectCandidateDeptFilter('COMS', this)">COMS</button>
+                                                                    <button type="button" class="btn btn-xs rounded-pill dept-filter-pill btn-white border px-2 py-0.5" data-dept="ER" style="font-size: 0.7rem;" onclick="selectCandidateDeptFilter('ER', this)">ER</button>
+                                                                    <button type="button" class="btn btn-xs rounded-pill dept-filter-pill btn-white border px-2 py-0.5" data-dept="BĐH" style="font-size: 0.7rem;" onclick="selectCandidateDeptFilter('BĐH', this)">Ban Điều Hành</button>
+                                                                </div>
                                                             </div>
                                                         </div>
+                                                    </div>
 
-                                                        <button type="submit" class="btn btn-primary rounded-pill w-100 fw-semibold mt-2 shadow-xs">
-                                                            <i class="bi bi-person-check me-1.5"></i>Lưu Phân Công Cán Bộ
-                                                        </button>
-                                                    </form>
+                                                    <!-- Danh sách cán bộ để phân công (Scrollable List) -->
+                                                    <div class="candidate-list-wrapper overflow-y-auto pe-1 flex-grow-1" id="candidateListContainer" style="max-height: 380px;">
+                                                        <?php foreach ($availableStaffCandidates as $cand): 
+                                                            $deptCode = $cand['DepartmentCode'] ?: 'BĐH';
+                                                            $candRoleText = format_club_member_role($cand['MemberRole']);
+                                                            $searchText = mb_strtolower($cand['FullName'] . ' ' . ($cand['StudentCode'] ?? '') . ' ' . ($cand['Email'] ?? '') . ' ' . $candRoleText . ' ' . $deptCode . ' ' . ($cand['DepartmentName'] ?? ''), 'UTF-8');
+                                                        ?>
+                                                            <div class="candidate-item border bg-white shadow-2xs transition-all"
+                                                                 style="margin-bottom: 14px !important; padding: 14px 16px !important; border-radius: 12px; border: 1px solid #e2e8f0;"
+                                                                 data-search="<?= htmlspecialchars($searchText) ?>"
+                                                                 data-dept="<?= htmlspecialchars($deptCode) ?>">
+                                                                <form method="POST" action="<?= base_url('app/modules/dashboard/index.php') ?>" class="m-0">
+                                                                    <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+                                                                    <input type="hidden" name="action" value="console_add_staff">
+                                                                    <input type="hidden" name="event_id" value="<?= (int)$consoleEvt['EventID'] ?>">
+                                                                    <input type="hidden" name="staff_account_id" value="<?= (int)$cand['AccountID'] ?>">
+
+                                                                    <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                                                                        <div class="d-flex align-items-center gap-2.5 overflow-hidden">
+                                                                            <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-2xs flex-shrink-0"
+                                                                                 style="width: 38px; height: 38px; font-size: 0.85rem; background: linear-gradient(135deg, #2563eb, #1d4ed8);">
+                                                                                <?= htmlspecialchars(mb_substr($cand['FullName'], 0, 1, 'UTF-8')) ?>
+                                                                            </div>
+                                                                            <div class="overflow-hidden">
+                                                                                <div class="fw-bold text-dark small text-truncate" style="font-size: 0.88rem;"><?= htmlspecialchars($cand['FullName']) ?></div>
+                                                                                <div class="d-flex align-items-center gap-1.5 flex-wrap mt-0.5">
+                                                                                    <span class="badge bg-light text-primary border border-primary-subtle font-monospace px-2 py-0.5" style="font-size: 0.68rem;">
+                                                                                        <?= htmlspecialchars($candRoleText) ?>
+                                                                                    </span>
+                                                                                    <span class="badge bg-secondary-subtle text-secondary font-monospace px-2 py-0.5" style="font-size: 0.68rem;">
+                                                                                        <?= htmlspecialchars($deptCode) ?>
+                                                                                    </span>
+                                                                                    <?php if (!empty($cand['StudentCode'])): ?>
+                                                                                        <span class="text-muted font-monospace ms-1" style="font-size: 0.68rem;"><?= htmlspecialchars($cand['StudentCode']) ?></span>
+                                                                                    <?php endif; ?>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div class="d-flex align-items-center gap-2 pt-2.5 border-top" style="margin-top: 10px !important;">
+                                                                        <div class="flex-grow-1">
+                                                                            <select name="staff_role" class="form-select form-select-sm font-monospace" style="height: 38px; font-size: 0.78rem;">
+                                                                                <option value="Support" selected>Ban Hỗ Trợ & Hậu Cần</option>
+                                                                                <option value="Checkin_Lead">Trưởng Bàn Điểm Danh</option>
+                                                                                <option value="Organizer">Trưởng Ban Tổ Chức</option>
+                                                                                <option value="MC">Dẫn Chương Trình (MC)</option>
+                                                                            </select>
+                                                                        </div>
+                                                                        <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3.5 text-nowrap fw-semibold d-flex align-items-center gap-1.5 shadow-2xs" style="height: 38px; font-size: 0.78rem;">
+                                                                            <i class="bi bi-person-plus-fill me-1"></i>
+                                                                            <span>Phân công</span>
+                                                                        </button>
+                                                                    </div>
+                                                                </form>
+                                                            </div>
+                                                        <?php endforeach; ?>
+                                                        
+                                                        <div id="noCandidateMatchMessage" class="text-center py-4 text-muted small d-none">
+                                                            <i class="bi bi-search fs-5 d-block mb-1 text-secondary opacity-50"></i>
+                                                            Không tìm thấy cán bộ phù hợp với bộ lọc hiện tại.
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Ghi chú phân công (Đã loại bỏ hoàn toàn từ ngữ kỹ thuật RBAC tầng 3) -->
+                                                    <div class="form-text small text-muted font-monospace mt-3 pt-2 border-top flex-shrink-0" style="font-size: 0.72rem;">
+                                                        <i class="bi bi-shield-check text-primary me-1.5"></i>Cán bộ được phân công sẽ có quyền trực tiếp vận hành điểm danh và quản lý check-in sự kiện này.
+                                                    </div>
                                                 <?php endif; ?>
                                             </div>
                                         </div>
@@ -3579,6 +3658,14 @@ $roleBadge = format_club_member_role($_SESSION['user']['MemberRole'] ?? $_SESSIO
     text-align: center;
     white-space: nowrap;
 }
+.ef-console-tabs .nav-link i {
+    margin-right: 0.65rem !important;
+    font-size: 1.05rem;
+    vertical-align: -0.1em;
+}
+.ef-console-tabs .nav-link .badge {
+    margin-left: 0.65rem !important;
+}
 .ef-console-tabs .nav-link:hover:not(.active) {
     background-color: #f1f5f9;
     color: #2563eb;
@@ -3587,6 +3674,24 @@ $roleBadge = format_club_member_role($_SESSION['user']['MemberRole'] ?? $_SESSIO
     background-color: #2563eb;
     color: #ffffff !important;
     box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
+/* Thẻ cán bộ phân công: Tách biệt rõ ràng, không dính sát */
+.candidate-item {
+    margin-bottom: 14px !important;
+    padding: 14px 16px !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    background-color: #ffffff !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+    transition: all 0.2s ease;
+}
+.candidate-item:last-child {
+    margin-bottom: 0 !important;
+}
+.candidate-item:hover {
+    border-color: #93c5fd !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08) !important;
 }
 </style>
 
@@ -3780,6 +3885,74 @@ function recalcStaffCheckinStats() {
     if (btnAll) {
         btnAll.disabled = (presentCount === total);
     }
+}
+
+// ============================================================================
+// BỘ LỌC & TÌM KIẾM REALTIME CÁN BỘ PHÂN CÔNG (CONSOLE STAFF CANDIDATES)
+// ============================================================================
+let currentCandidateDeptFilter = 'all';
+
+function filterConsoleCandidates() {
+    const searchInput = document.getElementById('candidateSearchInput');
+    const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const container = document.getElementById('candidateListContainer');
+    if (!container) return;
+
+    const items = container.querySelectorAll('.candidate-item');
+    let matchCount = 0;
+
+    items.forEach(item => {
+        const text = (item.getAttribute('data-search') || '').toLowerCase();
+        const dept = item.getAttribute('data-dept') || '';
+
+        const matchQuery = !query || text.includes(query);
+        const matchDept = (currentCandidateDeptFilter === 'all') || (dept === currentCandidateDeptFilter);
+
+        if (matchQuery && matchDept) {
+            item.classList.remove('d-none');
+            matchCount++;
+        } else {
+            item.classList.add('d-none');
+        }
+    });
+
+    const noMatch = document.getElementById('noCandidateMatchMessage');
+    if (noMatch) {
+        if (matchCount === 0 && items.length > 0) {
+            noMatch.classList.remove('d-none');
+        } else {
+            noMatch.classList.add('d-none');
+        }
+    }
+
+    const countBadge = document.getElementById('candidateCountBadge');
+    if (countBadge) {
+        countBadge.textContent = `${matchCount} Cán bộ phù hợp`;
+    }
+}
+
+function selectCandidateDeptFilter(dept, btn) {
+    currentCandidateDeptFilter = dept;
+    const pills = document.querySelectorAll('#candidateDeptFilterPills .dept-filter-pill');
+    pills.forEach(p => {
+        p.classList.remove('active', 'btn-primary');
+        p.classList.add('btn-white', 'border');
+    });
+    if (btn) {
+        btn.classList.add('active', 'btn-primary');
+        btn.classList.remove('btn-white', 'border');
+    }
+    filterConsoleCandidates();
+}
+
+function resetCandidateDeptFilter() {
+    const allBtn = document.querySelector('#candidateDeptFilterPills .dept-filter-pill[data-dept="all"]');
+    selectCandidateDeptFilter('all', allBtn);
+    const searchInput = document.getElementById('candidateSearchInput');
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    filterConsoleCandidates();
 }
 
 // Khôi phục Tab đang active trong Console (Tránh nhảy về Tab 1 khi reload/thao tác)
