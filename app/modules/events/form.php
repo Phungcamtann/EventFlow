@@ -495,7 +495,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                 <?php foreach ($availableStaff as $stf): 
                                     $checked = in_array((int)$stf['AccountID'], $currentStaffIds, true);
                                 ?>
-                                    <div class="col-md-6 form-staff-card" data-text="<?= htmlspecialchars(mb_strtolower($stf['FullName'] . ' ' . $stf['MemberRole'] . ' ' . ($stf['DepartmentCode'] ?? ''), 'UTF-8')) ?>">
+                                    <div class="col-md-6 form-staff-card" data-text="<?= htmlspecialchars(mb_strtolower($stf['FullName'] . ' ' . format_club_member_role($stf['MemberRole']) . ' ' . $stf['MemberRole'] . ' ' . ($stf['DepartmentCode'] ?? ''), 'UTF-8')) ?>">
                                         <div class="p-3 border rounded-3 bg-light d-flex align-items-center justify-content-between h-100">
                                             <div class="form-check mb-0">
                                                 <input class="form-check-input staff-checkbox" type="checkbox" name="staff_ids[]" value="<?= (int)$stf['AccountID'] ?>" id="staff_<?= (int)$stf['AccountID'] ?>" <?= $checked ? 'checked' : '' ?>>
@@ -507,7 +507,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                                 </label>
                                             </div>
                                             <span class="badge bg-white text-secondary border font-monospace" style="font-size: 0.68rem;">
-                                                <?= htmlspecialchars($stf['MemberRole']) ?>
+                                                <?= htmlspecialchars(format_club_member_role($stf['MemberRole'])) ?>
                                             </span>
                                         </div>
                                     </div>

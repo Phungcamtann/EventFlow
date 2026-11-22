@@ -254,3 +254,28 @@ function get_event_staff_list(PDO $pdo, int $eventId): array {
     $stmt->execute([':eid' => $eventId]);
     return $stmt->fetchAll();
 }
+
+/**
+ * Chuẩn hóa tên tiếng Việt cho chức vụ / vai trò thành viên CLB & vai trò hệ thống
+ */
+if (!function_exists('format_club_member_role')) {
+    function format_club_member_role(?string $role): string {
+        if (empty($role)) {
+            return 'Thành viên';
+        }
+        $r = trim($role);
+        return match(strtolower($r)) {
+            'president'                           => 'Chủ nhiệm CLB',
+            'vice president', 'vice_president'    => 'Phó Chủ nhiệm',
+            'head'                                => 'Trưởng phòng',
+            'vice head', 'vice_head', 'vice-head' => 'Phó phòng',
+            'board member', 'board_member'        => 'Ủy viên BĐH',
+            'event supporter', 'event_supporter'  => 'CTV Sự kiện',
+            'member'                              => 'Thành viên',
+            'club manager', 'club_manager'        => 'Ban Chủ Nhiệm',
+            'admin'                               => 'Quản trị viên',
+            'student'                             => 'Sinh viên',
+            default                               => htmlspecialchars($role),
+        };
+    }
+}

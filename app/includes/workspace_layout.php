@@ -31,7 +31,7 @@ function workspace_header(string $pageTitle, string $activeMenu = 'dashboard', a
     }
     $initials = strtoupper(htmlspecialchars($initials));
 
-    $roleDisplay = $currentUser['MemberRole'] ?: $currentUser['RoleName'];
+    $roleDisplay = format_club_member_role($currentUser['MemberRole'] ?: $currentUser['RoleName']);
 ?>
 <!DOCTYPE html>
 <html lang="vi">

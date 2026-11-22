@@ -267,7 +267,7 @@ require_once __DIR__ . '/../../includes/header.php';
 
                         <div class="d-flex flex-wrap gap-2 mb-2">
                             <span class="badge bg-success-subtle text-success rounded-pill px-3 py-1 font-mono">
-                                <?= $h($membership['MemberRole']) ?>
+                                <?= $h(format_club_member_role($membership['MemberRole'])) ?>
                             </span>
                             <?php if ($membership['Status'] === 'Active'): ?>
                                 <span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-1">Đang hoạt động</span>

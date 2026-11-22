@@ -130,7 +130,7 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
                                         <?= htmlspecialchars($currentUser['Email']) ?>
                                     </small>
                                     <small class="badge bg-light text-primary border rounded-pill mt-1 font-mono">
-                                        <?= htmlspecialchars($currentUser['MemberRole'] ?? $currentUser['RoleName']) ?>
+                                        <?= htmlspecialchars(format_club_member_role($currentUser['MemberRole'] ?? $currentUser['RoleName'])) ?>
                                     </small>
                                 </li>
                                 <li>

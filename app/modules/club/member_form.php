@@ -662,7 +662,17 @@ document.addEventListener('DOMContentLoaded', function() {
             let actionBtn = '';
 
             if (isAlreadyMember) {
-                statusBadge = `<span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="bi bi-x-circle me-1"></i>Đã trong CLB (${escapeHtml(user.MemberRole || 'Thành viên')})</span>`;
+                const roleMap = {
+                    'President': 'Chủ nhiệm CLB',
+                    'Vice President': 'Phó Chủ nhiệm',
+                    'Head': 'Trưởng phòng',
+                    'Vice Head': 'Phó phòng',
+                    'Board Member': 'Ủy viên BĐH',
+                    'Event Supporter': 'CTV Sự kiện',
+                    'Member': 'Thành viên'
+                };
+                const displayRole = roleMap[user.MemberRole] || user.MemberRole || 'Thành viên';
+                statusBadge = `<span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="bi bi-x-circle me-1"></i>Đã trong CLB (${escapeHtml(displayRole)})</span>`;
                 actionBtn = `<button type="button" class="btn btn-sm btn-secondary disabled" disabled>Đã là thành viên</button>`;
             } else {
                 statusBadge = `<span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-check-circle me-1"></i>Chưa tham gia</span>`;

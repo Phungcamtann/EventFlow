@@ -1189,7 +1189,7 @@ $initials = (count($nameParts) >= 2)
     ? mb_substr($nameParts[count($nameParts) - 2], 0, 1) . mb_substr($nameParts[count($nameParts) - 1], 0, 1)
     : mb_substr($userAcc['FullName'], 0, 2);
 $initials = strtoupper(htmlspecialchars($initials));
-$roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
+$roleBadge = format_club_member_role($_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName']);
 ?>
 
 <!-- ==========================================================================
@@ -2118,8 +2118,8 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                                                             <?= htmlspecialchars($stf['StaffRole']) ?>
                                                                         </span>
                                                                     </td>
-                                                                    <td class="py-2.5 small text-muted">
-                                                                        <?= htmlspecialchars($stf['ClubRole'] ?: 'Thành viên') ?>
+                                                                    <td class="py-2.5 small text-secondary fw-semibold">
+                                                                        <?= htmlspecialchars(format_club_member_role($stf['ClubRole'] ?: 'Thành viên')) ?>
                                                                     </td>
                                                                     <td class="py-2.5 staff-checkin-cell" id="staff-checkin-cell-<?= (int)$stf['AccountID'] ?>">
                                                                         <?php if ($isStaffPresent): ?>
@@ -2183,7 +2183,7 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                                                 <option value="">-- Chọn cán bộ BĐH --</option>
                                                                 <?php foreach ($availableStaffCandidates as $cand): ?>
                                                                     <option value="<?= (int)$cand['AccountID'] ?>">
-                                                                        <?= htmlspecialchars($cand['FullName']) ?> (<?= htmlspecialchars($cand['MemberRole']) ?> - <?= htmlspecialchars($cand['DepartmentName'] ?? 'CLB') ?>)
+                                                                        <?= htmlspecialchars($cand['FullName']) ?> (<?= htmlspecialchars(format_club_member_role($cand['MemberRole'])) ?> - <?= htmlspecialchars($cand['DepartmentName'] ?? 'CLB') ?>)
                                                                     </option>
                                                                 <?php endforeach; ?>
                                                             </select>
@@ -2330,14 +2330,14 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                             <!-- Scrollable Staff Container -->
                                             <div class="row g-2 overflow-y-auto p-2 rounded-2 bg-white border" id="staffListWrapper" style="max-height: 250px;">
                                                 <?php foreach ($boardStaffList as $staff): ?>
-                                                    <div class="col-md-6 col-lg-4 staff-checkbox-item" data-text="<?= htmlspecialchars(mb_strtolower($staff['FullName'] . ' ' . $staff['MemberRole'] . ' ' . $staff['DepartmentCode'], 'UTF-8')) ?>">
+                                                    <div class="col-md-6 col-lg-4 staff-checkbox-item" data-text="<?= htmlspecialchars(mb_strtolower($staff['FullName'] . ' ' . format_club_member_role($staff['MemberRole']) . ' ' . $staff['MemberRole'] . ' ' . $staff['DepartmentCode'], 'UTF-8')) ?>">
                                                         <div class="form-check p-2.5 rounded-2 bg-light border h-100">
                                                             <input class="form-check-input ms-0 me-2" type="checkbox" name="staff_ids[]" value="<?= $staff['AccountID'] ?>" id="staff_<?= $staff['AccountID'] ?>"
                                                                 <?= ($staff['AccountID'] == $userId || $staff['MemberRole'] === 'President') ? 'checked' : '' ?>>
                                                             <label class="form-check-label small fw-semibold text-dark text-truncate w-100" for="staff_<?= $staff['AccountID'] ?>">
                                                                 <?= htmlspecialchars($staff['FullName']) ?>
                                                                 <span class="text-muted d-block font-monospace" style="font-size: 0.7rem;">
-                                                                    <?= htmlspecialchars($staff['MemberRole']) ?> <?= $staff['DepartmentCode'] ? '· ' . $staff['DepartmentCode'] : '' ?>
+                                                                    <?= htmlspecialchars(format_club_member_role($staff['MemberRole'])) ?> <?= $staff['DepartmentCode'] ? '· ' . $staff['DepartmentCode'] : '' ?>
                                                                 </span>
                                                             </label>
                                                         </div>
@@ -2556,7 +2556,7 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                                 </td>
                                                 <td class="py-3">
                                                     <span class="badge rounded-pill px-2.5 py-1 font-monospace <?= in_array($m['MemberRole'], ['President', 'Vice President'], true) ? 'bg-primary text-white' : 'bg-light text-dark border' ?>" style="font-size: 0.72rem;">
-                                                        <?= htmlspecialchars($m['MemberRole']) ?>
+                                                        <?= htmlspecialchars(format_club_member_role($m['MemberRole'])) ?>
                                                     </span>
                                                 </td>
                                                 <td class="py-3">
