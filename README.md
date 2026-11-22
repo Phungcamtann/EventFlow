@@ -208,7 +208,7 @@ Hệ thống bao gồm các nhóm màn hình chính phục vụ trọn vẹn m�
 Hệ thống đã được đóng gói và triển khai hoàn thiện tại:  
 👉 **Website:** [http://eventflow-ueh.duckdns.org/](http://eventflow-ueh.duckdns.org/)
 
-#### Bảng Tài Khoản Mẫu Trải Nghiệm (Mật khẩu mặc định: `password123`):
+#### Bảng Tài Khoản Mẫu Trải Nghiệm (Mật khẩu mặc định: `Password@123`):
 | Vai trò | Email đăng nhập | MSSV | Họ và Tên | Chức vụ / Quyền hạn |
 | :--- | :--- | :--- | :--- | :--- |
 | **System Admin** | `admin@ueh.edu.vn` | *(Không có)* | System Admin EventFlow | Quản trị tài khoản hệ thống |
