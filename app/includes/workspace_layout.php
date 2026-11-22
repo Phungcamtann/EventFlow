@@ -45,8 +45,10 @@ function workspace_header(string $pageTitle, string $activeMenu = 'dashboard', a
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
     <!-- Bootstrap Icons CDN -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <!-- Google Fonts Inter & Roboto -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Roboto:wght@400;500;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+    <!-- Google Fonts Montserrat CDN (Đồng nhất typography toàn bộ website) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600;1,700&display=swap">
 
     <!-- Design Tokens CSS -->
     <link rel="stylesheet" href="<?= base_url('assets/css/theme-blue.css') ?>?v=<?= filemtime(__DIR__ . '/../../assets/css/theme-blue.css') ?>">
@@ -56,7 +58,7 @@ function workspace_header(string $pageTitle, string $activeMenu = 'dashboard', a
     /* WORKSPACE MODERN LAYOUT STYLES */
     body {
         background-color: var(--ef-canvas, #f8fafc);
-        font-family: var(--ef-font-sans, 'Inter', sans-serif);
+        font-family: var(--ef-font-sans, 'Montserrat', sans-serif);
         margin: 0;
         overflow-x: hidden;
     }
@@ -250,12 +252,14 @@ function workspace_header(string $pageTitle, string $activeMenu = 'dashboard', a
             <a href="<?= base_url('app/modules/dashboard/index.php#events') ?>" class="workspace-nav-link <?= $activeMenu === 'events_manage' ? 'active' : '' ?>" data-block="events" onclick="switchWorkspaceBlock('events', event)">
                 <i class="bi bi-calendar-event"></i> Quản lý Sự kiện
             </a>
+            <?php if (!is_system_admin()): ?>
             <a href="<?= base_url('app/modules/dashboard/index.php#create-event') ?>" class="workspace-nav-link <?= $activeMenu === 'event_create' ? 'active' : '' ?>" data-block="create-event" onclick="switchWorkspaceBlock('create-event', event)">
                 <i class="bi bi-plus-circle"></i> Tạo Sự kiện mới
             </a>
             <a href="<?= base_url('app/modules/dashboard/index.php#my-events') ?>" class="workspace-nav-link <?= $activeMenu === 'my_events' ? 'active' : '' ?>">
                 <i class="bi bi-bookmark-check"></i> Sự kiện của tôi
             </a>
+            <?php endif; ?>
 
             <!-- Group 3: Nhân sự & Nội bộ -->
             <div class="workspace-nav-group mt-2">TỔ CHỨC & NHÂN SỰ</div>

@@ -26,6 +26,7 @@ $userId = (int)current_user_id();
 $clubId = 1; // BELL UEH
 $isStaffOrManager = is_club_manager() || is_authorized_club_member();
 $isAdmin = is_system_admin();
+$isBDH = is_club_manager() || (isset($_SESSION['user']['MemberRole']) && in_array($_SESSION['user']['MemberRole'], ['President', 'Vice President', 'Board Member'], true));
 
 // ============================================================================
 // XỬ LÝ AJAX POLLING VÀ TRA CỨU CONSOLE (UAT 17)
@@ -412,36 +413,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // 10. ĐIỂM DANH VÃNG LAI (Walk-in Check-in)
     elseif ($action === 'console_walkin_checkin') {
         $cEvtId = (int)($_POST['event_id'] ?? 0);
-        $targetAccId = (int)($_POST['target_account_id'] ?? 0);
+        $isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') || isset($_POST['ajax']);
+        $guestData = [
+            'fullname'     => trim($_POST['guest_name'] ?? $_POST['fullname'] ?? ''),
+            'student_code' => trim($_POST['guest_student_code'] ?? $_POST['student_code'] ?? ''),
+            'email'        => trim($_POST['guest_email'] ?? $_POST['email'] ?? ''),
+            'phone'        => trim($_POST['guest_phone'] ?? $_POST['phone'] ?? '')
+        ];
 
-        try {
-            $pdo->beginTransaction();
-            $chkReg = $pdo->prepare("SELECT RegID FROM Event_Registration WHERE EventID = :eid AND AccountID = :aid LIMIT 1");
-            $chkReg->execute([':eid' => $cEvtId, ':aid' => $targetAccId]);
-            $existingRegId = $chkReg->fetchColumn();
+        [$ok, $msg, $newRegId, $attendeeInfo] = att_walkin_checkin($pdo, $cEvtId, $guestData, $userId);
 
-            if (!$existingRegId) {
-                $insReg = $pdo->prepare("
-                    INSERT INTO Event_Registration (EventID, AccountID, RegDate, Status) 
-                    VALUES (:eid, :aid, NOW(), 'Registered')
-                ");
-                $insReg->execute([':eid' => $cEvtId, ':aid' => $targetAccId]);
-                $existingRegId = (int)$pdo->lastInsertId();
-            }
-
-            $insAtt = $pdo->prepare("
-                INSERT INTO Attendance (RegID, AttendanceStatus, CheckInAt, CheckedInBy) 
-                VALUES (:r, 1, NOW(), :by)
-                ON DUPLICATE KEY UPDATE AttendanceStatus = 1, CheckInAt = NOW(), CheckedInBy = :by2
-            ");
-            $insAtt->execute([':r' => $existingRegId, ':by' => $userId, ':by2' => $userId]);
-            $pdo->commit();
-
-            set_flash('success', "Đã ghi nhận điểm danh vãng lai (Walk-in) thành công.");
-        } catch (Throwable $ex) {
-            if ($pdo->inTransaction()) $pdo->rollBack();
-            set_flash('danger', 'Lỗi điểm danh vãng lai: ' . $ex->getMessage());
+        if ($isAjax) {
+            header('Content-Type: application/json; charset=utf-8');
+            $stats = att_event_stats($pdo, $cEvtId);
+            echo json_encode([
+                'success'  => $ok,
+                'message'  => $msg,
+                'reg_id'   => $newRegId,
+                'attendee' => $attendeeInfo,
+                'stats'    => $stats
+            ]);
+            exit;
         }
+
+        set_flash($ok ? 'success' : 'danger', $msg);
         header("Location: " . base_url("app/modules/dashboard/index.php?event_id={$cEvtId}&console_tab=c-tab-checkin#event-console"));
         exit;
     }
@@ -1066,7 +1061,7 @@ if ($consoleEventId > 0) {
                    COALESCE(a.Email, r.GuestEmail) AS Email, 
                    COALESCE(a.Phone, r.GuestPhone) AS Phone, 
                    COALESCE(a.Major, 'Khách vãng lai') AS Major, 
-                   COALESCE(a.Cohort, 'Khách') AS Cohort,
+                   a.Cohort AS Cohort,
                    r.RegDate, att.AttendanceID, att.AttendanceStatus, att.CheckInAt, att.CheckedInBy,
                    checker.FullName AS CheckedByName
             FROM Event_Registration r
@@ -1087,8 +1082,12 @@ if ($consoleEventId > 0) {
             }
             $m = !empty($ca['Major']) ? $ca['Major'] : 'Khác';
             $majorDistribution[$m] = ($majorDistribution[$m] ?? 0) + 1;
-            $co = !empty($ca['Cohort']) ? ('Khóa ' . $ca['Cohort']) : 'Khác';
-            $cohortDistribution[$co] = ($cohortDistribution[$co] ?? 0) + 1;
+            if (!empty($ca['Cohort']) && !empty($ca['AccountID'])) {
+                $co = (stripos($ca['Cohort'], 'k') === 0) ? ('Khóa ' . strtoupper($ca['Cohort'])) : ('Khóa K' . $ca['Cohort']);
+                $cohortDistribution[$co] = ($cohortDistribution[$co] ?? 0) + 1;
+            } else {
+                $cohortDistribution['Khách vãng lai'] = ($cohortDistribution['Khách vãng lai'] ?? 0) + 1;
+            }
         }
         $cMaxCap = max(1, (int)($consoleEvt['MaxCapacity'] ?? 100));
         $consoleStats = [
@@ -1270,10 +1269,10 @@ $roleBadge = format_club_member_role($_SESSION['user']['MemberRole'] ?? $_SESSIO
                             <a href="#create-event" class="workspace-nav-link" data-block="create-event" data-bs-dismiss="offcanvas" onclick="switchWorkspaceBlock('create-event', event)">
                                 <i class="bi bi-plus-circle me-2"></i> Tạo Sự kiện mới
                             </a>
+                            <a href="#my-events" class="workspace-nav-link" data-block="my-events" data-bs-dismiss="offcanvas" onclick="switchWorkspaceBlock('my-events', event)">
+                                <i class="bi bi-bookmark-check me-2"></i> Sự kiện của tôi
+                            </a>
                         <?php endif; ?>
-                        <a href="#my-events" class="workspace-nav-link" data-block="my-events" data-bs-dismiss="offcanvas" onclick="switchWorkspaceBlock('my-events', event)">
-                            <i class="bi bi-bookmark-check me-2"></i> Sự kiện của tôi
-                        </a>
 
                         <div class="text-uppercase text-muted font-monospace fw-bold px-2.5 pt-2.5 pb-1" style="font-size: 0.68rem; letter-spacing: 0.08em;">
                             TỔ CHỨC & CLB
@@ -1352,10 +1351,10 @@ $roleBadge = format_club_member_role($_SESSION['user']['MemberRole'] ?? $_SESSIO
                             <a href="#create-event" class="workspace-nav-link" data-block="create-event" onclick="switchWorkspaceBlock('create-event', event)">
                                 <i class="bi bi-plus-circle me-2"></i> Tạo Sự kiện mới
                             </a>
+                            <a href="#my-events" class="workspace-nav-link" data-block="my-events" onclick="switchWorkspaceBlock('my-events', event)">
+                                <i class="bi bi-bookmark-check me-2"></i> Sự kiện của tôi
+                            </a>
                         <?php endif; ?>
-                        <a href="#my-events" class="workspace-nav-link" data-block="my-events" onclick="switchWorkspaceBlock('my-events', event)">
-                            <i class="bi bi-bookmark-check me-2"></i> Sự kiện của tôi
-                        </a>
 
                         <div class="text-uppercase text-muted font-monospace fw-bold px-2.5 pt-2.5 pb-1" style="font-size: 0.68rem; letter-spacing: 0.08em;">
                             TỔ CHỨC & CLB
@@ -1997,7 +1996,7 @@ $roleBadge = format_club_member_role($_SESSION['user']['MemberRole'] ?? $_SESSIO
                                                         <?php $cStt = 1; foreach ($consoleAttendees as $ca): 
                                                             $isAtt = ($ca['AttendanceStatus'] !== null && (int)$ca['AttendanceStatus'] === 1);
                                                         ?>
-                                                            <tr class="console-att-row" data-reg-id="<?= (int)$ca['RegID'] ?>" data-name="<?= htmlspecialchars(mb_strtolower($ca['FullName'], 'UTF-8')) ?>" data-code="<?= htmlspecialchars(strtolower($ca['StudentCode'] ?? '')) ?>">
+                                                            <tr class="console-att-row" data-reg-id="<?= (int)$ca['RegID'] ?>" data-name="<?= htmlspecialchars(mb_strtolower($ca['FullName'], 'UTF-8')) ?>" data-code="<?= htmlspecialchars(strtolower($ca['StudentCode'] ?? '')) ?>" data-email="<?= htmlspecialchars(strtolower($ca['Email'] ?? '')) ?>">
                                                                 <td class="ps-3 py-2.5 font-monospace text-muted"><?= $cStt++ ?></td>
                                                                 <td class="py-2.5 font-monospace fw-semibold text-primary">
                                                                     <?= htmlspecialchars($ca['StudentCode'] ?: '—') ?>
@@ -2011,8 +2010,12 @@ $roleBadge = format_club_member_role($_SESSION['user']['MemberRole'] ?? $_SESSIO
                                                                 </td>
                                                                 <td class="py-2.5 small text-muted">
                                                                     <?= htmlspecialchars($ca['Major'] ?: 'UEH') ?> 
-                                                                    <?php if (!empty($ca['Cohort'])): ?>
-                                                                        <span class="badge bg-light text-secondary border font-monospace ms-1">K<?= htmlspecialchars($ca['Cohort']) ?></span>
+                                                                    <?php 
+                                                                    $cohortVal = trim($ca['Cohort'] ?? '');
+                                                                    if ($cohortVal !== '' && !empty($ca['AccountID'])): 
+                                                                        $cohortDisplay = (stripos($cohortVal, 'k') === 0) ? strtoupper($cohortVal) : ('K' . $cohortVal);
+                                                                    ?>
+                                                                        <span class="badge bg-light text-secondary border font-monospace ms-1"><?= htmlspecialchars($cohortDisplay) ?></span>
                                                                     <?php endif; ?>
                                                                 </td>
                                                                 <td class="py-2.5 font-monospace small cell-checkin-time text-muted">
@@ -2259,7 +2262,7 @@ $roleBadge = format_club_member_role($_SESSION['user']['MemberRole'] ?? $_SESSIO
 
                                                                     <div class="d-flex align-items-center gap-2 pt-2.5 border-top" style="margin-top: 10px !important;">
                                                                         <div class="flex-grow-1">
-                                                                            <select name="staff_role" class="form-select form-select-sm font-monospace" style="height: 38px; font-size: 0.78rem;">
+                                                                            <select name="staff_role" class="form-select form-select-sm" style="height: 38px; padding-top: 6px !important; padding-bottom: 6px !important; font-size: 0.82rem; line-height: 1.4;">
                                                                                 <option value="Support" selected>Ban Hỗ Trợ & Hậu Cần</option>
                                                                                 <option value="Checkin_Lead">Trưởng Bàn Điểm Danh</option>
                                                                                 <option value="Organizer">Trưởng Ban Tổ Chức</option>
@@ -2281,9 +2284,9 @@ $roleBadge = format_club_member_role($_SESSION['user']['MemberRole'] ?? $_SESSIO
                                                         </div>
                                                     </div>
 
-                                                    <!-- Ghi chú phân công (Đã loại bỏ hoàn toàn từ ngữ kỹ thuật RBAC tầng 3) -->
+                                                    <!-- Ghi chú phân công -->
                                                     <div class="form-text small text-muted font-monospace mt-3 pt-2 border-top flex-shrink-0" style="font-size: 0.72rem;">
-                                                        <i class="bi bi-shield-check text-primary me-1.5"></i>Cán bộ được phân công sẽ có quyền trực tiếp vận hành điểm danh và quản lý check-in sự kiện này.
+                                                        <i class="bi bi-shield-check text-primary me-1.5"></i>Chỉ cán bộ được phân công vai trò Trưởng Bàn Điểm Danh (Check-in Lead) mới có quyền mở bàn điểm danh cho sự kiện này.
                                                     </div>
                                                 <?php endif; ?>
                                             </div>
@@ -2297,28 +2300,80 @@ $roleBadge = format_club_member_role($_SESSION['user']['MemberRole'] ?? $_SESSIO
                     <!-- MODAL ĐIỂM DANH VÃNG LAI (WALK-IN CHECK-IN MODAL) -->
                     <div class="modal fade" id="modalConsoleWalkin" tabindex="-1" aria-labelledby="modalConsoleWalkinLabel" aria-hidden="true">
                         <div class="modal-dialog modal-dialog-centered">
-                            <div class="modal-content border-0 shadow rounded-4">
-                                <div class="modal-header border-bottom py-3">
-                                    <h5 class="modal-title fw-bold text-dark fs-6" id="modalConsoleWalkinLabel">
-                                        <i class="bi bi-person-plus-fill text-primary me-2"></i>Điểm Danh Vãng Lai (Walk-in)
-                                    </h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                </div>
-                                <div class="modal-body p-4">
-                                    <p class="text-muted small mb-3">Tra cứu sinh viên UEH bằng MSSV, Họ tên hoặc Email để bổ sung đăng ký và ghi nhận điểm danh ngay lập tức.</p>
-                                    <div class="mb-3">
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-search"></i></span>
-                                            <input type="text" id="walkinSearchQuery" class="form-control border-start-0" placeholder="Nhập tên, MSSV (vd: 3123...) hoặc email..." oninput="searchWalkinCandidate(this.value)">
+                            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                                <div class="modal-header border-bottom px-4 py-3 bg-light d-flex align-items-center justify-content-between">
+                                    <div class="d-flex align-items-center">
+                                        <div class="d-flex align-items-center justify-content-center rounded-3 bg-primary-subtle text-primary me-3 flex-shrink-0" style="width: 44px; height: 44px;">
+                                            <i class="bi bi-person-plus-fill fs-5"></i>
+                                        </div>
+                                        <div>
+                                            <h5 class="modal-title fw-bold text-dark mb-0 fs-6" id="modalConsoleWalkinLabel">Điểm Danh Vãng Lai</h5>
+                                            <small class="text-muted d-block" style="font-size: 0.8rem; margin-top: 2px;">Ghi nhận tham dự và lưu thông tin đăng ký tại chỗ</small>
                                         </div>
                                     </div>
-                                    <div id="walkinSearchResults" class="border rounded-3 p-2 bg-light" style="min-height: 120px; max-height: 250px; overflow-y: auto;">
-                                        <p class="text-muted small text-center my-4">Nhập thông tin để tìm kiếm sinh viên...</p>
+                                    <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <form id="modalConsoleWalkinForm" method="POST" action="<?= base_url('app/modules/dashboard/index.php') ?>">
+                                    <div class="modal-body p-4">
+                                        <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+                                        <input type="hidden" name="action" value="console_walkin_checkin">
+                                        <input type="hidden" name="event_id" value="<?= (int)($consoleEvt['EventID'] ?? 0) ?>">
+
+                                        <div class="mb-3">
+                                            <label for="console_guest_name" class="form-label small fw-semibold text-dark mb-1">
+                                                Họ và tên người tham dự <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-white text-muted border-end-0"><i class="bi bi-person"></i></span>
+                                                <input type="text" id="console_guest_name" name="guest_name" class="form-control border-start-0" placeholder="Ví dụ: Nguyễn Văn An" required autocomplete="off">
+                                            </div>
+                                        </div>
+
+                                        <div class="row g-2 mb-3">
+                                            <div class="col-md-6">
+                                                <label for="console_guest_student_code" class="form-label small fw-semibold text-dark mb-1">
+                                                    Mã số sinh viên (MSSV)
+                                                </label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text bg-white text-muted border-end-0"><i class="bi bi-card-text"></i></span>
+                                                    <input type="text" id="console_guest_student_code" name="guest_student_code" class="form-control border-start-0 font-monospace" placeholder="31241029999" autocomplete="off">
+                                                </div>
+                                                <div class="form-text small text-muted" style="font-size: 0.72rem;">Không bắt buộc nếu là khách ngoài</div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="console_guest_phone" class="form-label small fw-semibold text-dark mb-1">
+                                                    Số điện thoại
+                                                </label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text bg-white text-muted border-end-0"><i class="bi bi-telephone"></i></span>
+                                                    <input type="tel" id="console_guest_phone" name="guest_phone" class="form-control border-start-0 font-monospace" placeholder="0901234567" autocomplete="off">
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="console_guest_email" class="form-label small fw-semibold text-dark mb-1">
+                                                Địa chỉ Email <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-white text-muted border-end-0"><i class="bi bi-envelope"></i></span>
+                                                <input type="email" id="console_guest_email" name="guest_email" class="form-control border-start-0" placeholder="Ví dụ: an.nguyen@st.ueh.edu.vn" required autocomplete="off">
+                                            </div>
+                                            <div class="form-text small text-muted" style="font-size: 0.72rem;">Hệ thống sẽ tự động liên kết tài khoản nếu đã có trên hệ thống.</div>
+                                        </div>
+
+                                        <div class="alert alert-info py-2 px-3 rounded-3 small mb-0 d-flex align-items-center gap-2 border-0 bg-info-subtle text-info-emphasis">
+                                            <i class="bi bi-info-circle-fill text-info flex-shrink-0"></i>
+                                            <span>Người tham dự sẽ được lưu vào danh sách đăng ký và ghi nhận điểm danh ngay lập tức.</span>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="modal-footer border-top py-2.5">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Đóng</button>
-                                </div>
+                                    <div class="modal-footer border-top px-4 py-3 bg-light">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Hủy</button>
+                                        <button type="submit" id="btnSubmitConsoleWalkin" class="btn btn-sm btn-primary rounded-pill px-4 fw-semibold shadow-xs">
+                                            <i class="bi bi-check2-circle me-1"></i> Điểm danh ngay
+                                        </button>
+                                    </div>
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -2438,6 +2493,7 @@ $roleBadge = format_club_member_role($_SESSION['user']['MemberRole'] ?? $_SESSIO
                     </div>
                     <?php endif; ?>
 
+                    <?php if (!$isAdmin): ?>
                     <!-- ======================================================
                          KHỐI 4: SỰ KIỆN CỦA TÔI (BLOCK: #my-events)
                          ====================================================== -->
@@ -2447,12 +2503,17 @@ $roleBadge = format_club_member_role($_SESSION['user']['MemberRole'] ?? $_SESSIO
                                 <h1 class="h3 fw-bold text-dark mb-1">
                                     <i class="bi bi-bookmark-check text-primary me-2"></i>Sự Kiện Của Tôi
                                 </h1>
-                                <p class="text-secondary small mb-0">Theo dõi các sự kiện bạn được phân công điều hành (BĐH) và các sự kiện đã đăng ký tham gia.</p>
+                                <p class="text-secondary small mb-0">
+                                    <?= $isBDH 
+                                        ? 'Theo dõi các sự kiện bạn được phân công điều hành (Ban Tổ Chức CLB).' 
+                                        : 'Theo dõi các sự kiện bạn được phân công điều hành (BĐH) và các sự kiện đã đăng ký tham gia.' 
+                                    ?>
+                                </p>
                             </div>
                         </div>
 
                         <!-- Tab 1: Sự kiện phân công điều hành -->
-                        <div class="ef-card-editorial p-4 mb-4">
+                        <div class="ef-card-editorial p-4 <?= !$isBDH ? 'mb-4' : '' ?>">
                             <h2 class="h5 fw-bold text-dark mb-3">
                                 <i class="bi bi-shield-lock text-primary me-2"></i>Sự Kiện Được Phân Công Điều Hành (Ban Tổ Chức)
                             </h2>
@@ -2474,8 +2535,10 @@ $roleBadge = format_club_member_role($_SESSION['user']['MemberRole'] ?? $_SESSIO
                                             <?php foreach ($myStaffEvents as $se): ?>
                                                 <tr>
                                                     <td class="ps-3 py-3">
-                                                        <div class="fw-bold text-dark"><?= htmlspecialchars($se['EventName']) ?></div>
-                                                        <small class="text-muted"><i class="bi bi-geo-alt me-1"></i><?= htmlspecialchars($se['Location']) ?></small>
+                                                        <a href="<?= base_url('app/modules/events/detail.php?id=' . (int)$se['EventID']) ?>" class="fw-bold text-dark text-decoration-none hover-primary d-inline-block">
+                                                            <?= htmlspecialchars($se['EventName']) ?>
+                                                        </a>
+                                                        <div><small class="text-muted"><i class="bi bi-geo-alt me-1"></i><?= htmlspecialchars($se['Location']) ?></small></div>
                                                     </td>
                                                     <td class="py-3">
                                                         <span class="badge bg-primary-subtle text-primary font-monospace"><?= htmlspecialchars($se['StaffRole']) ?></span>
@@ -2495,8 +2558,11 @@ $roleBadge = format_club_member_role($_SESSION['user']['MemberRole'] ?? $_SESSIO
                                                     <td class="py-3 text-center font-monospace small">
                                                         <strong><?= (int)$se['RegisteredCount'] ?></strong> / <?= (int)$se['MaxCapacity'] ?>
                                                     </td>
-                                                    <td class="pe-3 py-3 text-end">
-                                                        <button type="button" onclick="openWorkspaceConsole(<?= (int)$se['EventID'] ?>, event)" class="btn btn-sm btn-primary rounded-pill px-3 fw-semibold">
+                                                    <td class="pe-3 py-3 text-end text-nowrap">
+                                                        <a href="<?= base_url('app/modules/events/detail.php?id=' . (int)$se['EventID']) ?>" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold me-1.5 shadow-2xs">
+                                                            <i class="bi bi-eye me-1"></i> Chi tiết
+                                                        </a>
+                                                        <button type="button" onclick="openWorkspaceConsole(<?= (int)$se['EventID'] ?>, event)" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold">
                                                             <i class="bi bi-sliders me-1"></i> Điều Hành Console
                                                         </button>
                                                     </td>
@@ -2508,6 +2574,7 @@ $roleBadge = format_club_member_role($_SESSION['user']['MemberRole'] ?? $_SESSIO
                             <?php endif; ?>
                         </div>
 
+                        <?php if (!$isBDH): ?>
                         <!-- Tab 2: Sự kiện đã đăng ký tham gia -->
                         <div class="ef-card-editorial p-4">
                             <h2 class="h5 fw-bold text-dark mb-3">
@@ -2551,7 +2618,9 @@ $roleBadge = format_club_member_role($_SESSION['user']['MemberRole'] ?? $_SESSIO
                                 </div>
                             <?php endif; ?>
                         </div>
+                        <?php endif; ?>
                     </div>
+                    <?php endif; ?>
 
                     <!-- ======================================================
                          KHỐI 5: THÀNH VIÊN & 4 BAN (BLOCK: #members)
@@ -4002,64 +4071,67 @@ function pollConsoleAttendance() {
     .catch(e => console.log('Polling check-in silent fail', e));
 }
 
-// Walk-in Candidate Search Debounce
-let walkinSearchTimer = null;
-function searchWalkinCandidate(q) {
-    clearTimeout(walkinSearchTimer);
-    const resultsBox = document.getElementById('walkinSearchResults');
-    if (!q || q.trim().length < 2) {
-        if (resultsBox) resultsBox.innerHTML = '<p class="text-muted small text-center my-4">Nhập tối thiểu 2 ký tự để tìm...</p>';
-        return;
-    }
-    walkinSearchTimer = setTimeout(() => {
-        const eventId = '<?= (int)($consoleEvt['EventID'] ?? 0) ?>';
-        fetch('<?= base_url("app/modules/dashboard/index.php?ajax=search_candidates&event_id=") ?>' + eventId + '&q=' + encodeURIComponent(q.trim()))
-        .then(r => r.json())
-        .then(data => {
-            if (!resultsBox) return;
-            if (!data || data.length === 0) {
-                resultsBox.innerHTML = '<p class="text-muted small text-center my-4">Không tìm thấy sinh viên nào phù hợp (hoặc đã điểm danh).</p>';
-                return;
+// Xử lý submit form Điểm danh vãng lai trong Console Tab 2
+document.addEventListener('DOMContentLoaded', () => {
+    const consoleWalkinForm = document.getElementById('modalConsoleWalkinForm');
+    if (consoleWalkinForm) {
+        consoleWalkinForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnSubmitConsoleWalkin');
+            if (!btn || btn.disabled) return;
+            const orig = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Đang lưu...';
+
+            const formData = new FormData(consoleWalkinForm);
+            formData.append('ajax', '1');
+            const targetUrl = consoleWalkinForm.getAttribute('action') || window.location.href;
+
+            try {
+                const res = await fetch(targetUrl, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const result = await res.json();
+                if (result.success) {
+                    sessionStorage.setItem('activeConsoleTab', 'c-tab-checkin');
+                    window.location.href = '<?= base_url("app/modules/dashboard/index.php?event_id=" . (int)($consoleEvt['EventID'] ?? 0) . "&console_tab=c-tab-checkin#event-console") ?>';
+                    window.location.reload();
+                } else {
+                    alert(result.message || 'Lỗi khi điểm danh vãng lai.');
+                    btn.disabled = false;
+                    btn.innerHTML = orig;
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Lỗi kết nối máy chủ khi điểm danh vãng lai.');
+                btn.disabled = false;
+                btn.innerHTML = orig;
             }
-            let html = '<div class="list-group list-group-flush">';
-            data.forEach(c => {
-                html += `
-                    <div class="list-group-item d-flex justify-content-between align-items-center py-2 px-2 bg-white rounded-2 mb-1.5 border">
-                        <div>
-                            <div class="fw-bold small text-dark">${c.fullname}</div>
-                            <small class="text-muted font-monospace">${c.student_code || 'Chưa có MSSV'} &bull; ${c.email}</small>
-                        </div>
-                        <form method="POST" action="<?= base_url('app/modules/dashboard/index.php') ?>" class="m-0">
-                            <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
-                            <input type="hidden" name="action" value="console_walkin_checkin">
-                            <input type="hidden" name="event_id" value="${eventId}">
-                            <input type="hidden" name="target_account_id" value="${c.account_id}">
-                            <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 shadow-xs">
-                                <i class="bi bi-check-circle me-1"></i>Check-in
-                            </button>
-                        </form>
-                    </div>
-                `;
-            });
-            html += '</div>';
-            resultsBox.innerHTML = html;
         });
-    }, 300);
-}
+    }
+});
 
 // Bật polling định kỳ 3 giây
 document.addEventListener('DOMContentLoaded', () => {
     setInterval(pollConsoleAttendance, 3000);
 
     // Lọc bảng điểm danh
+    // Lọc bảng điểm danh Realtime (hỗ trợ tiếng Việt không dấu, MSSV, Email)
     const attSearch = document.getElementById('consoleSearchInput');
     if (attSearch) {
+        function normVn(s) {
+            return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/đ/g, 'd').replace(/Đ/g, 'd').toLowerCase().trim();
+        }
         attSearch.addEventListener('input', function() {
-            const q = this.value.toLowerCase().trim();
+            const q = normVn(this.value);
             document.querySelectorAll('.console-att-row').forEach(r => {
-                const name = r.getAttribute('data-name') || '';
-                const code = r.getAttribute('data-code') || '';
-                r.style.display = (!q || name.includes(q) || code.includes(q)) ? '' : 'none';
+                const name = normVn(r.getAttribute('data-name') || '');
+                const code = normVn(r.getAttribute('data-code') || '');
+                const email = normVn(r.getAttribute('data-email') || '');
+                r.style.display = (!q || name.includes(q) || code.includes(q) || email.includes(q)) ? '' : 'none';
             });
         });
     }

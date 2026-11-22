@@ -326,7 +326,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                             <div>
                                                 <div class="d-flex align-items-center justify-content-between mb-3">
                                                     <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-sm" 
-                                                         style="width: 52px; height: 52px; font-size: 1.3rem; background: <?= $isPresident ? 'linear-gradient(135deg, #2563eb, #1d4ed8)' : '#0f172a' ?>; font-family: 'Inter', sans-serif;">
+                                                         style="width: 52px; height: 52px; font-size: 1.3rem; background: <?= $isPresident ? 'linear-gradient(135deg, #2563eb, #1d4ed8)' : '#0f172a' ?>; font-family: 'Montserrat', sans-serif;">
                                                         <?= htmlspecialchars($initial) ?>
                                                     </div>
                                                     <span class="badge <?= $isPresident ? 'badge-ef-blue' : 'badge-ef-sky' ?> rounded-pill px-3 py-1 font-monospace" style="font-size: 0.72rem;">
@@ -384,9 +384,11 @@ require_once __DIR__ . '/../../includes/header.php';
                         <p class="text-white-50 small mb-3 lh-base">
                             Cơ hội gia nhập 4 phòng ban chuyên môn của BELL UEH. Nhận hồ sơ đến hết <strong><?= date('d/m/Y', strtotime($activeCampaign['EndDate'])) ?></strong>.
                         </p>
-                        <a href="<?= base_url('app/modules/auth/login.php?mode=apply') ?>" class="btn btn-ef-primary w-100 shadow-sm">
-                            <i class="bi bi-send-check-fill"></i> Nộp Đơn Ứng Tuyển Ngay
-                        </a>
+                        <?php if (!is_logged_in()): ?>
+                            <a href="<?= base_url('app/modules/auth/login.php?mode=apply') ?>" class="btn btn-ef-primary w-100 shadow-sm">
+                                <i class="bi bi-send-check-fill"></i> Nộp Đơn Ứng Tuyển Ngay
+                            </a>
+                        <?php endif; ?>
                     </div>
                 <?php endif; ?>
 

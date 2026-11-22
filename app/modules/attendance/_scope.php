@@ -21,8 +21,23 @@ function att_allowed_club_ids(PDO $pdo): array {
     }
 
     $sessionClub = $_SESSION['user']['ClubID'] ?? null;
-    if (is_authorized_club_member() && $sessionClub !== null) {
+    if ($sessionClub !== null) {
         $ids[] = (int)$sessionClub;
+    }
+
+    $uid = (int)current_user_id();
+    if ($uid > 0) {
+        $cmStmt = $pdo->prepare("SELECT DISTINCT ClubID FROM Club_Member WHERE AccountID = :u AND Status = 'Active'");
+        $cmStmt->execute([':u' => $uid]);
+        while ($c = $cmStmt->fetchColumn()) {
+            $ids[] = (int)$c;
+        }
+
+        $esStmt = $pdo->prepare("SELECT DISTINCT e.ClubID FROM Event_Staff es JOIN Event e ON e.EventID = es.EventID WHERE es.AccountID = :u");
+        $esStmt->execute([':u' => $uid]);
+        while ($c = $esStmt->fetchColumn()) {
+            $ids[] = (int)$c;
+        }
     }
 
     return array_values(array_unique($ids));

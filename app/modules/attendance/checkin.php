@@ -15,7 +15,7 @@ require_once __DIR__ . '/../../includes/session_auth.php';
 require_once __DIR__ . '/../../includes/event_helpers.php';
 require_once __DIR__ . '/_scope.php';
 
-require_authorized_club_member();
+require_login();
 
 $pdo      = get_db_connection();
 $h        = static fn($v): string => htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8');
@@ -23,14 +23,37 @@ $clubIds  = att_allowed_club_ids($pdo);
 $pageUrl  = base_url('app/modules/attendance/checkin.php');
 $eventId  = isset($_GET['event_id']) ? (int)$_GET['event_id'] : (int)($_POST['event_id'] ?? 0);
 $eventUrl = $pageUrl . '?event_id=' . $eventId;
+$userId   = (int)current_user_id();
+
+// 1. Đối với tài khoản Ban Điều Hành: chuyển thẳng vào trang Quản lý Console, không cần trang điểm danh riêng lẻ
+$isBDH = is_club_manager() || (isset($_SESSION['user']['MemberRole']) && in_array($_SESSION['user']['MemberRole'], ['President', 'Vice President', 'Board Member'], true));
+if ($isBDH) {
+    if ($eventId > 0) {
+        header("Location: " . base_url("app/modules/dashboard/index.php?event_id={$eventId}&console_tab=c-tab-checkin#event-console"));
+    } else {
+        header("Location: " . base_url("app/modules/dashboard/index.php#events"));
+    }
+    exit;
+}
+
+// 2. Đối với các thành viên khác: CHỈ những thành viên được phân công vai trò Check-in Lead mới được mở bàn điểm danh
+$leadEvtIds = user_checkin_lead_event_ids($pdo, $userId);
+if ($eventId > 0) {
+    if (!is_user_checkin_lead($pdo, $eventId, $userId)) {
+        render_forbidden_page('Chức năng Bàn Điểm Danh chỉ dành cho thành viên được phân công vai trò Trưởng Bàn Điểm Danh (Check-in Lead) của sự kiện này.');
+    }
+} else {
+    if (empty($leadEvtIds)) {
+        render_forbidden_page('Bạn chưa được phân công vai trò Trưởng Bàn Điểm Danh (Check-in Lead) cho sự kiện nào của CLB.');
+    }
+    if (count($leadEvtIds) === 1) {
+        header("Location: " . base_url("app/modules/attendance/checkin.php?event_id=" . $leadEvtIds[0]));
+        exit;
+    }
+}
 
 if ($clubIds === []) {
     render_forbidden_page('Tài khoản của bạn chưa được gán cho CLB nào để điểm danh.');
-}
-
-// Kiểm tra RBAC Tầng 3 (UAT 08, 11): Chỉ cán bộ trong Event_Staff hoặc Manager mới được check-in
-if ($eventId > 0 && !can_user_checkin_event($pdo, $eventId, (int)current_user_id())) {
-    render_forbidden_page('Bạn không được chỉ định trong Ban Tổ Chức (Event Staff) của sự kiện này nên không có quyền mở bàn điểm danh.');
 }
 
 /**
@@ -94,109 +117,6 @@ function att_checkin(PDO $pdo, int $eventId, int $regId, int $staffId): array {
     }
 }
 
-/**
- * Điểm danh bổ sung (Walk-in check-in) cho người chưa đăng ký trước hoặc từng hủy (PS09, FR15, PB19).
- * Trả về [bool, thông báo, int regId].
- * Khóa dòng sự kiện bằng SELECT ... FOR UPDATE để bảo đảm không vượt MaxCapacity (NFR01).
- */
-function att_walkin_checkin(PDO $pdo, int $eventId, int $targetAccountId, int $staffId): array {
-    $rollback = static function (string $msg) use ($pdo): array {
-        if ($pdo->inTransaction()) {
-            $pdo->rollBack();
-        }
-        return [false, $msg, 0];
-    };
-
-    try {
-        $pdo->beginTransaction();
-
-        $stmt = $pdo->prepare("SELECT * FROM Event WHERE EventID = :e FOR UPDATE");
-        $stmt->execute([':e' => $eventId]);
-        $evt = $stmt->fetch();
-
-        if (!$evt) {
-            return $rollback('Không tìm thấy sự kiện.');
-        }
-        if ($evt['Status'] !== 'Published') {
-            return $rollback('Sự kiện không ở trạng thái công bố.');
-        }
-        if (event_now($pdo) >= $evt['EndTime']) {
-            return $rollback('Sự kiện đã kết thúc, không thể điểm danh.');
-        }
-
-        $accStmt = $pdo->prepare("SELECT AccountID, FullName, StudentCode, IsActive FROM Account WHERE AccountID = :a");
-        $accStmt->execute([':a' => $targetAccountId]);
-        $targetUser = $accStmt->fetch();
-
-        if (!$targetUser) {
-            return $rollback('Không tìm thấy tài khoản sinh viên.');
-        }
-        if (empty($targetUser['IsActive'])) {
-            return $rollback('Tài khoản sinh viên này đang bị khóa trong hệ thống.');
-        }
-
-        $regStmt = $pdo->prepare("
-            SELECT RegID, Status FROM Event_Registration
-            WHERE EventID = :e AND AccountID = :a
-            FOR UPDATE
-        ");
-        $regStmt->execute([':e' => $eventId, ':a' => $targetAccountId]);
-        $reg = $regStmt->fetch();
-
-        $regId = 0;
-        if ($reg && $reg['Status'] === 'Registered') {
-            $regId = (int)$reg['RegID'];
-            $chk = $pdo->prepare("SELECT AttendanceID FROM Attendance WHERE RegID = :r LIMIT 1");
-            $chk->execute([':r' => $regId]);
-            if ($chk->fetch()) {
-                return $rollback('Sinh viên [' . $targetUser['FullName'] . '] đã được điểm danh trước đó.');
-            }
-        } else {
-            // Kiểm tra MaxCapacity
-            $cntStmt = $pdo->prepare("
-                SELECT COUNT(*) FROM Event_Registration
-                WHERE EventID = :e AND Status = 'Registered'
-            ");
-            $cntStmt->execute([':e' => $eventId]);
-            $registeredCount = (int)$cntStmt->fetchColumn();
-
-            if ($evt['MaxCapacity'] !== null && $registeredCount >= (int)$evt['MaxCapacity']) {
-                return $rollback('Sự kiện đã đủ số lượng tham dự tối đa (' . $evt['MaxCapacity'] . ' chỗ). Không thể nhận thêm đăng ký bổ sung.');
-            }
-
-            if ($reg) {
-                // Tái kích hoạt dòng đã Cancelled
-                $up = $pdo->prepare("UPDATE Event_Registration SET Status = 'Registered', RegDate = NOW() WHERE RegID = :r");
-                $up->execute([':r' => $reg['RegID']]);
-                $regId = (int)$reg['RegID'];
-            } else {
-                // Tạo mới dòng đăng ký
-                $insReg = $pdo->prepare("
-                    INSERT INTO Event_Registration (EventID, AccountID, RegDate, Status)
-                    VALUES (:e, :a, NOW(), 'Registered')
-                ");
-                $insReg->execute([':e' => $eventId, ':a' => $targetAccountId]);
-                $regId = (int)$pdo->lastInsertId();
-            }
-        }
-
-        // Ghi nhận điểm danh
-        $insAtt = $pdo->prepare("
-            INSERT INTO Attendance (RegID, AttendanceStatus, CheckInAt, CheckedInBy)
-            VALUES (:r, 1, NOW(), :s)
-        ");
-        $insAtt->execute([':r' => $regId, ':s' => $staffId]);
-
-        $pdo->commit();
-        return [true, "Đã ghi nhận đăng ký bổ sung và điểm danh thành công cho sinh viên [{$targetUser['FullName']}].", $regId];
-    } catch (Throwable $e) {
-        if ($pdo->inTransaction()) {
-            $pdo->rollBack();
-        }
-        error_log('[EventFlow] walk-in check-in failed: ' . $e->getMessage());
-        return [false, 'Không thể xử lý điểm danh bổ sung: ' . $e->getMessage(), 0];
-    }
-}
 
 /**
  * Bỏ điểm danh (khi bấm nhầm). Chỉ xóa dòng Attendance, không đụng đăng ký.
@@ -248,21 +168,23 @@ function att_undo(PDO $pdo, int $eventId, int $regId): array {
 /**
  * Lấy số lượng thống kê điểm danh hiện tại của sự kiện (Total & Checked)
  */
-function att_event_stats(PDO $pdo, int $eventId): array {
-    $stmt = $pdo->prepare("
-        SELECT 
-            COUNT(*) AS Total,
-            SUM(CASE WHEN att.AttendanceID IS NOT NULL THEN 1 ELSE 0 END) AS Checked
-        FROM Event_Registration r
-        LEFT JOIN Attendance att ON att.RegID = r.RegID
-        WHERE r.EventID = :e AND r.Status = 'Registered'
-    ");
-    $stmt->execute([':e' => $eventId]);
-    $row = $stmt->fetch();
-    return [
-        'total'   => (int)($row['Total'] ?? 0),
-        'checked' => (int)($row['Checked'] ?? 0)
-    ];
+if (!function_exists('att_event_stats')) {
+    function att_event_stats(PDO $pdo, int $eventId): array {
+        $stmt = $pdo->prepare("
+            SELECT 
+                COUNT(*) AS Total,
+                SUM(CASE WHEN att.AttendanceID IS NOT NULL THEN 1 ELSE 0 END) AS Checked
+            FROM Event_Registration r
+            LEFT JOIN Attendance att ON att.RegID = r.RegID
+            WHERE r.EventID = :e AND r.Status = 'Registered'
+        ");
+        $stmt->execute([':e' => $eventId]);
+        $row = $stmt->fetch();
+        return [
+            'total'   => (int)($row['Total'] ?? 0),
+            'checked' => (int)($row['Checked'] ?? 0)
+        ];
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -345,37 +267,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         set_flash($ok ? 'success' : 'danger', $msg);
     } elseif ($action === 'walkin_checkin') {
-        $targetAccountId = (int)($_POST['account_id'] ?? 0);
-        [$ok, $msg, $newRegId] = att_walkin_checkin($pdo, $eventId, $targetAccountId, (int)current_user_id());
+        $guestData = [
+            'fullname'     => trim($_POST['guest_name'] ?? $_POST['fullname'] ?? ''),
+            'student_code' => trim($_POST['guest_student_code'] ?? $_POST['student_code'] ?? ''),
+            'email'        => trim($_POST['guest_email'] ?? $_POST['email'] ?? ''),
+            'phone'        => trim($_POST['guest_phone'] ?? $_POST['phone'] ?? ''),
+        ];
+        [$ok, $msg, $newRegId, $attendeeInfo] = att_walkin_checkin($pdo, $eventId, $guestData, (int)current_user_id());
         if ($isAjax) {
             header('Content-Type: application/json; charset=utf-8');
-            $userRow = null;
-            if ($ok && $newRegId > 0) {
-                $uStmt = $pdo->prepare("
-                    SELECT r.RegID, a.FullName, a.StudentCode, att.CheckInAt
-                    FROM Event_Registration r
-                    JOIN Account a ON a.AccountID = r.AccountID
-                    LEFT JOIN Attendance att ON att.RegID = r.RegID
-                    WHERE r.RegID = :r
-                ");
-                $uStmt->execute([':r' => $newRegId]);
-                $uData = $uStmt->fetch();
-                if ($uData) {
-                    $userRow = [
-                        'reg_id'        => (int)$uData['RegID'],
-                        'fullname'      => $uData['FullName'],
-                        'student_code'  => $uData['StudentCode'] ?? '',
-                        'checked_in_at' => !empty($uData['CheckInAt']) ? event_fmt_dt($uData['CheckInAt']) : date('H:i d/m/Y')
-                    ];
-                }
-            }
             $stats = att_event_stats($pdo, $eventId);
             echo json_encode([
                 'success' => $ok,
                 'message' => $msg,
                 'action'  => 'walkin_checkin',
                 'reg_id'  => $newRegId,
-                'user'    => $userRow,
+                'user'    => $attendeeInfo,
                 'stats'   => $stats
             ]);
             exit;
@@ -396,37 +303,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // ---------------------------------------------------------------------------
-// GET 1: chưa chọn sự kiện → danh sách sự kiện của CLB
+// GET 1: chưa chọn sự kiện → danh sách sự kiện mà người này là Check-in Lead
 // ---------------------------------------------------------------------------
 if ($eventId === 0) {
     $now = event_now($pdo);
-    $in = implode(',', array_map('intval', $clubIds));
+    $in = implode(',', array_map('intval', $leadEvtIds));
     $events = $pdo->query("
         SELECT e.*,
                (SELECT COUNT(*) FROM Event_Registration r
                  WHERE r.EventID = e.EventID AND r.Status = 'Registered') AS RegisteredCount
         FROM Event e
-        WHERE e.ClubID IN ({$in}) AND e.Status <> 'Draft'
+        WHERE e.EventID IN ({$in}) AND e.Status <> 'Draft'
         ORDER BY e.StartTime DESC
     ")->fetchAll();
 
-    $pageTitle = 'Điểm danh — EventFlow';
+    $pageTitle = 'Bàn điểm danh — EventFlow';
     require_once __DIR__ . '/../../includes/header.php';
     ?>
     <div class="container py-4">
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
             <div>
-                <h1 class="h3 fw-bold text-dark mb-1">Điểm danh sự kiện</h1>
-                <p class="text-muted small mb-0">Chọn sự kiện để điểm danh người tham gia.</p>
+                <h1 class="h3 fw-bold text-dark mb-1">Bàn Điểm Danh Sự Kiện</h1>
+                <p class="text-muted small mb-0">Danh sách các sự kiện bạn được phân công phụ trách Trưởng Bàn Điểm Danh (Check-in Lead).</p>
             </div>
-            <a href="<?= base_url('app/modules/attendance/registrations.php') ?>" class="btn btn-outline-primary">
-                <i class="bi bi-people me-1"></i> Quản lý danh sách đăng ký
+            <a href="<?= base_url('app/modules/events/my_events.php') ?>" class="btn btn-outline-secondary">
+                <i class="bi bi-bookmark-check me-1"></i> Sự kiện của tôi
             </a>
         </div>
 
         <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
             <?php if (empty($events)): ?>
-                <div class="p-5 text-center text-muted">Chưa có sự kiện nào của CLB.</div>
+                <div class="p-5 text-center text-muted">
+                    <i class="bi bi-calendar-check fs-1 d-block mb-2 text-secondary opacity-50"></i>
+                    Bạn hiện chưa được phân công phụ trách điểm danh cho sự kiện nào.
+                </div>
             <?php else: ?>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
@@ -436,7 +346,7 @@ if ($eventId === 0) {
                                 <th>Thời gian</th>
                                 <th>Đã đăng ký</th>
                                 <th>Trạng thái</th>
-                                <th class="text-end pe-4"></th>
+                                <th class="text-end pe-4">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -450,7 +360,9 @@ if ($eventId === 0) {
                                 <td><span class="badge-pill-custom <?= $h($st['css_class']) ?>"><?= $h($st['label']) ?></span></td>
                                 <td class="text-end pe-4">
                                     <?php if ($e['Status'] !== 'Cancelled'): ?>
-                                        <a href="<?= $h($pageUrl . '?event_id=' . (int)$e['EventID']) ?>" class="btn btn-sm btn-primary">Điểm danh</a>
+                                        <a href="<?= $h($pageUrl . '?event_id=' . (int)$e['EventID']) ?>" class="btn btn-sm btn-success rounded-pill px-3 fw-semibold shadow-xs">
+                                            <i class="bi bi-qr-code-scan me-1"></i> Mở Bàn Điểm Danh
+                                        </a>
                                     <?php endif; ?>
                                 </td>
                             </tr>
@@ -486,13 +398,16 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'get_attendance_status') {
     session_write_close();
     header('Content-Type: application/json; charset=utf-8');
     $stmt = $pdo->prepare("
-        SELECT r.RegID, a.FullName, a.StudentCode,
+        SELECT r.RegID, r.AccountID, r.RegistrationType,
+               COALESCE(a.FullName, r.GuestName) AS FullName,
+               COALESCE(a.StudentCode, r.GuestStudentCode) AS StudentCode,
+               COALESCE(a.Email, r.GuestEmail) AS Email,
                att.AttendanceStatus, att.CheckInAt
         FROM Event_Registration r
-        JOIN Account a ON a.AccountID = r.AccountID
+        LEFT JOIN Account a ON a.AccountID = r.AccountID
         LEFT JOIN Attendance att ON att.RegID = r.RegID
         WHERE r.EventID = :e AND r.Status = 'Registered'
-        ORDER BY a.FullName ASC
+        ORDER BY FullName ASC
     ");
     $stmt->execute([':e' => $eventId]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -526,13 +441,16 @@ $canCheckIn = $evt['Status'] === 'Published' && $now < $evt['EndTime'];
 $last       = (int)($_GET['last'] ?? 0);
 
 $stmt = $pdo->prepare("
-    SELECT r.RegID, a.FullName, a.StudentCode,
+    SELECT r.RegID, r.AccountID, r.RegistrationType,
+           COALESCE(a.FullName, r.GuestName) AS FullName,
+           COALESCE(a.StudentCode, r.GuestStudentCode) AS StudentCode,
+           COALESCE(a.Email, r.GuestEmail) AS Email,
            att.AttendanceStatus, att.CheckInAt
     FROM Event_Registration r
-    JOIN Account a ON a.AccountID = r.AccountID
+    LEFT JOIN Account a ON a.AccountID = r.AccountID
     LEFT JOIN Attendance att ON att.RegID = r.RegID
     WHERE r.EventID = :e AND r.Status = 'Registered'
-    ORDER BY a.FullName ASC
+    ORDER BY FullName ASC
 ");
 $stmt->execute([':e' => $eventId]);
 $regs = $stmt->fetchAll();
@@ -545,29 +463,6 @@ foreach ($regs as $r) {
     }
 }
 
-// Danh sách ứng viên tiềm năng cho Điểm danh bổ sung Walk-in (tài khoản active chưa điểm danh)
-$unregisteredCandidates = [];
-if ($canCheckIn) {
-    $candStmt = $pdo->prepare("
-        SELECT a.AccountID, a.FullName, a.StudentCode, a.Email,
-               r.RegID, r.Status AS RegStatus,
-               att.AttendanceStatus
-        FROM Account a
-        LEFT JOIN Event_Registration r ON r.EventID = :e AND r.AccountID = a.AccountID
-        LEFT JOIN Attendance att ON att.RegID = r.RegID
-        WHERE a.IsActive = 1
-        ORDER BY a.FullName ASC
-    ");
-    $candStmt->execute([':e' => $eventId]);
-    $allAccounts = $candStmt->fetchAll();
-
-    foreach ($allAccounts as $acc) {
-        if ($acc['AttendanceStatus'] === null) {
-            $unregisteredCandidates[] = $acc;
-        }
-    }
-}
-
 $pageTitle = 'Điểm danh — EventFlow';
 require_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -575,50 +470,76 @@ require_once __DIR__ . '/../../includes/header.php';
 <div class="container py-4">
     <nav aria-label="breadcrumb" class="mb-3">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="<?= $h($pageUrl) ?>" class="text-decoration-none text-muted">Chọn sự kiện</a></li>
+            <li class="breadcrumb-item"><a href="<?= base_url('app/modules/events/my_events.php') ?>" class="text-decoration-none text-muted">Sự kiện của tôi</a></li>
+            <?php if (count($leadEvtIds) > 1): ?>
+                <li class="breadcrumb-item"><a href="<?= $h($pageUrl) ?>" class="text-decoration-none text-muted">Chọn sự kiện</a></li>
+            <?php endif; ?>
             <li class="breadcrumb-item active text-dark fw-semibold" aria-current="page"><?= $h($evt['EventName']) ?></li>
         </ol>
     </nav>
 
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
         <div>
+            <div class="d-flex align-items-center gap-2 mb-1.5">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2.5 py-1" style="font-size: 0.72rem;">
+                    <i class="bi bi-shield-check me-1"></i>Check-in Lead Desk
+                </span>
+                <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace px-2.5 py-1 d-inline-flex align-items-center gap-1.5" style="font-size: 0.72rem;">
+                    <span class="spinner-grow spinner-grow-sm text-success" style="width: 0.45rem; height: 0.45rem;"></span> Realtime Active
+                </span>
+            </div>
             <h1 class="h3 fw-bold text-dark mb-1"><?= $h($evt['EventName']) ?></h1>
-            <p class="text-muted small mb-0"><?= $h(event_fmt_dt($evt['StartTime'])) ?> · <?= $h($evt['Location']) ?></p>
+            <p class="text-muted small mb-0">
+                <i class="bi bi-clock me-1 text-primary"></i><?= $h(event_fmt_dt($evt['StartTime'])) ?> · 
+                <i class="bi bi-geo-alt me-1 text-primary"></i><?= $h($evt['Location']) ?>
+            </p>
         </div>
         <div class="d-flex flex-wrap align-items-center gap-2 text-md-end">
-            <a href="<?= base_url('app/modules/events/console.php?id=' . $eventId . '#checkin') ?>" class="btn btn-primary btn-sm rounded-pill px-3 fw-semibold">
-                <i class="bi bi-sliders me-1"></i> Mở Unified Event Console
-            </a>
-            <a href="<?= base_url('app/modules/attendance/registrations.php?event_id=' . $eventId) ?>" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-people me-1"></i> Danh sách đăng ký
-            </a>
             <?php if ($canCheckIn): ?>
-                <button type="button" class="btn btn-outline-success btn-sm shadow-sm" data-bs-toggle="modal" data-bs-target="#walkinModal">
-                    <i class="bi bi-person-plus-fill me-1"></i> Điểm danh bổ sung (Chưa đăng ký)
+                <button type="button" class="btn btn-outline-success btn-sm rounded-pill px-3 shadow-xs" data-bs-toggle="modal" data-bs-target="#walkinModal">
+                    <i class="bi bi-person-plus-fill me-1"></i> + Điểm danh vãng lai
                 </button>
             <?php endif; ?>
-            <div class="ms-lg-2">
-                <div class="small text-muted">Đã điểm danh</div>
-                <div class="h4 fw-bold mb-0 font-mono">
-                    <span id="checkedCount"><?= $checked ?></span> / <span id="totalCount"><?= $total ?></span> 
-                    <span class="fs-6 fw-normal text-muted">người đăng ký</span>
+            <div class="ms-lg-2 bg-light px-3 py-2 rounded-3 border">
+                <div class="text-muted font-monospace" style="font-size: 0.68rem; letter-spacing: 0.05em;">TIẾN ĐỘ ĐIỂM DANH</div>
+                <div class="h5 fw-bold mb-0 font-mono text-dark">
+                    <span id="checkedCount" class="text-success"><?= $checked ?></span> / <span id="totalCount"><?= $total ?></span> 
+                    <span class="fs-6 fw-normal text-muted" style="font-size: 0.78rem !important;">người</span>
                 </div>
             </div>
         </div>
     </div>
 
     <?php if (!$canCheckIn): ?>
-        <div class="alert alert-warning rounded-3">
-            Sự kiện không còn mở điểm danh (đã hủy hoặc đã kết thúc). Bạn chỉ có thể xem danh sách.
+        <div class="alert alert-warning rounded-3 shadow-xs">
+            <i class="bi bi-exclamation-triangle-fill me-1.5"></i> Sự kiện không còn mở điểm danh (đã hủy hoặc đã kết thúc). Bạn chỉ có thể xem danh sách.
         </div>
     <?php endif; ?>
 
+    <!-- Realtime Search Toolbar -->
     <div class="card border-0 shadow-sm rounded-4 p-3 mb-4">
-        <label for="q" class="visually-hidden">Tìm theo họ tên hoặc MSSV</label>
-        <div class="input-group input-group-lg">
-            <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
-            <input type="search" id="q" class="form-control border-start-0 ps-0 fs-6" autocomplete="off"
-                   placeholder="Gõ họ tên hoặc MSSV để lọc nhanh người tham gia..." autofocus>
+        <div class="row g-2 align-items-center">
+            <div class="col-12 col-md-6 col-lg-7">
+                <label for="q" class="visually-hidden">Tìm kiếm người tham gia</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                    <input type="search" id="q" class="form-control border-start-0 border-end-0 ps-0 fs-6 shadow-none" autocomplete="off"
+                           placeholder="Gõ họ tên, MSSV hoặc email để tìm kiếm realtime..." autofocus>
+                    <button type="button" id="clearSearchBtn" class="btn bg-white border border-start-0 text-muted d-none" title="Xóa tìm kiếm">
+                        <i class="bi bi-x-circle-fill"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="col-12 col-md-6 col-lg-5 d-flex align-items-center justify-content-md-end gap-1.5 flex-wrap">
+                <div class="btn-group btn-group-sm" role="group" id="filterStatusGroup">
+                    <button type="button" class="btn btn-outline-primary active" data-filter="all">Tất cả (<span class="count-all"><?= $total ?></span>)</button>
+                    <button type="button" class="btn btn-outline-secondary" data-filter="uncheck">Chưa điểm danh (<span class="count-uncheck"><?= $total - $checked ?></span>)</button>
+                    <button type="button" class="btn btn-outline-success" data-filter="checked">Đã điểm danh (<span class="count-checked"><?= $checked ?></span>)</button>
+                </div>
+                <span class="badge bg-light text-secondary border font-monospace ms-md-2" id="searchResultsBadge" style="font-size: 0.75rem;">
+                    Hiển thị <span id="matchCount"><?= $total ?></span> / <?= $total ?>
+                </span>
+            </div>
         </div>
     </div>
 
@@ -654,9 +575,20 @@ require_once __DIR__ . '/../../includes/header.php';
                         <tr data-reg-id="<?= (int)$r['RegID'] ?>"
                             data-name="<?= $h($r['FullName']) ?>" 
                             data-mssv="<?= $h($r['StudentCode'] ?? '') ?>"
+                            data-email="<?= $h($r['Email'] ?? '') ?>"
                             data-done="<?= $done ? '1' : '0' ?>"
                             class="<?= $isLast ? 'table-success' : '' ?>">
-                            <td class="ps-4 fw-semibold text-dark"><?= $h($r['FullName']) ?></td>
+                            <td class="ps-4">
+                                <div class="fw-semibold text-dark">
+                                    <?= $h($r['FullName']) ?>
+                                    <?php if (empty($r['AccountID']) || ($r['RegistrationType'] ?? '') === 'Guest'): ?>
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill font-sans ms-1" style="font-size: 0.65rem;">Vãng lai</span>
+                                    <?php endif; ?>
+                                </div>
+                                <?php if (!empty($r['Email'])): ?>
+                                    <small class="text-muted font-monospace" style="font-size: 0.74rem;"><?= $h($r['Email']) ?></small>
+                                <?php endif; ?>
+                            </td>
                             <td class="font-mono small"><?= $h($r['StudentCode'] ?? '—') ?></td>
                             <td class="status-cell">
                                 <?php if ($done): ?>
@@ -701,103 +633,86 @@ require_once __DIR__ . '/../../includes/header.php';
 </div>
 
 <?php if ($canCheckIn): ?>
-<!-- Modal Điểm danh bổ sung (Walk-in Check-in) - Mở rộng form thông thoáng (modal-xl) -->
+<!-- MODAL ĐIỂM DANH VÃNG LAI (WALK-IN CHECK-IN) -->
 <div class="modal fade" id="walkinModal" tabindex="-1" aria-labelledby="walkinModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl">
-        <div class="modal-content border-0 shadow-lg rounded-4">
-            <div class="modal-header border-bottom px-4 pt-4 pb-3">
-                <div class="d-flex align-items-center gap-2">
-                    <div class="p-2 rounded-3 bg-success-subtle text-success">
-                        <i class="bi bi-person-plus-fill fs-4"></i>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header border-bottom px-4 py-3 bg-light d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <div class="d-flex align-items-center justify-content-center rounded-3 bg-success-subtle text-success me-3 flex-shrink-0" style="width: 44px; height: 44px;">
+                        <i class="bi bi-person-plus-fill fs-5"></i>
                     </div>
                     <div>
-                        <h5 class="modal-title fw-bold text-dark mb-0" id="walkinModalLabel">Điểm danh bổ sung tại chỗ</h5>
-                        <small class="text-muted">Tra cứu và ghi nhận tham dự cho sinh viên chưa đăng ký trước hoặc chưa có tên trong danh sách</small>
+                        <h5 class="modal-title fw-bold text-dark mb-0 fs-6" id="walkinModalLabel">Điểm Danh Vãng Lai</h5>
+                        <small class="text-muted d-block" style="font-size: 0.8rem; margin-top: 2px;">Ghi nhận tham dự và lưu thông tin đăng ký tại chỗ</small>
                     </div>
                 </div>
                 <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body p-4">
-                <div class="mb-4">
-                    <label for="walkinQuery" class="form-label fw-semibold text-dark">Tra cứu nhanh sinh viên</label>
-                    <div class="input-group input-group-lg">
-                        <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
-                        <input type="search" id="walkinQuery" class="form-control border-start-0 ps-0 fs-6" autocomplete="off"
-                               placeholder="Nhập Họ tên, Mã số sinh viên (MSSV) hoặc Email để lọc danh sách...">
-                    </div>
-                    <div class="form-text small mt-2 text-muted">
-                        <i class="bi bi-info-circle me-1 text-primary"></i> Danh sách hiển thị toàn bộ sinh viên đang hoạt động trong hệ thống chưa được ghi nhận điểm danh.
-                    </div>
-                </div>
+            <form id="walkinForm" method="POST" action="<?= $h($eventUrl) ?>">
+                <div class="modal-body p-4">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="action" value="walkin_checkin">
+                    <input type="hidden" name="event_id" value="<?= $eventId ?>">
 
-                <div class="table-responsive rounded-4 border" style="max-height: 480px;">
-                    <table class="table table-hover align-middle mb-0" id="walkinTable">
-                        <thead class="table-light sticky-top">
-                            <tr>
-                                <th class="ps-4 py-3">Họ và tên</th>
-                                <th class="py-3">MSSV</th>
-                                <th class="py-3">Email</th>
-                                <th class="py-3">Tình trạng đăng ký</th>
-                                <th class="text-end pe-4 py-3">Thao tác</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        <?php if (empty($unregisteredCandidates)): ?>
-                            <tr>
-                                <td colspan="5" class="p-5 text-center text-muted">
-                                    <i class="bi bi-check2-circle fs-1 text-success d-block mb-2"></i>
-                                    Tất cả sinh viên đều đã được điểm danh!
-                                </td>
-                            </tr>
-                        <?php else: ?>
-                            <?php foreach ($unregisteredCandidates as $cand):
-                                $statusLabel = 'Chưa đăng ký';
-                                $statusClass = 'bg-secondary-subtle text-secondary';
-                                if ($cand['RegStatus'] === 'Registered') {
-                                    $statusLabel = 'Đã đăng ký (chưa điểm danh)';
-                                    $statusClass = 'bg-primary-subtle text-primary';
-                                } elseif ($cand['RegStatus'] === 'Cancelled') {
-                                    $statusLabel = 'Đã hủy đăng ký';
-                                    $statusClass = 'bg-warning-subtle text-warning-emphasis';
-                                }
-                            ?>
-                                <tr data-name="<?= $h($cand['FullName']) ?>"
-                                    data-mssv="<?= $h($cand['StudentCode'] ?? '') ?>"
-                                    data-email="<?= $h($cand['Email']) ?>">
-                                    <td class="ps-4 py-3 fw-semibold text-dark"><?= $h($cand['FullName']) ?></td>
-                                    <td class="py-3 font-mono"><?= $h($cand['StudentCode'] ?? '—') ?></td>
-                                    <td class="py-3 text-muted"><?= $h($cand['Email']) ?></td>
-                                    <td class="py-3 walkin-status-cell">
-                                        <span class="badge rounded-pill px-3 py-2 <?= $statusClass ?>">
-                                            <?= $statusLabel ?>
-                                        </span>
-                                    </td>
-                                    <td class="text-end pe-4 py-3 walkin-action-cell">
-                                        <form method="POST" action="<?= $h($eventUrl) ?>" class="d-inline walkin-form">
-                                            <?= csrf_field() ?>
-                                            <input type="hidden" name="action" value="walkin_checkin">
-                                            <input type="hidden" name="account_id" value="<?= (int)$cand['AccountID'] ?>">
-                                            <input type="hidden" name="event_id" value="<?= $eventId ?>">
-                                            <button type="submit" class="btn btn-sm btn-success px-3 shadow-sm">
-                                                <i class="bi bi-check-circle me-1"></i> Điểm danh ngay
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                        </tbody>
-                    </table>
+                    <div class="mb-3">
+                        <label for="guest_name" class="form-label small fw-semibold text-dark mb-1">
+                            Họ và tên người tham dự <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white text-muted border-end-0"><i class="bi bi-person"></i></span>
+                            <input type="text" id="guest_name" name="guest_name" class="form-control border-start-0" placeholder="Ví dụ: Nguyễn Văn An" required autocomplete="off">
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label for="guest_student_code" class="form-label small fw-semibold text-dark mb-1">
+                                Mã số sinh viên (MSSV)
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white text-muted border-end-0"><i class="bi bi-card-text"></i></span>
+                                <input type="text" id="guest_student_code" name="guest_student_code" class="form-control border-start-0 font-monospace" placeholder="31241029999" autocomplete="off">
+                            </div>
+                            <div class="form-text small text-muted" style="font-size: 0.72rem;">Không bắt buộc nếu là khách ngoài</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="guest_phone" class="form-label small fw-semibold text-dark mb-1">
+                                Số điện thoại
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white text-muted border-end-0"><i class="bi bi-telephone"></i></span>
+                                <input type="tel" id="guest_phone" name="guest_phone" class="form-control border-start-0 font-monospace" placeholder="0901234567" autocomplete="off">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="guest_email" class="form-label small fw-semibold text-dark mb-1">
+                            Địa chỉ Email <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white text-muted border-end-0"><i class="bi bi-envelope"></i></span>
+                            <input type="email" id="guest_email" name="guest_email" class="form-control border-start-0" placeholder="Ví dụ: an.nguyen@st.ueh.edu.vn" required autocomplete="off">
+                        </div>
+                        <div class="form-text small text-muted" style="font-size: 0.72rem;">Dùng để đối soát hoặc tự động liên kết tài khoản nếu đã có trên hệ thống.</div>
+                    </div>
+
+                    <div class="alert alert-info py-2 px-3 rounded-3 small mb-0 d-flex align-items-center gap-2 border-0 bg-info-subtle text-info-emphasis">
+                        <i class="bi bi-info-circle-fill text-info flex-shrink-0"></i>
+                        <span>Người tham dự sẽ được bổ sung vào danh sách đăng ký và tự động ghi nhận điểm danh ngay lập tức.</span>
+                    </div>
                 </div>
-                <div id="walkinNoMatch" class="p-4 text-center text-muted" hidden>
-                    <i class="bi bi-search fs-3 d-block mb-2 text-secondary"></i>
-                    Không tìm thấy sinh viên nào khớp với từ khóa tìm kiếm.
+                <div class="modal-footer border-top px-4 py-3 bg-light">
+                    <button type="button" class="btn btn-outline-secondary px-3" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" id="btnSubmitWalkin" class="btn btn-success px-4 fw-semibold shadow-xs">
+                        <i class="bi bi-check2-circle me-1"></i> Điểm danh ngay
+                    </button>
                 </div>
-            </div>
-            <div class="modal-footer border-top px-4 py-3">
-                <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Đóng</button>
-            </div>
+            </form>
         </div>
+    </div>
+</div>
     </div>
 </div>
 <?php endif; ?>
@@ -816,57 +731,80 @@ require_once __DIR__ . '/../../includes/header.php';
 </div>
 
 <script>
-// 1. Lọc trực tiếp bảng điểm danh chính
+// 1. Lọc trực tiếp realtime bảng điểm danh chính
 (function () {
     var input = document.getElementById('q');
+    var clearBtn = document.getElementById('clearSearchBtn');
     var table = document.getElementById('regTable');
     var noMatch = document.getElementById('noMatch');
-    if (!input || !table) return;
+    var matchCountEl = document.getElementById('matchCount');
+    var filterGroup = document.getElementById('filterStatusGroup');
+    var currentFilter = 'all';
+
+    if (!table) return;
 
     function norm(s) {
         return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
             .replace(/đ/g, 'd').replace(/Đ/g, 'd').toLowerCase().trim();
     }
 
-    input.addEventListener('input', function () {
-        var q = norm(input.value), shown = 0;
+    function applyFilter() {
+        var q = input ? norm(input.value) : '';
+        if (clearBtn) {
+            clearBtn.classList.toggle('d-none', !input || input.value.length === 0);
+        }
+        var total = 0, shown = 0;
         table.querySelectorAll('tbody tr').forEach(function (tr) {
-            var hit = !q || norm(tr.dataset.name).indexOf(q) !== -1 || norm(tr.dataset.mssv).indexOf(q) !== -1;
+            total++;
+            var name = norm(tr.dataset.name);
+            var mssv = norm(tr.dataset.mssv);
+            var email = norm(tr.dataset.email);
+            var done = tr.dataset.done === '1';
+
+            var matchSearch = !q || name.indexOf(q) !== -1 || mssv.indexOf(q) !== -1 || email.indexOf(q) !== -1;
+            var matchStatus = (currentFilter === 'all') ||
+                              (currentFilter === 'uncheck' && !done) ||
+                              (currentFilter === 'checked' && done);
+
+            var hit = matchSearch && matchStatus;
             tr.hidden = !hit;
             if (hit) shown++;
         });
+
+        if (matchCountEl) matchCountEl.textContent = shown;
         if (noMatch) noMatch.hidden = shown > 0;
-    });
+    }
+
+    if (input) {
+        input.addEventListener('input', applyFilter);
+    }
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function() {
+            if (input) {
+                input.value = '';
+                input.focus();
+                applyFilter();
+            }
+        });
+    }
+
+    if (filterGroup) {
+        filterGroup.querySelectorAll('button').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                filterGroup.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilter = btn.dataset.filter || 'all';
+                applyFilter();
+            });
+        });
+    }
+
+    window.reapplyCheckinFilter = applyFilter;
 
     var highlighted = table.querySelector('tr.table-success');
     if (highlighted) highlighted.scrollIntoView({ block: 'center' });
 })();
 
-// 2. Lọc trực tiếp trong modal Điểm danh bổ sung Walk-in
-(function () {
-    var wInput = document.getElementById('walkinQuery');
-    var wTable = document.getElementById('walkinTable');
-    var wNoMatch = document.getElementById('walkinNoMatch');
-    if (!wInput || !wTable) return;
-
-    function norm(s) {
-        return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-            .replace(/đ/g, 'd').replace(/Đ/g, 'd').toLowerCase().trim();
-    }
-
-    wInput.addEventListener('input', function () {
-        var q = norm(wInput.value), shown = 0;
-        wTable.querySelectorAll('tbody tr').forEach(function (tr) {
-            if (!tr.dataset.name) return;
-            var hit = !q || norm(tr.dataset.name).indexOf(q) !== -1 ||
-                      norm(tr.dataset.mssv).indexOf(q) !== -1 ||
-                      norm(tr.dataset.email).indexOf(q) !== -1;
-            tr.hidden = !hit;
-            if (hit) shown++;
-        });
-        if (wNoMatch) wNoMatch.hidden = shown > 0;
-    });
-})();
 
 // 3. Realtime AJAX Check-in & Background Polling Sync (UAT 17)
 (function() {
@@ -893,6 +831,11 @@ require_once __DIR__ . '/../../includes/header.php';
     function updateStatsCounter(checked, total) {
         if (checkedCountEl) checkedCountEl.textContent = checked;
         if (totalCountEl) totalCountEl.textContent = total;
+        const uncheck = total - checked;
+        document.querySelectorAll('.count-all').forEach(el => el.textContent = total);
+        document.querySelectorAll('.count-uncheck').forEach(el => el.textContent = uncheck);
+        document.querySelectorAll('.count-checked').forEach(el => el.textContent = checked);
+        if (window.reapplyCheckinFilter) window.reapplyCheckinFilter();
     }
 
     function escapeHtml(str) {
@@ -990,12 +933,19 @@ require_once __DIR__ . '/../../includes/header.php';
         tr.setAttribute('data-reg-id', user.reg_id);
         tr.setAttribute('data-name', user.fullname);
         tr.setAttribute('data-mssv', user.student_code || '');
+        tr.setAttribute('data-email', user.email || '');
         tr.setAttribute('data-done', user.is_checked ? '1' : '0');
         tr.className = 'table-success';
         setTimeout(() => tr.classList.remove('table-success'), 2000);
 
         tr.innerHTML = `
-            <td class="ps-4 fw-semibold text-dark">${escapeHtml(user.fullname)} <span class="badge bg-info-subtle text-info border border-info-subtle small ms-1">Bổ sung</span></td>
+            <td class="ps-4">
+                <div class="fw-semibold text-dark">
+                    ${escapeHtml(user.fullname)} 
+                    ${user.is_guest ? '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill font-sans ms-1" style="font-size: 0.65rem;">Vãng lai</span>' : ''}
+                </div>
+                ${user.email ? `<small class="text-muted font-monospace" style="font-size: 0.74rem;">${escapeHtml(user.email)}</small>` : ''}
+            </td>
             <td class="font-mono small">${escapeHtml(user.student_code || '—')}</td>
             <td class="status-cell">
                 <span class="badge rounded-pill px-3 py-2 bg-success-subtle text-success">Đã điểm danh · ${escapeHtml(user.checked_in_at || 'Vừa xong')}</span>
@@ -1063,22 +1013,22 @@ require_once __DIR__ . '/../../includes/header.php';
         });
     }
 
-    // Bắt sự kiện submit Điểm danh bổ sung Walk-in trong Modal
-    if (walkinTable) {
-        walkinTable.addEventListener('submit', async function(e) {
-            const form = e.target.closest('form.walkin-form');
-            if (!form) return;
+    // Bắt sự kiện submit form Điểm danh vãng lai trong Modal
+    const walkinForm = document.getElementById('walkinForm');
+    const walkinModalEl = document.getElementById('walkinModal');
+    if (walkinForm) {
+        walkinForm.addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            const button = form.querySelector('button[type="submit"]');
+            const button = document.getElementById('btnSubmitWalkin');
             if (!button || button.disabled) return;
             const originalHtml = button.innerHTML;
             button.disabled = true;
-            button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+            button.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Đang lưu...';
 
-            const formData = new FormData(form);
+            const formData = new FormData(walkinForm);
             formData.append('ajax', '1');
-            const targetUrl = form.getAttribute('action') || window.location.href;
+            const targetUrl = walkinForm.getAttribute('action') || window.location.href;
 
             try {
                 const response = await fetch(targetUrl, {
@@ -1094,27 +1044,16 @@ require_once __DIR__ . '/../../includes/header.php';
                 const result = await response.json();
 
                 if (result.success) {
-                    // Cập nhật trạng thái dòng trong modal
-                    const walkinRow = form.closest('tr');
-                    if (walkinRow) {
-                        const statusCell = walkinRow.querySelector('.walkin-status-cell');
-                        const actionCell = walkinRow.querySelector('.walkin-action-cell');
-                        if (statusCell) {
-                            statusCell.innerHTML = '<span class="badge rounded-pill px-3 py-2 bg-success-subtle text-success">Đã điểm danh</span>';
-                        }
-                        if (actionCell) {
-                            actionCell.innerHTML = '<button type="button" class="btn btn-sm btn-secondary disabled" disabled>Đã điểm danh</button>';
-                        }
-                    }
-
-                    // Chèn hoặc cập nhật người tham gia vào bảng chính
+                    // Chèn người tham gia vào bảng chính
                     if (result.user) {
                         insertRowIntoTable({
                             reg_id: result.reg_id,
                             fullname: result.user.fullname,
                             student_code: result.user.student_code,
+                            email: result.user.email,
                             is_checked: true,
-                            checked_in_at: result.user.checked_in_at
+                            checked_in_at: result.user.checked_in_at,
+                            is_guest: result.user.is_guest
                         });
                     }
 
@@ -1122,16 +1061,22 @@ require_once __DIR__ . '/../../includes/header.php';
                         updateStatsCounter(result.stats.checked, result.stats.total);
                     }
                     showToast(result.message, 'success');
+
+                    // Reset form và đóng modal
+                    walkinForm.reset();
+                    if (walkinModalEl) {
+                        const modalInstance = bootstrap.Modal.getInstance(walkinModalEl);
+                        if (modalInstance) modalInstance.hide();
+                    }
                 } else {
-                    button.disabled = false;
-                    button.innerHTML = originalHtml;
-                    showToast(result.message || 'Lỗi khi điểm danh bổ sung.', 'danger');
+                    showToast(result.message || 'Lỗi khi điểm danh vãng lai.', 'danger');
                 }
             } catch (err) {
-                button.disabled = false;
-                button.innerHTML = originalHtml;
                 showToast(err.message || 'Lỗi kết nối máy chủ.', 'danger');
                 console.error('Walk-in error:', err);
+            } finally {
+                button.disabled = false;
+                button.innerHTML = originalHtml;
             }
         });
     }

@@ -22,6 +22,11 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
     <!-- Bootstrap Icons CDN -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
+    <!-- Google Fonts Montserrat CDN (Đồng nhất typography toàn bộ website) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600;1,700&display=swap">
+
     <!-- Custom Design System CSS (Unified Blue Theme & Core Styles) -->
     <link rel="stylesheet" href="<?= base_url('assets/css/theme-blue.css') ?>?v=<?= filemtime(__DIR__ . '/../../assets/css/theme-blue.css') ?>">
     <link rel="stylesheet" href="<?= base_url('assets/css/style.css') ?>?v=<?= filemtime(__DIR__ . '/../../assets/css/style.css') ?>">
@@ -51,7 +56,7 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
             <a class="navbar-brand d-flex align-items-center gap-2" href="<?= base_url() ?>">
                 <img src="<?= base_url('assets/images/logo.png') ?>" alt="EventFlow" class="rounded-3 shadow-xs" style="width: 38px; height: 38px; object-fit: contain;">
                 <div class="d-flex flex-column">
-                    <span class="fw-bold text-dark lh-1" style="font-family: 'Inter', sans-serif; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em;">Event<span style="color: #2563eb;">Flow</span></span>
+                    <span class="fw-bold text-dark lh-1" style="font-family: 'Montserrat', sans-serif; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em;">Event<span style="color: #2563eb;">Flow</span></span>
                     <span class="text-muted fw-semibold font-monospace" style="font-size: 0.65rem; letter-spacing: 0.06em;">CAMPUS EVENT PLATFORM · UEH</span>
                 </div>
             </a>
@@ -138,17 +143,35 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
                                         <i class="bi bi-person me-2 text-primary"></i> Hồ sơ cá nhân
                                     </a>
                                 </li>
+                                <?php if (!is_system_admin()): ?>
                                 <li>
-                                    <a class="dropdown-item py-2" href="<?= (is_club_manager() || is_authorized_club_member() || is_system_admin()) ? base_url('app/modules/dashboard/index.php#my-events') : base_url('app/modules/events/my_events.php') ?>">
+                                    <a class="dropdown-item py-2" href="<?= (is_club_manager() || is_authorized_club_member()) ? base_url('app/modules/dashboard/index.php#my-events') : base_url('app/modules/events/my_events.php') ?>">
                                         <i class="bi bi-bookmark-check me-2 text-primary"></i> Sự kiện của tôi
                                     </a>
                                 </li>
+                                <?php endif; ?>
                                 <?php if (is_club_manager() || is_authorized_club_member()): ?>
                                     <li>
                                         <a class="dropdown-item py-2 text-primary fw-semibold" href="<?= base_url('app/modules/dashboard/index.php#stats') ?>">
                                             <i class="bi bi-sliders me-2"></i> Quản lý CLB
                                         </a>
                                     </li>
+                                <?php elseif (!is_system_admin() && is_logged_in() && !empty($currentUser['AccountID'])): ?>
+                                    <?php 
+                                    try {
+                                        $hPdo = get_db_connection();
+                                        $hLeads = user_checkin_lead_event_ids($hPdo, (int)$currentUser['AccountID']);
+                                        if (!empty($hLeads)):
+                                    ?>
+                                        <li>
+                                            <a class="dropdown-item py-2 text-success fw-semibold" href="<?= base_url('app/modules/attendance/checkin.php') ?>">
+                                                <i class="bi bi-qr-code-scan me-2"></i> Bàn Điểm Danh
+                                            </a>
+                                        </li>
+                                    <?php 
+                                        endif;
+                                    } catch (\Throwable $e) {}
+                                    ?>
                                 <?php endif; ?>
                                 <?php if (is_system_admin()): ?>
                                     <li>

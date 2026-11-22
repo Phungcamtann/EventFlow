@@ -11,8 +11,16 @@ require_once __DIR__ . '/../../includes/event_helpers.php';
 
 require_login();
 
-// Nếu là Cán bộ BĐH hoặc Admin và truy cập từ ngoài: chuyển vào Workspace nếu muốn, nhưng nếu truy cập trực tiếp thì vẫn phục vụ trang độc lập
-if ((is_club_manager() || is_authorized_club_member() || is_system_admin()) && !isset($_GET['view'])) {
+// 0. Quản trị viên hệ thống (Admin) chỉ quản trị hệ thống và tài khoản, không sử dụng trang Sự kiện của tôi
+if (is_system_admin()) {
+    header('Location: ' . base_url('app/modules/dashboard/index.php#admin-accounts'));
+    exit;
+}
+
+$isBDH = is_club_manager() || (isset($_SESSION['user']['MemberRole']) && in_array($_SESSION['user']['MemberRole'], ['President', 'Vice President', 'Board Member'], true));
+
+// Nếu là Cán bộ BĐH và truy cập từ ngoài: chuyển vào Workspace nếu muốn, nhưng nếu truy cập trực tiếp thì vẫn phục vụ trang độc lập
+if ((is_club_manager() || is_authorized_club_member()) && !isset($_GET['view'])) {
     header('Location: ' . base_url('app/modules/dashboard/index.php#my-events'));
     exit;
 }
@@ -94,10 +102,11 @@ require_once __DIR__ . '/../../includes/header.php';
             <h1 class="h3 fw-bold text-dark mb-1">
                 <i class="bi bi-bookmark-check text-primary me-2"></i>Sự Kiện Của Tôi
             </h1>
-            <p class="text-secondary small mb-0">Theo dõi các sự kiện bạn tham gia và các hoạt động bạn được phân công phụ trách.</p>
+            <p class="text-secondary small mb-0"><?= $isBDH ? 'Theo dõi các hoạt động bạn được phân công phụ trách trong Ban Tổ Chức.' : 'Theo dõi các sự kiện bạn tham gia và các hoạt động bạn được phân công phụ trách.' ?></p>
         </div>
     </div>
 
+    <?php if (!$isBDH): ?>
     <!-- Dual-Tab Navigation -->
     <ul class="nav nav-pills ef-tab-pills mb-4 p-1.5 bg-light rounded-pill border d-inline-flex" id="myEventsTab" role="tablist">
         <li class="nav-item" role="presentation">
@@ -113,12 +122,13 @@ require_once __DIR__ . '/../../includes/header.php';
             </button>
         </li>
     </ul>
+    <?php endif; ?>
 
     <div class="tab-content" id="myEventsTabContent">
         <!-- ==============================================================
              TAB 1: SỰ KIỆN TÔI ĐIỀU HÀNH / HỖ TRỢ (EVENT_STAFF)
              ============================================================== -->
-        <div class="tab-pane fade <?= !empty($myStaffEvents) ? 'show active' : '' ?>" id="tab-staff" role="tabpanel" aria-labelledby="staff-tab">
+        <div class="tab-pane fade <?= ($isBDH || !empty($myStaffEvents)) ? 'show active' : '' ?>" id="tab-staff" role="tabpanel" aria-labelledby="staff-tab">
             <div class="ef-card-editorial p-0 overflow-hidden shadow-sm">
                 <?php if (empty($myStaffEvents)): ?>
                     <div class="p-5 text-center text-muted">
@@ -146,11 +156,15 @@ require_once __DIR__ . '/../../includes/header.php';
                                         <td class="ps-4 py-3">
                                             <div class="d-flex align-items-center gap-3">
                                                 <?php if (!empty($se['BannerImage']) && file_exists(__DIR__ . '/../../../' . $se['BannerImage'])): ?>
-                                                    <img src="<?= base_url($se['BannerImage']) ?>" alt="" class="rounded-2 border" style="width: 48px; height: 34px; object-fit: cover;">
+                                                    <a href="<?= base_url('app/modules/events/detail.php?id=' . (int)$se['EventID']) ?>" class="d-block flex-shrink-0">
+                                                        <img src="<?= base_url($se['BannerImage']) ?>" alt="" class="rounded-2 border hover-opacity" style="width: 48px; height: 34px; object-fit: cover;">
+                                                    </a>
                                                 <?php endif; ?>
                                                 <div>
-                                                    <div class="fw-bold text-dark"><?= $h($se['EventName']) ?></div>
-                                                    <small class="text-muted"><i class="bi bi-geo-alt me-1 text-primary"></i><?= $h($se['Location']) ?></small>
+                                                    <a href="<?= base_url('app/modules/events/detail.php?id=' . (int)$se['EventID']) ?>" class="fw-bold text-dark text-decoration-none hover-primary d-inline-block">
+                                                        <?= $h($se['EventName']) ?>
+                                                    </a>
+                                                    <div><small class="text-muted"><i class="bi bi-geo-alt me-1 text-primary"></i><?= $h($se['Location']) ?></small></div>
                                                 </div>
                                             </div>
                                         </td>
@@ -180,10 +194,22 @@ require_once __DIR__ . '/../../includes/header.php';
                                                 <div class="progress-bar bg-primary" role="progressbar" style="width: <?= $percent ?>%"></div>
                                             </div>
                                         </td>
-                                        <td class="pe-4 py-3 text-end">
-                                            <a href="<?= base_url('app/modules/events/console.php?id=' . (int)$se['EventID']) ?>" class="btn btn-sm btn-primary rounded-pill px-3 fw-semibold shadow-2xs">
-                                                <i class="bi bi-sliders me-1"></i> Điều Hành Console
+                                        <td class="pe-4 py-3 text-end text-nowrap">
+                                            <a href="<?= base_url('app/modules/events/detail.php?id=' . (int)$se['EventID']) ?>" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold shadow-2xs me-1.5" title="Xem chi tiết sự kiện">
+                                                <i class="bi bi-eye me-1"></i> Xem chi tiết
                                             </a>
+                                            <?php 
+                                            $isCheckinLead = in_array(strtolower(str_replace([' ', '-', '_'], '', $se['StaffRole'] ?? '')), ['checkinlead', 'checkin', 'truongbandiemdanh'], true);
+                                            ?>
+                                            <?php if ($isCheckinLead): ?>
+                                                <a href="<?= base_url('app/modules/attendance/checkin.php?event_id=' . (int)$se['EventID']) ?>" class="btn btn-sm btn-success rounded-pill px-3 fw-semibold shadow-2xs" title="Mở bàn điểm danh trực tiếp cho sự kiện">
+                                                    <i class="bi bi-qr-code-scan me-1"></i> Mở Bàn Điểm Danh
+                                                </a>
+                                            <?php else: ?>
+                                                <span class="badge bg-light text-secondary border font-monospace px-2.5 py-1.5" style="font-size: 0.75rem;">
+                                                    <i class="bi bi-info-circle me-1"></i>Đã phân công ca trực
+                                                </span>
+                                            <?php endif; ?>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -194,6 +220,7 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
         </div>
 
+        <?php if (!$isBDH): ?>
         <!-- ==============================================================
              TAB 2: SỰ KIỆN TÔI THAM GIA (PARTICIPANT)
              ============================================================== -->
@@ -266,6 +293,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 <?php endif; ?>
             </div>
         </div>
+        <?php endif; ?>
     </div>
 </div>
 

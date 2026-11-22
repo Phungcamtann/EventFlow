@@ -182,11 +182,13 @@ require_once __DIR__ . '/../../includes/header.php';
             <h1 class="h3 fw-bold text-dark mb-1">Hồ sơ cá nhân & Tư cách thành viên</h1>
             <p class="text-muted small mb-0">Xem và cập nhật thông tin định danh, kiểm tra vai trò CLB và quản lý mật khẩu.</p>
         </div>
+        <?php if (!is_system_admin()): ?>
         <div>
             <a href="<?= base_url('app/modules/events/my_events.php') ?>" class="btn btn-outline-primary btn-sm">
                 <i class="bi bi-calendar3 me-1"></i> Sự kiện của tôi
             </a>
         </div>
+        <?php endif; ?>
     </div>
 
     <div class="row g-4">

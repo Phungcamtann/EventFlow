@@ -8,7 +8,7 @@
                 <div class="col-lg-5">
                     <div class="d-flex align-items-center gap-2 mb-3">
                         <img src="<?= base_url('assets/images/logo.png') ?>" alt="EventFlow" class="rounded-3 shadow-xs" style="width: 36px; height: 36px; object-fit: contain;">
-                        <span class="fw-bold fs-5" style="font-family: 'Inter', sans-serif; font-weight: 800; letter-spacing: -0.5px; color: #0f172a;">
+                        <span class="fw-bold fs-5" style="font-family: 'Montserrat', sans-serif; font-weight: 800; letter-spacing: -0.5px; color: #0f172a;">
                             Event<span style="color: #2563eb;">Flow</span>
                         </span>
                     </div>

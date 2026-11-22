@@ -232,6 +232,39 @@ function get_user_event_staff_role(PDO $pdo, int $eventId, int $accountId): ?str
 }
 
 /**
+ * Kiểm tra xem người dùng có phải là Trưởng Bàn Điểm Danh (Check-in Lead) của sự kiện không
+ */
+function is_user_checkin_lead(PDO $pdo, int $eventId, int $accountId): bool {
+    if ($eventId <= 0 || $accountId <= 0) {
+        return false;
+    }
+    $role = get_user_event_staff_role($pdo, $eventId, $accountId);
+    if (!$role) {
+        return false;
+    }
+    $norm = strtolower(str_replace([' ', '-', '_'], '', $role));
+    return in_array($norm, ['checkinlead', 'checkin', 'truongbandiemdanh'], true);
+}
+
+/**
+ * Danh sách EventID mà người dùng được phân công làm Check-in Lead
+ */
+function user_checkin_lead_event_ids(PDO $pdo, int $accountId): array {
+    if ($accountId <= 0) {
+        return [];
+    }
+    $stmt = $pdo->prepare("
+        SELECT DISTINCT e.EventID
+        FROM Event_Staff es
+        JOIN Event e ON e.EventID = es.EventID
+        WHERE es.AccountID = :a
+          AND LOWER(REPLACE(REPLACE(es.StaffRole, '-', ''), '_', '')) IN ('checkinlead', 'checkin', 'truongbandiemdanh')
+    ");
+    $stmt->execute([':a' => $accountId]);
+    return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+}
+
+/**
  * Lấy danh sách ban tổ chức / cán bộ phụ trách sự kiện (Event_Staff)
  */
 function get_event_staff_list(PDO $pdo, int $eventId): array {
@@ -277,5 +310,219 @@ if (!function_exists('format_club_member_role')) {
             'student'                             => 'Sinh viên',
             default                               => htmlspecialchars($role),
         };
+    }
+}
+
+/**
+ * Điểm danh vãng lai (Walk-in Check-in)
+ * Lưu thông tin người tham gia (kể cả chưa có tài khoản trong hệ thống) và ghi nhận điểm danh ngay lập tức.
+ * 
+ * @return array [bool $ok, string $msg, int $regId, ?array $attendeeInfo]
+ */
+function att_walkin_checkin(PDO $pdo, int $eventId, array $guestData, int $staffId): array {
+    $startedTx = false;
+    $rollback = static function (string $msg) use ($pdo, &$startedTx): array {
+        if ($startedTx && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        return [false, $msg, 0, null];
+    };
+
+    $fullName = trim($guestData['fullname'] ?? '');
+    $email = trim($guestData['email'] ?? '');
+    $studentCode = trim($guestData['student_code'] ?? '');
+    $phone = trim($guestData['phone'] ?? '');
+
+    if ($fullName === '') {
+        return [false, 'Vui lòng nhập họ và tên người tham dự.', 0, null];
+    }
+    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return [false, 'Vui lòng nhập địa chỉ email hợp lệ (ví dụ: hoten@gmail.com hoặc mssv@st.ueh.edu.vn).', 0, null];
+    }
+
+    try {
+        if (!$pdo->inTransaction()) {
+            $pdo->beginTransaction();
+            $startedTx = true;
+        }
+
+        $stmt = $pdo->prepare("SELECT * FROM Event WHERE EventID = :e FOR UPDATE");
+        $stmt->execute([':e' => $eventId]);
+        $evt = $stmt->fetch();
+
+        if (!$evt) {
+            return $rollback('Không tìm thấy sự kiện.');
+        }
+        if ($evt['Status'] !== 'Published') {
+            return $rollback('Sự kiện không ở trạng thái công bố.');
+        }
+        if (event_now($pdo) >= $evt['EndTime']) {
+            return $rollback('Sự kiện đã kết thúc, không thể điểm danh.');
+        }
+
+        // 1. Kiểm tra xem người này có tài khoản sinh viên/thành viên trong hệ thống Account không
+        if ($studentCode !== '') {
+            $accStmt = $pdo->prepare("
+                SELECT AccountID, FullName, StudentCode, Email, Phone 
+                FROM Account 
+                WHERE StudentCode = :code OR Email = :email 
+                LIMIT 1
+            ");
+            $accStmt->execute([':code' => $studentCode, ':email' => $email]);
+        } else {
+            $accStmt = $pdo->prepare("
+                SELECT AccountID, FullName, StudentCode, Email, Phone 
+                FROM Account 
+                WHERE Email = :email 
+                LIMIT 1
+            ");
+            $accStmt->execute([':email' => $email]);
+        }
+        $targetUser = $accStmt->fetch();
+
+        $targetAccountId = $targetUser ? (int)$targetUser['AccountID'] : null;
+        $regType = $targetAccountId ? 'Member' : 'Guest';
+
+        // 2. Tra cứu đăng ký hiện có của sự kiện này
+        if ($targetAccountId) {
+            $regStmt = $pdo->prepare("
+                SELECT RegID, Status FROM Event_Registration
+                WHERE EventID = :e AND AccountID = :a
+                FOR UPDATE
+            ");
+            $regStmt->execute([':e' => $eventId, ':a' => $targetAccountId]);
+        } else {
+            if ($studentCode !== '') {
+                $regStmt = $pdo->prepare("
+                    SELECT RegID, Status FROM Event_Registration
+                    WHERE EventID = :e AND (GuestStudentCode = :code OR GuestEmail = :email)
+                    FOR UPDATE
+                ");
+                $regStmt->execute([':e' => $eventId, ':code' => $studentCode, ':email' => $email]);
+            } else {
+                $regStmt = $pdo->prepare("
+                    SELECT RegID, Status FROM Event_Registration
+                    WHERE EventID = :e AND GuestEmail = :email
+                    FOR UPDATE
+                ");
+                $regStmt->execute([':e' => $eventId, ':email' => $email]);
+            }
+        }
+        $reg = $regStmt->fetch();
+
+        $regId = 0;
+        if ($reg && $reg['Status'] === 'Registered') {
+            $regId = (int)$reg['RegID'];
+            $chk = $pdo->prepare("SELECT AttendanceID FROM Attendance WHERE RegID = :r LIMIT 1");
+            $chk->execute([':r' => $regId]);
+            if ($chk->fetch()) {
+                return $rollback("Người tham dự [{$fullName}] đã được điểm danh trước đó rồi.");
+            }
+        } else {
+            // Kiểm tra số lượng tối đa MaxCapacity
+            $cntStmt = $pdo->prepare("
+                SELECT COUNT(*) FROM Event_Registration
+                WHERE EventID = :e AND Status = 'Registered'
+            ");
+            $cntStmt->execute([':e' => $eventId]);
+            $registeredCount = (int)$cntStmt->fetchColumn();
+
+            if ($evt['MaxCapacity'] !== null && (int)$evt['MaxCapacity'] > 0 && $registeredCount >= (int)$evt['MaxCapacity']) {
+                return $rollback('Sự kiện đã đủ số lượng tham dự tối đa (' . $evt['MaxCapacity'] . ' chỗ). Không thể nhận thêm đăng ký vãng lai.');
+            }
+
+            if ($reg) {
+                // Đã từng có đăng ký nhưng bị hủy: cập nhật lại thông tin và kích hoạt lại
+                $up = $pdo->prepare("
+                    UPDATE Event_Registration 
+                    SET Status = 'Registered', 
+                        RegistrationType = :regType,
+                        GuestName = :name,
+                        GuestEmail = :email,
+                        GuestStudentCode = :code,
+                        GuestPhone = :phone,
+                        RegDate = NOW() 
+                    WHERE RegID = :r
+                ");
+                $up->execute([
+                    ':regType' => $regType,
+                    ':name'    => $targetAccountId ? null : $fullName,
+                    ':email'   => $targetAccountId ? null : $email,
+                    ':code'    => $targetAccountId ? null : $studentCode,
+                    ':phone'   => $targetAccountId ? null : $phone,
+                    ':r'       => $reg['RegID']
+                ]);
+                $regId = (int)$reg['RegID'];
+            } else {
+                // Tạo mới dòng đăng ký
+                $insReg = $pdo->prepare("
+                    INSERT INTO Event_Registration (
+                        EventID, AccountID, RegistrationType, GuestName, GuestEmail, GuestStudentCode, GuestPhone, RegDate, Status
+                    ) VALUES (
+                        :e, :a, :regType, :name, :email, :code, :phone, NOW(), 'Registered'
+                    )
+                ");
+                $insReg->execute([
+                    ':e'       => $eventId,
+                    ':a'       => $targetAccountId,
+                    ':regType' => $regType,
+                    ':name'    => $targetAccountId ? null : $fullName,
+                    ':email'   => $targetAccountId ? null : $email,
+                    ':code'    => $targetAccountId ? null : $studentCode,
+                    ':phone'   => $targetAccountId ? null : $phone
+                ]);
+                $regId = (int)$pdo->lastInsertId();
+            }
+        }
+
+        // 3. Ghi nhận điểm danh vào bảng Attendance
+        $insAtt = $pdo->prepare("
+            INSERT INTO Attendance (RegID, AttendanceStatus, CheckInAt, CheckedInBy)
+            VALUES (:r, 1, NOW(), :s)
+            ON DUPLICATE KEY UPDATE AttendanceStatus = 1, CheckInAt = NOW(), CheckedInBy = :s2
+        ");
+        $insAtt->execute([':r' => $regId, ':s' => $staffId, ':s2' => $staffId]);
+
+        if ($startedTx && $pdo->inTransaction()) {
+            $pdo->commit();
+        }
+
+        $attendeeInfo = [
+            'reg_id'        => $regId,
+            'fullname'      => $fullName,
+            'student_code'  => $studentCode,
+            'email'         => $email,
+            'phone'         => $phone,
+            'is_guest'      => empty($targetAccountId),
+            'reg_type'      => $regType,
+            'is_checked'    => true,
+            'checked_in_at' => date('H:i d/m')
+        ];
+
+        return [true, "Điểm danh vãng lai thành công cho [{$fullName}].", $regId, $attendeeInfo];
+    } catch (Throwable $e) {
+        return $rollback('Lỗi xử lý điểm danh vãng lai: ' . $e->getMessage());
+    }
+}
+
+/**
+ * Thống kê tổng số đăng ký và số lượng đã điểm danh của sự kiện
+ */
+if (!function_exists('att_event_stats')) {
+    function att_event_stats(PDO $pdo, int $eventId): array {
+        $stmt = $pdo->prepare("
+            SELECT 
+                COUNT(*) AS Total,
+                SUM(CASE WHEN att.AttendanceID IS NOT NULL THEN 1 ELSE 0 END) AS Checked
+            FROM Event_Registration r
+            LEFT JOIN Attendance att ON att.RegID = r.RegID
+            WHERE r.EventID = :e AND r.Status = 'Registered'
+        ");
+        $stmt->execute([':e' => $eventId]);
+        $row = $stmt->fetch();
+        return [
+            'total'   => (int)($row['Total'] ?? 0),
+            'checked' => (int)($row['Checked'] ?? 0)
+        ];
     }
 }

@@ -16,6 +16,7 @@ $eventId     = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $userId      = is_logged_in() ? (int)current_user_id() : 0;
 $detailUrl   = base_url('app/modules/events/detail.php?id=' . $eventId);
 $canRegister = is_logged_in() && has_role(['Club Member', 'Event Participant']);
+$canCheckin  = ($userId > 0 && $eventId > 0) ? can_user_checkin_event($pdo, $eventId, $userId) : false;
 $h           = static fn($v): string => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
 
 /**
@@ -476,6 +477,17 @@ require_once __DIR__ . '/../../includes/header.php';
                         <div class="small text-muted mb-3">Còn lại <strong><?= (int)$state['seats_left'] ?></strong> chỗ</div>
                     <?php else: ?>
                         <div class="small text-muted mb-3">Không giới hạn số chỗ</div>
+                    <?php endif; ?>
+
+                    <?php if ($canCheckin): ?>
+                        <div class="mb-3 p-3 bg-light rounded-4 border border-success-subtle text-start">
+                            <div class="d-flex align-items-center gap-2 mb-2 text-success fw-bold small">
+                                <i class="bi bi-shield-check fs-6"></i> Bạn có quyền điểm danh sự kiện này
+                            </div>
+                            <a href="<?= base_url('app/modules/attendance/checkin.php?event_id=' . $eventId) ?>" class="btn btn-success w-100 rounded-pill fw-semibold shadow-sm">
+                                <i class="bi bi-qr-code-scan me-1.5"></i> Mở Bàn Điểm Danh
+                            </a>
+                        </div>
                     <?php endif; ?>
 
                     <?php if ($canRegister): ?>
