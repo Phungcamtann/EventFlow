@@ -44,6 +44,31 @@ if ($isEditMode) {
     $registered = (int)$cnt->fetchColumn();
 }
 
+// Lấy danh sách cán bộ BĐH để phân công vào Event_Staff (UAT 10)
+$staffStmt = $pdo->prepare("
+    SELECT cm.AccountID, cm.MemberRole, a.FullName, a.StudentCode, d.DepartmentName, d.DepartmentCode
+    FROM Club_Member cm
+    JOIN Account a ON a.AccountID = cm.AccountID
+    LEFT JOIN Department d ON d.DepartmentID = cm.DepartmentID
+    WHERE cm.ClubID = :c AND cm.Status = 'Active'
+    ORDER BY CASE WHEN cm.MemberRole = 'President' THEN 1 
+                  WHEN cm.MemberRole = 'Vice President' THEN 2 
+                  WHEN cm.MemberRole = 'Head' THEN 3 
+                  WHEN cm.MemberRole = 'Vice Head' THEN 4 
+                  ELSE 5 END, a.FullName ASC
+");
+$staffStmt->execute([':c' => $clubId]);
+$availableStaff = $staffStmt->fetchAll();
+
+$currentStaffIds = [];
+if ($isEditMode) {
+    $csStmt = $pdo->prepare("SELECT AccountID FROM Event_Staff WHERE EventID = :e");
+    $csStmt->execute([':e' => $eventId]);
+    $currentStaffIds = array_map('intval', $csStmt->fetchAll(PDO::FETCH_COLUMN));
+} else {
+    $currentStaffIds = [(int)current_user_id()];
+}
+
 // Sự kiện đã công bố thì không đưa ngược về bản nháp (tránh ẩn sự kiện đã có người đăng ký)
 $canChooseStatus = !$isEditMode || $evt['Status'] === 'Draft';
 
@@ -148,6 +173,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = 'Trạng thái sự kiện không hợp lệ.';
         }
 
+        // --- Kiểm tra phân công tối thiểu 2 cán bộ BĐH (UAT 10) ---
+        $staffIds = array_map('intval', $_POST['staff_ids'] ?? []);
+        if (!$isEditMode && count($staffIds) < 2) {
+            $errors[] = 'Vui lòng phân công tối thiểu 2 cán bộ Ban Điều Hành phụ trách sự kiện (UAT 10).';
+        } elseif ($isEditMode && !empty($_POST['staff_ids']) && count($staffIds) < 2) {
+            $errors[] = 'Sự kiện phải có tối thiểu 2 cán bộ Ban Điều Hành phụ trách (UAT 10).';
+        }
+
         // --- Xử lý tải lên Banner sự kiện ---
         $bannerPath = $isEditMode ? ($evt['BannerImage'] ?? null) : null;
         if (isset($_FILES['banner_image']) && $_FILES['banner_image']['error'] === UPLOAD_ERR_OK) {
@@ -230,9 +263,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             ':id'     => $eventId,
                             ':c'      => $clubId,
                         ]);
+
+                        // Cập nhật Event_Staff nếu có thay đổi
+                        if (!empty($staffIds)) {
+                            $delStaff = $pdo->prepare("DELETE FROM Event_Staff WHERE EventID = :eid");
+                            $delStaff->execute([':eid' => $eventId]);
+
+                            $insStaff = $pdo->prepare("
+                                INSERT INTO Event_Staff (EventID, AccountID, StaffRole, AssignedBy, AssignedAt)
+                                VALUES (:eid, :aid, :role, :by, NOW())
+                            ");
+                            $roleMap = ['Organizer', 'Checkin_Lead', 'Support', 'MC', 'Logistics'];
+                            $idx = 0;
+                            foreach ($staffIds as $aid) {
+                                $r = $roleMap[$idx] ?? 'Support';
+                                $insStaff->execute([
+                                    ':eid'  => $eventId,
+                                    ':aid'  => $aid,
+                                    ':role' => $r,
+                                    ':by'   => (int)current_user_id()
+                                ]);
+                                $idx++;
+                            }
+                        }
+
                         $pdo->commit();
                         set_flash('success', 'Cập nhật sự kiện thành công!');
-                        header('Location: ' . $manageUrl);
+                        header('Location: ' . base_url('app/modules/events/console.php?id=' . $eventId));
                         exit;
                     }
                 } else {
@@ -254,9 +311,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ':status' => $form['Status'],
                         ':banner' => $bannerPath,
                     ]);
+                    $newEventId = (int)$pdo->lastInsertId();
+
+                    // Lưu Event_Staff cho sự kiện mới (tối thiểu 2 cán bộ BĐH - UAT 10)
+                    $insStaff = $pdo->prepare("
+                        INSERT INTO Event_Staff (EventID, AccountID, StaffRole, AssignedBy, AssignedAt)
+                        VALUES (:eid, :aid, :role, :by, NOW())
+                    ");
+                    $roleMap = ['Organizer', 'Checkin_Lead', 'Support', 'MC', 'Logistics'];
+                    $idx = 0;
+                    foreach ($staffIds as $aid) {
+                        $r = $roleMap[$idx] ?? 'Support';
+                        $insStaff->execute([
+                            ':eid'  => $newEventId,
+                            ':aid'  => $aid,
+                            ':role' => $r,
+                            ':by'   => (int)current_user_id()
+                        ]);
+                        $idx++;
+                    }
+
                     $pdo->commit();
-                    set_flash('success', 'Tạo sự kiện thành công!');
-                    header('Location: ' . $manageUrl);
+                    set_flash('success', 'Tạo sự kiện và phân công cán bộ thành công!');
+                    header('Location: ' . base_url('app/modules/events/console.php?id=' . $newEventId));
                     exit;
                 }
             } catch (Throwable $e) {
@@ -396,6 +473,42 @@ require_once __DIR__ . '/../../includes/header.php';
                             </div>
                         </div>
 
+                        <!-- Phân công Ban Tổ Chức (UAT 10) -->
+                        <div class="mb-4 pt-3 border-top">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <label class="form-label fw-bold text-dark mb-0">
+                                    <i class="bi bi-people-fill text-primary me-2"></i>Phân công Cán bộ Ban Điều Hành phụ trách <span class="text-danger">*</span>
+                                </label>
+                                <span class="badge bg-primary-subtle text-primary font-monospace" style="font-size: 0.75rem;">
+                                    Tối thiểu 2 cán bộ BĐH (UAT 10)
+                                </span>
+                            </div>
+                            <p class="text-muted small mb-3">Chọn các cán bộ được cấp quyền điều hành và mở bàn điểm danh cho sự kiện này:</p>
+
+                            <div class="row g-2">
+                                <?php foreach ($availableStaff as $stf): 
+                                    $checked = in_array((int)$stf['AccountID'], $currentStaffIds, true);
+                                ?>
+                                    <div class="col-md-6">
+                                        <div class="p-3 border rounded-3 bg-light d-flex align-items-center justify-content-between">
+                                            <div class="form-check mb-0">
+                                                <input class="form-check-input staff-checkbox" type="checkbox" name="staff_ids[]" value="<?= (int)$stf['AccountID'] ?>" id="staff_<?= (int)$stf['AccountID'] ?>" <?= $checked ? 'checked' : '' ?>>
+                                                <label class="form-check-label ps-2" for="staff_<?= (int)$stf['AccountID'] ?>" style="cursor: pointer;">
+                                                    <div class="fw-bold text-dark small"><?= htmlspecialchars($stf['FullName']) ?></div>
+                                                    <div class="text-muted font-monospace" style="font-size: 0.72rem;">
+                                                        <?= htmlspecialchars($stf['StudentCode'] ?? '') ?> · <?= htmlspecialchars($stf['DepartmentCode'] ?? 'BĐH') ?>
+                                                    </div>
+                                                </label>
+                                            </div>
+                                            <span class="badge bg-white text-secondary border font-monospace" style="font-size: 0.68rem;">
+                                                <?= htmlspecialchars($stf['MemberRole']) ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+
                         <div class="d-flex align-items-center justify-content-end gap-2 pt-3 border-top">
                             <a href="<?= $h($manageUrl) ?>" class="btn btn-outline-secondary">Quay lại</a>
                             <button type="submit" class="btn btn-primary px-4 fw-semibold">
@@ -428,6 +541,11 @@ require_once __DIR__ . '/../../includes/header.php';
         if (!d) msgs.push('Vui lòng chọn hạn chót đăng ký.');
         if (s && en && en <= s) msgs.push('Thời gian kết thúc phải sau thời gian bắt đầu.');
         if (s && d && d > s) msgs.push('Hạn đăng ký phải nhỏ hơn hoặc bằng thời gian bắt đầu sự kiện.');
+
+        var staffChecks = form.querySelectorAll('input[name="staff_ids[]"]:checked');
+        if (staffChecks && staffChecks.length < 2) {
+            msgs.push('Vui lòng phân công tối thiểu 2 cán bộ Ban Điều Hành phụ trách sự kiện (UAT 10).');
+        }
 
         if (msgs.length) {
             e.preventDefault();

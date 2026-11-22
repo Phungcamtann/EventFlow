@@ -107,6 +107,8 @@ function event_state(array $evt, int $registered, string $now): array {
         }
     }
 
+    $state['state'] = $state['key'];
+
     return $state;
 }
 
@@ -168,4 +170,87 @@ function event_strlen(string $value): int {
     return function_exists('mb_strlen')
         ? mb_strlen($value, 'UTF-8')
         : (int)preg_match_all('/./us', $value);
+}
+
+/**
+ * Kiểm tra xem tài khoản có quyền mở bàn điểm danh / điều hành sự kiện không (UAT 08, 11 - RBAC Tầng 3).
+ * Quyền điểm danh:
+ * 1. System Admin
+ * 2. Club Manager (President / Vice President của CLB sở hữu sự kiện)
+ * 3. Hoặc cán bộ được chỉ định trong Event_Staff của sự kiện đó
+ */
+function can_user_checkin_event(PDO $pdo, int $eventId, int $accountId): bool {
+    if (is_system_admin()) {
+        return true;
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT e.ClubID, c.ManagerID, cm.MemberRole
+        FROM Event e
+        JOIN Club c ON e.ClubID = c.ClubID
+        LEFT JOIN Club_Member cm ON cm.ClubID = e.ClubID AND cm.AccountID = :aid AND cm.Status = 'Active'
+        WHERE e.EventID = :eid
+        LIMIT 1
+    ");
+    $stmt->execute([':eid' => $eventId, ':aid' => $accountId]);
+    $ev = $stmt->fetch();
+    if (!$ev) {
+        return false;
+    }
+
+    // Nếu là Club Manager chính thức hoặc President/Vice President trong Club_Member
+    if ((int)$ev['ManagerID'] === $accountId || in_array($ev['MemberRole'], ['President', 'Vice President'], true)) {
+        return true;
+    }
+
+    // Kiểm tra xem có nằm trong bảng Event_Staff của sự kiện này không
+    $staffStmt = $pdo->prepare("
+        SELECT EventStaffID, StaffRole 
+        FROM Event_Staff 
+        WHERE EventID = :eid AND AccountID = :aid
+        LIMIT 1
+    ");
+    $staffStmt->execute([':eid' => $eventId, ':aid' => $accountId]);
+    $staff = $staffStmt->fetch();
+
+    return !empty($staff);
+}
+
+/**
+ * Lấy vai trò cụ thể của cán bộ trong sự kiện (hoặc null nếu không phải staff)
+ */
+function get_user_event_staff_role(PDO $pdo, int $eventId, int $accountId): ?string {
+    $staffStmt = $pdo->prepare("
+        SELECT StaffRole 
+        FROM Event_Staff 
+        WHERE EventID = :eid AND AccountID = :aid
+        LIMIT 1
+    ");
+    $staffStmt->execute([':eid' => $eventId, ':aid' => $accountId]);
+    $role = $staffStmt->fetchColumn();
+    return $role ?: null;
+}
+
+/**
+ * Lấy danh sách ban tổ chức / cán bộ phụ trách sự kiện (Event_Staff)
+ */
+function get_event_staff_list(PDO $pdo, int $eventId): array {
+    $stmt = $pdo->prepare("
+        SELECT es.*, a.FullName, a.StudentCode, a.Email, a.Phone, a.Major, a.Cohort,
+               d.DepartmentName, d.DepartmentCode, cm.MemberRole
+        FROM Event_Staff es
+        JOIN Account a ON a.AccountID = es.AccountID
+        LEFT JOIN Event e ON e.EventID = es.EventID
+        LEFT JOIN Club_Member cm ON cm.AccountID = a.AccountID AND cm.ClubID = e.ClubID
+        LEFT JOIN Department d ON d.DepartmentID = cm.DepartmentID
+        WHERE es.EventID = :eid
+        ORDER BY CASE WHEN es.StaffRole = 'Organizer' THEN 1 
+                      WHEN es.StaffRole = 'Checkin_Lead' THEN 2 
+                      WHEN es.StaffRole = 'MC' THEN 3
+                      WHEN es.StaffRole = 'Support' THEN 4
+                      ELSE 5 END, 
+                 a.FullName ASC
+    ");
+    $stmt->execute([':eid' => $eventId]);
+    return $stmt->fetchAll();
 }

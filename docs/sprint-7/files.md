@@ -20,5 +20,12 @@
 | 8 | `app/includes/workspace_layout.php` | SCR08: Khung giao diện Workspace (Left-Sidebar Navigation cố định) dành cho Ban Điều Hành & Thành viên CLB | UAT 20, 06, 13 | 🟡 Đang tạo mới |
 | 9 | `app/modules/dashboard/index.php` | SCR09: Workspace Dashboard tổng hợp chỉ số hoạt động, lối tắt quản trị và widget Mini Dot Calendar | UAT 18, 20 | 🟡 Đang tạo mới |
 | 10 | `app/modules/club/info.php` | Hiển thị thông tin CLB & 4 phòng ban, nút Sửa CLB chỉ hiển thị duy nhất tại đây khi đăng nhập BĐH | UAT 05, 06, 13, 20 | ✅ Đã commit (`f2d08b6`) |
-| 11 | `docs/sprint-7/plan.md` | Cập nhật kế hoạch chi tiết Phase 2 | UAT 18, 20, 06, 13 | ✅ Đã cập nhật |
-| 12 | `docs/sprint-7/files.md` | Cập nhật danh mục theo dõi tệp tin Phase 2 | UAT 18, 20, 06, 13 | ✅ Đã cập nhật |
+| 11 | `docs/sprint-7/plan.md` | Cập nhật kế hoạch chi tiết Phase 2 & Phase 3 | UAT 18, 20, 06, 13, 14, 15, 16, 08, 11, 10 | ✅ Đã cập nhật |
+| 12 | `docs/sprint-7/files.md` | Cập nhật danh mục theo dõi tệp tin Phase 2 & Phase 3 | UAT 18, 20, 06, 13, 14, 15, 16, 08, 11, 10 | ✅ Đã cập nhật |
+| 13 | `app/modules/events/console.php` | SCR12: Unified Event Console hợp nhất 4 tabs (Tổng quan, Điểm danh realtime polling 3s, Ban tổ chức, Thống kê), xuất CSV và Walk-in check-in | UAT 14, 15, 16, 08, 11, 17 | 🟢 Sẵn sàng duyệt |
+| 14 | `app/modules/events/my_events.php` | SCR13: Tách rõ 2 tab "Sự kiện tôi điều hành/hỗ trợ" (Event_Staff) vs "Sự kiện tôi tham gia" (Participant) | UAT 10 | 🟢 Sẵn sàng duyệt |
+| 15 | `app/modules/events/form.php` | SCR11: Ràng buộc bắt buộc chọn tối thiểu 2 cán bộ BĐH khi tạo sự kiện mới, lưu vào `Event_Staff` | UAT 10 | 🟢 Sẵn sàng duyệt |
+| 16 | `app/includes/event_helpers.php` | Bổ sung hàm kiểm tra quyền RBAC tầng 3 `can_user_checkin_event()` và lấy danh sách Event Staff | UAT 08, 11 | 🟢 Sẵn sàng duyệt |
+| 17 | `app/modules/attendance/checkin.php` | Siết chặt RBAC Tầng 3, chỉ cho phép cán bộ trong `Event_Staff` hoặc Manager của sự kiện mở bàn điểm danh | UAT 08, 11, 17 | 🟢 Sẵn sàng duyệt |
+| 18 | `app/modules/attendance/stats.php` | Bổ sung nút truy cập trực tiếp vào Event Console cho từng sự kiện | UAT 14, 16 | 🟢 Sẵn sàng duyệt |
+| 19 | `database/schema_and_seed.sql` | Nạp dữ liệu mẫu ban tổ chức `Event_Staff` cho toàn bộ 5 sự kiện đạt chuẩn tối thiểu 2 BĐH | UAT 10 | 🟢 Sẵn sàng duyệt |

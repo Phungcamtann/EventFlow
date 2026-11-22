@@ -28,6 +28,11 @@ if ($clubIds === []) {
     render_forbidden_page('Tài khoản của bạn chưa được gán cho CLB nào để điểm danh.');
 }
 
+// Kiểm tra RBAC Tầng 3 (UAT 08, 11): Chỉ cán bộ trong Event_Staff hoặc Manager mới được check-in
+if ($eventId > 0 && !can_user_checkin_event($pdo, $eventId, (int)current_user_id())) {
+    render_forbidden_page('Bạn không được chỉ định trong Ban Tổ Chức (Event Staff) của sự kiện này nên không có quyền mở bàn điểm danh (RBAC Tầng 3 · UAT 08, 11).');
+}
+
 /**
  * Điểm danh một người có sẵn trong danh sách đăng ký. Trả về [bool, thông báo].
  * Khóa dòng đăng ký (FOR UPDATE); Attendance.RegID là UNIQUE nên chặn trùng ở tầng DB.
@@ -278,6 +283,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         set_flash('danger', 'Không tìm thấy sự kiện hoặc bạn không thuộc CLB tổ chức sự kiện này.');
         header('Location: ' . $pageUrl);
         exit;
+    }
+
+    if (!can_user_checkin_event($pdo, $eventId, (int)current_user_id())) {
+        if ($isAjax) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['success' => false, 'message' => 'Bạn không thuộc ban tổ chức (Event Staff) của sự kiện này nên không có quyền điểm danh (UAT 08, 11).']);
+            exit;
+        }
+        render_forbidden_page('Bạn không được chỉ định trong Ban Tổ Chức (Event Staff) của sự kiện này nên không có quyền mở bàn điểm danh (RBAC Tầng 3 · UAT 08, 11).');
     }
 
     $action = $_POST['action'] ?? '';
@@ -572,6 +586,9 @@ require_once __DIR__ . '/../../includes/header.php';
             <p class="text-muted small mb-0"><?= $h(event_fmt_dt($evt['StartTime'])) ?> · <?= $h($evt['Location']) ?></p>
         </div>
         <div class="d-flex flex-wrap align-items-center gap-2 text-md-end">
+            <a href="<?= base_url('app/modules/events/console.php?id=' . $eventId . '#checkin') ?>" class="btn btn-primary btn-sm rounded-pill px-3 fw-semibold">
+                <i class="bi bi-sliders me-1"></i> Mở Unified Event Console
+            </a>
             <a href="<?= base_url('app/modules/attendance/registrations.php?event_id=' . $eventId) ?>" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-people me-1"></i> Danh sách đăng ký
             </a>

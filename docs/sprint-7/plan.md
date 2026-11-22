@@ -36,39 +36,48 @@
 
 ---
 
-#### 🚀 Phase 2: Dual-Portal Layout & Lịch Tương Tác Notion Calendar (UAT 18, 20, 06, 13) — ĐANG TRIỂN KHAI
-- [ ] **Public Portal & Top Navigation (`app/includes/header.php`, `app/includes/footer.php`):**
-  - [ ] Chuẩn hóa thanh điều hướng công khai: Trang chủ | Câu Lạc Bộ | Sự kiện | Lịch sự kiện | Đăng nhập / Bàn làm việc BĐH.
-  - [ ] Loại bỏ hoàn toàn các nút truy cập trùng lặp ngoài menu: Không để nút Sửa CLB hoặc Điểm danh rải rác trên Top-nav (UAT 06, 13).
-  - [ ] Nút "Sửa thông tin CLB" chỉ hiển thị duy nhất trên `app/modules/club/info.php` dạng nút hành động nổi khi đăng nhập là President hoặc Vice President.
-- [ ] **Đại tu Trang chủ Công chúng (`index.php`):**
-  - [ ] Mở quyền truy cập tự do cho khách vãng lai (không bắt buộc đăng nhập).
-  - [ ] Banner Slider (Bootstrap Carousel) trình chiếu 3 slide hoạt động nổi bật của CLB BELL UEH.
-  - [ ] Khối 4 Sự Kiện Hot (4 cards dạng lưới hiển thị danh mục, thời gian, địa điểm, trạng thái thời gian thực và CTA Xem chi tiết).
-  - [ ] Mini Dot Calendar Widget: Khối lịch tháng thu nhỏ có dấu chấm tròn màu xanh dưới các ngày có sự kiện.
-  - [ ] Nút điều hướng "Xem tất cả sự kiện →" dẫn đến trang danh mục công khai.
-- [ ] **Trang Danh mục Sự kiện Công khai (`app/modules/events/index.php`):**
-  - [ ] Hiển thị danh mục sự kiện công khai với bộ lọc trạng thái (Đang mở ĐK, Sắp mở ĐK...), tìm kiếm theo tên và phòng ban phụ trách.
-- [ ] **Mô-đun Lịch Sự Kiện Notion Calendar (`app/modules/events/calendar.php`) (UAT 18):**
-  - [ ] Thanh điều khiển: Tiêu đề Tháng/Năm, chuyển tháng/tuần `< >`, nút `Today` quay về hôm nay, nút toggle chế độ xem `Tháng` / `Tuần`.
-  - [ ] **Chế độ Lịch Tháng (Month View Grid):**
-    - Lưới 7 cột (Sun – Sat), ô ngày có số ngày và danh sách **Event Pills** mang phong cách Notion (Emoji icon, tên rút gọn, pill màu pastel theo phòng ban/trạng thái).
-    - Bấm vào pill mở Modal/Offcanvas xem nhanh thông tin sự kiện.
-  - [ ] **Chế độ Lịch Tuần (Week / Timeline View):**
-    - Trục ngang 7 ngày trong tuần được chọn (đánh dấu ngày Hôm nay nổi bật).
-    - Trục dọc từ **07:00 đến 22:00** (15 khung giờ).
-    - **Vạch đỏ thời gian thực (Current Time Red Line):** Vạch ngang màu đỏ định vị chính xác vị trí thời gian hiện tại kèm nhãn giờ trực tiếp (VD: `10:15 AM`).
-    - Các khối sự kiện được căn vị trí `top` và `height` theo `StartTime` và `EndTime`, màu sắc trực quan theo phòng ban.
-  - [ ] Tích hợp API/Dữ liệu JSON tức thời giúp chuyển đổi tháng/tuần không độ trễ.
-- [ ] **Khung Giao Diện Workspace (Left-Sidebar) (`app/includes/workspace_layout.php`) & Dashboard (`app/modules/dashboard/index.php`):**
-  - [ ] Thanh điều hướng cố định bên trái (Modern Left-Sidebar Navigation) cho Ban Điều Hành: Dashboard, Lịch Notion, Quản trị Sự kiện, Nhân sự & Phòng ban, Tuyển quân, Tài khoản.
-  - [ ] Trang Dashboard BĐH (`app/modules/dashboard/index.php`) tổng hợp chỉ số, lối tắt nghiệp vụ và widget Mini Dot Calendar.
-- [ ] **Kiểm thử thủ công và chờ người dùng duyệt để commit `SP7_Fix_UAT18_20_06_13`.**
+#### 🚀 Phase 2: Dual-Portal Layout & Lịch Tương Tác Notion Calendar (UAT 18, 20, 06, 13) — ĐÃ HOÀN THÀNH (Đã commit `c42e97d`, `bb34408`)
+- [x] **Public Portal & Top Navigation (`app/includes/header.php`, `app/includes/footer.php`):**
+  - [x] Chuẩn hóa thanh điều hướng công khai: Trang chủ | Câu Lạc Bộ | Sự kiện | Đăng nhập / Quản lý CLB.
+  - [x] Loại bỏ hoàn toàn các nút truy cập trùng lặp ngoài menu: Không để nút Sửa CLB hoặc Điểm danh rải rác trên Top-nav (UAT 06, 13).
+  - [x] Tối ưu trải nghiệm Member: Không có nút "Sự kiện của tôi" trên Top Nav; truy cập qua Avatar mở trang truyền thống không Left-Sidebar.
+- [x] **Đại tu Trang chủ Công chúng (`index.php`):**
+  - [x] Mở quyền truy cập tự do cho khách vãng lai (không bắt buộc đăng nhập).
+  - [x] Banner Slider (Bootstrap Carousel) trình chiếu 3 slide hoạt động nổi bật của CLB BELL UEH.
+  - [x] Khối 4 Sự Kiện Hot (4 cards dạng lưới hiển thị danh mục, thời gian, địa điểm, trạng thái thời gian thực và CTA Xem chi tiết).
+  - [x] Mini Dot Calendar Widget: Khối lịch tháng thu nhỏ có dấu chấm tròn màu xanh dưới các ngày có sự kiện.
+  - [x] Nút điều hướng "Xem tất cả sự kiện →" dẫn đến trang danh mục công khai.
+- [x] **Trang Danh mục Sự kiện Công khai (`app/modules/events/index.php`):**
+  - [x] Hiển thị danh mục sự kiện công khai với bộ lọc trạng thái (Đang mở ĐK, Sắp mở ĐK...), tìm kiếm theo tên và phòng ban phụ trách.
+- [x] **Mô-đun Lịch Sự Kiện Notion Calendar (`app/modules/events/calendar.php`) (UAT 18):**
+  - [x] Loại bỏ toàn bộ từ ngữ "Notion", chuẩn hóa thành "Lịch Sự Kiện" và "Lịch Hoạt Động CLB".
+  - [x] Chế độ Lịch Tháng (Event Pills) và Lịch Tuần (Timeline 07:00 – 22:00 có vạch đỏ giờ thực).
+- [x] **Khung Giao Diện Workspace & Single Container (`app/modules/dashboard/index.php`):**
+  - [x] Left-Sidebar Navigation trượt nổi phong cách Midnight Navy.
+  - [x] Hợp nhất mục "Thông tin CLB" (gộp hồ sơ tổng quan và form cập nhật vào một khối).
+  - [x] Xóa bỏ nút "Ra Cổng Công Chúng" và nút "Mở trang độc lập".
+- [x] **Đã commit:** `c42e97d SP7_Fix_UAT18_20_06_13_Part1` và `bb34408 SP7_Fix_UAT18_20_06_13_Part2`.
 
-#### ⏳ Phase 3: Unified Event Console & Staffing RBAC & My Events Dual-Tab (UAT 14, 15, 16, 08, 11, 10)
-- [ ] Hợp nhất `console.php` với 4 tabs: Tổng quan, Điểm danh Realtime Polling 3s, Phân công BTC (ràng buộc min 2 BĐH), Thống kê.
-- [ ] Siết chặt RBAC điểm danh: Chỉ nhân sự trong `Event_Staff` của sự kiện X mới được check-in sự kiện X.
-- [ ] Tách "Sự kiện của tôi" thành 2 tabs: Quản lý/Hỗ trợ vs Tham gia.
+---
+
+#### 🚀 Phase 3: Unified Event Console & Staffing RBAC & My Events Dual-Tab (UAT 14, 15, 16, 08, 11, 10) — ĐANG TRIỂN KHAI
+- [x] **Xây dựng Unified Event Console (`app/modules/dashboard/index.php#event-console` & `console.php`):**
+  - [x] Nhúng trực tiếp khối Điều Hành Console vào Workspace Single Container giữ trọn vẹn Left Menu Midnight Navy và Top-Nav.
+  - [x] Hợp nhất 4 tabs toàn diện: Tổng quan & Chỉnh sửa (Tab 1), Điểm danh Realtime Polling 3s (Tab 2), Ban Tổ Chức & Phân công cán bộ (Tab 3), Thống kê tỷ lệ check-in & phân bổ (Tab 4).
+  - [x] Loại bỏ nút cây bút trùng lặp ở bảng sự kiện (chỉ giữ nút Sliders Console và Con Mắt xem công khai).
+  - [x] Loại bỏ nút "Xem trang công khai" và nút "Quay về" thừa trong console.
+  - [x] Xuất dữ liệu điểm danh sang file CSV (UTF-8 BOM hỗ trợ Excel tiếng Việt).
+  - [x] Bàn điểm danh bổ sung Walk-in check-in tích hợp tra cứu tức thì (Modal popup AJAX).
+- [x] **Siết chặt RBAC tầng 3:**
+  - [x] Chỉ cán bộ được chỉ định trong `Event_Staff` hoặc Club Manager / Admin của sự kiện X mới được mở bàn điểm danh và check-in cho sự kiện X.
+  - [x] Chặn trái quyền ở cả `console.php` và `checkin.php`.
+- [x] **Ràng buộc tối thiểu 2 cán bộ BĐH (UAT 10):**
+  - [x] Bắt buộc chọn $\ge 2$ cán bộ BĐH khi tạo sự kiện mới ở cả `form.php` và `dashboard/index.php`.
+  - [x] Khóa chức năng xóa cán bộ nếu sự kiện chỉ còn đúng 2 cán bộ BĐH phụ trách.
+- [x] **Tách "Sự kiện của tôi" thành 2 tabs rõ ràng:**
+  - [x] "Sự kiện tôi điều hành / hỗ trợ" (Event_Staff) với nút mở bàn điều hành Console.
+  - [x] "Sự kiện tôi tham gia" (Participant) với trạng thái điểm danh thực tế.
+  - [x] Áp dụng đồng bộ ở cả `app/modules/events/my_events.php` và `app/modules/dashboard/index.php#my-events`.
 
 #### ⏳ Phase 4: Đăng Ký Khách Vãng Lai & Phễu Tuyển Quân Cấp Tài Khoản Tự Động (UAT 02, 09)
 - [ ] Đăng ký sự kiện khách vãng lai (Họ tên, MSSV, SĐT, Email) chống trùng lặp & bảo vệ quota.

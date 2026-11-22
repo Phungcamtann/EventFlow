@@ -322,13 +322,23 @@ INSERT INTO Event (EventID, ClubID, EventName, Description, Location, StartTime,
 (2, 1, 'Debate Masterclass: British Parliamentary', 'Workshop chuyên sâu về kỹ năng tranh biện và phản biện tiếng Anh quốc tế.', 'Hội trường B1.302 - Cơ sở B UEH', '2026-11-28 14:00:00', '2026-11-28 17:00:00', '2026-11-20 08:00:00', '2026-11-27 18:00:00', 60, 2, 'Published')
 ON DUPLICATE KEY UPDATE EventName = VALUES(EventName);
 
--- Phân công BTC Event_Staff (Tối thiểu 2 cán bộ)
+-- Phân công BTC Event_Staff (Tối thiểu 2 cán bộ - UAT 10)
 INSERT INTO Event_Staff (EventID, AccountID, StaffRole, AssignedBy) VALUES
 (1, 2, 'Organizer', 2),
 (1, 4, 'Checkin_Lead', 2),
 (1, 6, 'Support', 2),
 (2, 3, 'Organizer', 2),
-(2, 7, 'Checkin_Lead', 2)
+(2, 7, 'Checkin_Lead', 2),
+(3, 8, 'Organizer', 2),
+(3, 9, 'Checkin_Lead', 2),
+(3, 10, 'Support', 2),
+(4, 6, 'Organizer', 2),
+(4, 7, 'Checkin_Lead', 2),
+(4, 4, 'MC', 2),
+(5, 2, 'Organizer', 2),
+(5, 3, 'Organizer', 2),
+(5, 10, 'Checkin_Lead', 2),
+(5, 11, 'Support', 2)
 ON DUPLICATE KEY UPDATE StaffRole = VALUES(StaffRole);
 
 -- Chiến dịch tuyển quân mẫu

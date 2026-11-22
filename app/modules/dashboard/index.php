@@ -28,6 +28,92 @@ $isStaffOrManager = is_club_manager() || is_authorized_club_member();
 $isAdmin = is_system_admin();
 
 // ============================================================================
+// XỬ LÝ AJAX POLLING VÀ TRA CỨU CONSOLE (UAT 17)
+// ============================================================================
+if (isset($_GET['ajax']) && $_GET['ajax'] === 'get_attendance_status') {
+    session_write_close();
+    header('Content-Type: application/json; charset=utf-8');
+    $cEvtId = (int)($_GET['event_id'] ?? $_GET['id'] ?? 1);
+    $syncStmt = $pdo->prepare("
+        SELECT r.RegID, a.FullName, a.StudentCode,
+               att.AttendanceStatus, att.CheckInAt
+        FROM Event_Registration r
+        JOIN Account a ON a.AccountID = r.AccountID
+        LEFT JOIN Attendance att ON att.RegID = r.RegID
+        WHERE r.EventID = :eid AND r.Status = 'Registered'
+        ORDER BY a.FullName ASC
+    ");
+    $syncStmt->execute([':eid' => $cEvtId]);
+    $syncRows = $syncStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $total = count($syncRows);
+    $checked = 0;
+    $items = [];
+    foreach ($syncRows as $row) {
+        $isChecked = ($row['AttendanceStatus'] !== null && (int)$row['AttendanceStatus'] === 1);
+        if ($isChecked) $checked++;
+        $items[] = [
+            'reg_id'        => (int)$row['RegID'],
+            'fullname'      => $row['FullName'],
+            'student_code'  => $row['StudentCode'] ?? '',
+            'is_checked_in' => $isChecked,
+            'checked_in_at' => !empty($row['CheckInAt']) ? date('H:i d/m', strtotime($row['CheckInAt'])) : null
+        ];
+    }
+    echo json_encode([
+        'success' => true,
+        'stats'   => [
+            'total'   => $total,
+            'checked' => $checked,
+            'percent' => $total > 0 ? round(($checked / $total) * 100, 1) : 0
+        ],
+        'items'   => $items
+    ]);
+    exit;
+}
+
+if (isset($_GET['ajax']) && $_GET['ajax'] === 'search_candidates') {
+    session_write_close();
+    header('Content-Type: application/json; charset=utf-8');
+    $cEvtId = (int)($_GET['event_id'] ?? $_GET['id'] ?? 1);
+    $q = trim($_GET['q'] ?? '');
+    if (mb_strlen($q) < 2) {
+        echo json_encode([]);
+        exit;
+    }
+    $qLike = '%' . $q . '%';
+    $searchStmt = $pdo->prepare("
+        SELECT a.AccountID, a.FullName, a.StudentCode, a.Email
+        FROM Account a
+        LEFT JOIN Event_Registration r ON r.AccountID = a.AccountID AND r.EventID = :eid
+        LEFT JOIN Attendance att ON att.RegID = r.RegID
+        WHERE a.IsActive = 1
+          AND (att.AttendanceID IS NULL)
+          AND (a.FullName LIKE :q1 OR a.StudentCode LIKE :q2 OR a.Email LIKE :q3)
+        ORDER BY a.FullName ASC
+        LIMIT 10
+    ");
+    $searchStmt->execute([
+        ':eid' => $cEvtId,
+        ':q1'  => $qLike,
+        ':q2'  => $qLike,
+        ':q3'  => $qLike,
+    ]);
+    $candidates = $searchStmt->fetchAll(PDO::FETCH_ASSOC);
+    $results = [];
+    foreach ($candidates as $cand) {
+        $results[] = [
+            'account_id'   => (int)$cand['AccountID'],
+            'fullname'     => $cand['FullName'],
+            'student_code' => $cand['StudentCode'] ?? '',
+            'email'        => $cand['Email']
+        ];
+    }
+    echo json_encode($results);
+    exit;
+}
+
+// ============================================================================
 // XỬ LÝ POST REQUESTS (Tạo sự kiện, Cập nhật CLB, Cập nhật Hồ sơ, Đổi mật khẩu)
 // ============================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -247,6 +333,237 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: ' . base_url('app/modules/dashboard/index.php#admin-accounts'));
         exit;
     }
+
+    // 8. ĐIỂM DANH SỰ KIỆN TỪ CONSOLE (Check-in)
+    elseif ($action === 'console_checkin') {
+        $cEvtId = (int)($_POST['event_id'] ?? 0);
+        $regId = (int)($_POST['reg_id'] ?? 0);
+        $isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') || isset($_POST['ajax']);
+
+        try {
+            $pdo->beginTransaction();
+            $insAtt = $pdo->prepare("
+                INSERT INTO Attendance (RegID, AttendanceStatus, CheckInAt, CheckedInBy) 
+                VALUES (:r, 1, NOW(), :by)
+                ON DUPLICATE KEY UPDATE AttendanceStatus = 1, CheckInAt = NOW(), CheckedInBy = :by2
+            ");
+            $insAtt->execute([':r' => $regId, ':by' => $userId, ':by2' => $userId]);
+            $pdo->commit();
+
+            if ($isAjax) {
+                header('Content-Type: application/json; charset=utf-8');
+                echo json_encode(['success' => true, 'action' => 'checkin', 'reg_id' => $regId, 'checked_in_at' => date('H:i d/m')]);
+                exit;
+            }
+            set_flash('success', 'Đã ghi nhận điểm danh thành công.');
+        } catch (Throwable $ex) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            if ($isAjax) { header('Content-Type: application/json'); echo json_encode(['success' => false, 'message' => $ex->getMessage()]); exit; }
+            set_flash('danger', 'Lỗi điểm danh: ' . $ex->getMessage());
+        }
+        header("Location: " . base_url("app/modules/dashboard/index.php?event_id={$cEvtId}#event-console"));
+        exit;
+    }
+
+    // 9. HỦY ĐIỂM DANH TỪ CONSOLE (Undo Check-in)
+    elseif ($action === 'console_undo_checkin') {
+        $cEvtId = (int)($_POST['event_id'] ?? 0);
+        $regId = (int)($_POST['reg_id'] ?? 0);
+        $isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') || isset($_POST['ajax']);
+
+        try {
+            $del = $pdo->prepare("DELETE FROM Attendance WHERE RegID = :r");
+            $del->execute([':r' => $regId]);
+            if ($isAjax) {
+                header('Content-Type: application/json; charset=utf-8');
+                echo json_encode(['success' => true, 'action' => 'undo', 'reg_id' => $regId]);
+                exit;
+            }
+            set_flash('success', 'Đã hủy điểm danh.');
+        } catch (Throwable $ex) {
+            if ($isAjax) { header('Content-Type: application/json'); echo json_encode(['success' => false, 'message' => $ex->getMessage()]); exit; }
+            set_flash('danger', 'Lỗi hủy điểm danh: ' . $ex->getMessage());
+        }
+        header("Location: " . base_url("app/modules/dashboard/index.php?event_id={$cEvtId}#event-console"));
+        exit;
+    }
+
+    // 10. ĐIỂM DANH VÃNG LAI (Walk-in Check-in)
+    elseif ($action === 'console_walkin_checkin') {
+        $cEvtId = (int)($_POST['event_id'] ?? 0);
+        $targetAccId = (int)($_POST['target_account_id'] ?? 0);
+
+        try {
+            $pdo->beginTransaction();
+            $chkReg = $pdo->prepare("SELECT RegID FROM Event_Registration WHERE EventID = :eid AND AccountID = :aid LIMIT 1");
+            $chkReg->execute([':eid' => $cEvtId, ':aid' => $targetAccId]);
+            $existingRegId = $chkReg->fetchColumn();
+
+            if (!$existingRegId) {
+                $insReg = $pdo->prepare("
+                    INSERT INTO Event_Registration (EventID, AccountID, RegDate, Status) 
+                    VALUES (:eid, :aid, NOW(), 'Registered')
+                ");
+                $insReg->execute([':eid' => $cEvtId, ':aid' => $targetAccId]);
+                $existingRegId = (int)$pdo->lastInsertId();
+            }
+
+            $insAtt = $pdo->prepare("
+                INSERT INTO Attendance (RegID, AttendanceStatus, CheckInAt, CheckedInBy) 
+                VALUES (:r, 1, NOW(), :by)
+                ON DUPLICATE KEY UPDATE AttendanceStatus = 1, CheckInAt = NOW(), CheckedInBy = :by2
+            ");
+            $insAtt->execute([':r' => $existingRegId, ':by' => $userId, ':by2' => $userId]);
+            $pdo->commit();
+
+            set_flash('success', "Đã ghi nhận điểm danh vãng lai (Walk-in) thành công.");
+        } catch (Throwable $ex) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            set_flash('danger', 'Lỗi điểm danh vãng lai: ' . $ex->getMessage());
+        }
+        header("Location: " . base_url("app/modules/dashboard/index.php?event_id={$cEvtId}#event-console"));
+        exit;
+    }
+
+    // 11. THÊM CÁN BỘ VÀO BAN TỔ CHỨC
+    elseif ($action === 'console_add_staff') {
+        $cEvtId = (int)($_POST['event_id'] ?? 0);
+        $staffAccId = (int)($_POST['staff_account_id'] ?? 0);
+        $staffRole = trim($_POST['staff_role'] ?? 'Support');
+
+        $allowedRoles = ['Organizer', 'Checkin_Lead', 'Support', 'MC'];
+        if (!in_array($staffRole, $allowedRoles, true)) $staffRole = 'Support';
+
+        if ($staffAccId > 0) {
+            try {
+                $ins = $pdo->prepare("
+                    INSERT INTO Event_Staff (EventID, AccountID, StaffRole, AssignedBy, AssignedAt)
+                    VALUES (:eid, :aid, :role, :by, NOW())
+                    ON DUPLICATE KEY UPDATE StaffRole = :role2, AssignedBy = :by2, AssignedAt = NOW()
+                ");
+                $ins->execute([':eid' => $cEvtId, ':aid' => $staffAccId, ':role' => $staffRole, ':by' => $userId, ':role2' => $staffRole, ':by2' => $userId]);
+                set_flash('success', 'Đã phân công cán bộ vào Ban Tổ Chức sự kiện thành công.');
+            } catch (Throwable $ex) {
+                set_flash('danger', 'Lỗi phân công: ' . $ex->getMessage());
+            }
+        }
+        header("Location: " . base_url("app/modules/dashboard/index.php?event_id={$cEvtId}#event-console"));
+        exit;
+    }
+
+    // 12. XÓA CÁN BỘ KHỎI BAN TỔ CHỨC (Bảo vệ tối thiểu 2 cán bộ - UAT 10)
+    elseif ($action === 'console_remove_staff') {
+        $cEvtId = (int)($_POST['event_id'] ?? 0);
+        $staffAccId = (int)($_POST['staff_account_id'] ?? 0);
+
+        $cntStmt = $pdo->prepare("SELECT COUNT(*) FROM Event_Staff WHERE EventID = :eid");
+        $cntStmt->execute([':eid' => $cEvtId]);
+        $currentStaffCount = (int)$cntStmt->fetchColumn();
+
+        if ($currentStaffCount <= 2) {
+            set_flash('danger', 'Không thể xóa cán bộ này. Quy định bắt buộc sự kiện phải có tối thiểu 2 cán bộ BĐH (UAT 10).');
+        } else {
+            $del = $pdo->prepare("DELETE FROM Event_Staff WHERE EventID = :eid AND AccountID = :aid");
+            $del->execute([':eid' => $cEvtId, ':aid' => $staffAccId]);
+            set_flash('success', 'Đã xóa cán bộ khỏi danh sách Ban Tổ Chức.');
+        }
+        header("Location: " . base_url("app/modules/dashboard/index.php?event_id={$cEvtId}#event-console"));
+        exit;
+    }
+
+    // 13. CẬP NHẬT THÔNG TIN SỰ KIỆN TỪ TAB 1 CỦA CONSOLE
+    elseif ($action === 'console_update_event') {
+        $cEvtId = (int)($_POST['event_id'] ?? 0);
+        $name = trim($_POST['event_name'] ?? '');
+        $desc = trim($_POST['description'] ?? '');
+        $loc = trim($_POST['location'] ?? '');
+        $start = trim($_POST['start_time'] ?? '');
+        $end = trim($_POST['end_time'] ?? '');
+        $regStart = trim($_POST['reg_start'] ?? '');
+        $regEnd = trim($_POST['reg_end'] ?? '');
+        $cap = max(1, (int)($_POST['capacity'] ?? 50));
+        $status = in_array($_POST['status'] ?? '', ['Draft', 'Published', 'Cancelled'], true) ? $_POST['status'] : 'Published';
+
+        if ($name === '' || $loc === '' || $start === '' || $end === '') {
+            set_flash('danger', 'Vui lòng điền đầy đủ các thông tin bắt buộc.');
+        } elseif ($start >= $end) {
+            set_flash('danger', 'Thời gian kết thúc phải diễn ra sau thời gian bắt đầu.');
+        } else {
+            try {
+                $upStmt = $pdo->prepare("
+                    UPDATE Event
+                    SET EventName = :name, Description = :desc, Location = :loc,
+                        StartTime = :start, EndTime = :end,
+                        RegistrationStartTime = :rstart, RegistrationDeadline = :rend,
+                        MaxCapacity = :cap, Status = :status
+                    WHERE EventID = :eid
+                ");
+                $upStmt->execute([
+                    ':name'   => $name,
+                    ':desc'   => $desc,
+                    ':loc'    => $loc,
+                    ':start'  => $start,
+                    ':end'    => $end,
+                    ':rstart' => $regStart ?: $now,
+                    ':rend'   => $regEnd ?: $start,
+                    ':cap'    => $cap,
+                    ':status' => $status,
+                    ':eid'    => $cEvtId
+                ]);
+                set_flash('success', 'Cập nhật thông tin sự kiện thành công.');
+            } catch (Throwable $ex) {
+                set_flash('danger', 'Lỗi cập nhật: ' . $ex->getMessage());
+            }
+        }
+        header("Location: " . base_url("app/modules/dashboard/index.php?event_id={$cEvtId}#event-console"));
+        exit;
+    }
+
+    // 14. XUẤT CSV TỪ CONSOLE
+    elseif ($action === 'console_export_csv') {
+        $cEvtId = (int)($_POST['event_id'] ?? 0);
+        $expEvt = $pdo->query("SELECT EventName FROM Event WHERE EventID = $cEvtId LIMIT 1")->fetch();
+        $evtName = $expEvt['EventName'] ?? 'Event';
+
+        $expStmt = $pdo->prepare("
+            SELECT r.RegID, a.FullName, a.StudentCode, a.Email, a.Phone, a.Major, a.Cohort,
+                   r.RegDate, att.AttendanceStatus, att.CheckInAt
+            FROM Event_Registration r
+            JOIN Account a ON a.AccountID = r.AccountID
+            LEFT JOIN Attendance att ON att.RegID = r.RegID
+            WHERE r.EventID = :eid AND r.Status = 'Registered'
+            ORDER BY a.FullName ASC
+        ");
+        $expStmt->execute([':eid' => $cEvtId]);
+        $attendees = $expStmt->fetchAll();
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="DiemDanh_' . preg_replace('/[^A-Za-z0-9_]/', '', $evtName) . '_' . date('Ymd_His') . '.csv"');
+        echo "\xEF\xBB\xBF";
+        $fp = fopen('php://output', 'w');
+        fputcsv($fp, ['STT', 'Mã Đăng Ký', 'Họ Và Tên', 'MSSV', 'Email', 'Số Điện Thoại', 'Chuyên Ngành', 'Khóa', 'Thời Gian Đăng Ký', 'Trạng Thái Điểm Danh', 'Thời Gian Check-in']);
+
+        $stt = 1;
+        foreach ($attendees as $att) {
+            $statusText = ($att['AttendanceStatus'] !== null && (int)$att['AttendanceStatus'] === 1) ? 'Đã Tham Dự' : 'Vắng Mặt';
+            $checkTime = !empty($att['CheckInAt']) ? date('d/m/Y H:i:s', strtotime($att['CheckInAt'])) : '';
+            fputcsv($fp, [
+                $stt++,
+                $att['RegID'],
+                $att['FullName'],
+                $att['StudentCode'] ?? '',
+                $att['Email'],
+                $att['Phone'] ?? '',
+                $att['Major'] ?? '',
+                $att['Cohort'] ?? '',
+                date('d/m/Y H:i', strtotime($att['RegDate'])),
+                $statusText,
+                $checkTime
+            ]);
+        }
+        fclose($fp);
+        exit;
+    }
 }
 
 // ============================================================================
@@ -416,6 +733,117 @@ foreach ($allEvents as $evt) {
         'registered'  => (int)$evt['RegisteredCount'],
         'capacity'    => (int)($evt['MaxCapacity'] ?? 100),
     ];
+}
+
+// 10. Dữ liệu cho Khối Điều Hành Console (Event Console - UAT 14, 15, 16, 08, 11, 10, 17)
+$consoleEventId = isset($_GET['event_id']) ? (int)$_GET['event_id'] : (isset($_GET['id']) ? (int)$_GET['id'] : 0);
+if ($consoleEventId <= 0 && !empty($allEvents)) {
+    $consoleEventId = (int)$allEvents[0]['EventID'];
+}
+
+$consoleEvt = null;
+$consoleStaffRole = null;
+$consoleIsStaff = false;
+$consoleCanManage = false;
+$consoleAttendees = [];
+$consoleStaffList = [];
+$consoleStats = ['total' => 0, 'checked' => 0, 'percent' => 0, 'cap_percent' => 0];
+$majorDistribution = [];
+$cohortDistribution = [];
+$availableStaffCandidates = [];
+
+if ($consoleEventId > 0) {
+    $cStmt = $pdo->prepare("SELECT e.*, c.ClubName, c.ManagerID FROM Event e LEFT JOIN Club c ON e.ClubID = c.ClubID WHERE e.EventID = :eid LIMIT 1");
+    $cStmt->execute([':eid' => $consoleEventId]);
+    $consoleEvt = $cStmt->fetch();
+
+    if ($consoleEvt) {
+        // RBAC check (UAT 08, 11)
+        if (is_system_admin()) {
+            $consoleCanManage = true;
+            $consoleIsStaff = true;
+            $consoleStaffRole = 'Quản trị viên (Admin)';
+        } else {
+            $mgrStmt = $pdo->prepare("SELECT MemberRole FROM Club_Member WHERE ClubID = :cid AND AccountID = :aid AND Status = 'Active' LIMIT 1");
+            $mgrStmt->execute([':cid' => $consoleEvt['ClubID'], ':aid' => $userId]);
+            $cRole = $mgrStmt->fetchColumn();
+            if ((int)$consoleEvt['ManagerID'] === $userId || in_array($cRole, ['President', 'Vice President'], true)) {
+                $consoleCanManage = true;
+                $consoleIsStaff = true;
+                $consoleStaffRole = $cRole ?: 'Ban Chủ Nhiệm';
+            } else {
+                $esStmt = $pdo->prepare("SELECT StaffRole FROM Event_Staff WHERE EventID = :eid AND AccountID = :aid LIMIT 1");
+                $esStmt->execute([':eid' => $consoleEventId, ':aid' => $userId]);
+                $assignedRole = $esStmt->fetchColumn();
+                if ($assignedRole) {
+                    $consoleIsStaff = true;
+                    $consoleStaffRole = $assignedRole;
+                    if ($assignedRole === 'Organizer') {
+                        $consoleCanManage = true;
+                    }
+                }
+            }
+        }
+
+        // Query attendees
+        $attStmt = $pdo->prepare("
+            SELECT r.RegID, a.AccountID, a.FullName, a.StudentCode, a.Email, a.Phone, a.Major, a.Cohort,
+                   r.RegDate, att.AttendanceID, att.AttendanceStatus, att.CheckInAt, att.CheckedInBy,
+                   checker.FullName AS CheckedByName
+            FROM Event_Registration r
+            JOIN Account a ON a.AccountID = r.AccountID
+            LEFT JOIN Attendance att ON att.RegID = r.RegID
+            LEFT JOIN Account checker ON checker.AccountID = att.CheckedInBy
+            WHERE r.EventID = :eid AND r.Status = 'Registered'
+            ORDER BY a.FullName ASC
+        ");
+        $attStmt->execute([':eid' => $consoleEventId]);
+        $consoleAttendees = $attStmt->fetchAll();
+
+        $cTotalRegs = count($consoleAttendees);
+        $cCheckedCount = 0;
+        foreach ($consoleAttendees as $ca) {
+            if ($ca['AttendanceStatus'] !== null && (int)$ca['AttendanceStatus'] === 1) {
+                $cCheckedCount++;
+            }
+            $m = !empty($ca['Major']) ? $ca['Major'] : 'Khác';
+            $majorDistribution[$m] = ($majorDistribution[$m] ?? 0) + 1;
+            $co = !empty($ca['Cohort']) ? ('Khóa ' . $ca['Cohort']) : 'Khác';
+            $cohortDistribution[$co] = ($cohortDistribution[$co] ?? 0) + 1;
+        }
+        $cMaxCap = max(1, (int)($consoleEvt['MaxCapacity'] ?? 100));
+        $consoleStats = [
+            'total'       => $cTotalRegs,
+            'checked'     => $cCheckedCount,
+            'percent'     => $cTotalRegs > 0 ? round(($cCheckedCount / $cTotalRegs) * 100, 1) : 0,
+            'cap_percent' => round(($cTotalRegs / $cMaxCap) * 100, 1),
+        ];
+
+        // Staff list (UAT 10)
+        $stfStmt = $pdo->prepare("
+            SELECT es.EventStaffID, es.StaffRole, es.AssignedAt,
+                   a.AccountID, a.FullName, a.StudentCode, a.Email,
+                   cm.MemberRole AS ClubRole,
+                   assigner.FullName AS AssignedByName
+            FROM Event_Staff es
+            JOIN Account a ON a.AccountID = es.AccountID
+            LEFT JOIN Club_Member cm ON cm.AccountID = a.AccountID AND cm.ClubID = :cid
+            LEFT JOIN Account assigner ON assigner.AccountID = es.AssignedBy
+            WHERE es.EventID = :eid
+            ORDER BY CASE WHEN es.StaffRole = 'Organizer' THEN 1
+                          WHEN es.StaffRole = 'Checkin_Lead' THEN 2
+                          WHEN es.StaffRole = 'Support' THEN 3
+                          ELSE 4 END, a.FullName ASC
+        ");
+        $stfStmt->execute([':cid' => $consoleEvt['ClubID'], ':eid' => $consoleEventId]);
+        $consoleStaffList = $stfStmt->fetchAll();
+
+        // Available candidates for staff assignment
+        $assignedStaffIds = array_column($consoleStaffList, 'AccountID');
+        $availableStaffCandidates = array_filter($allClubMembers, function($m) use ($assignedStaffIds) {
+            return !in_array((int)$m['AccountID'], $assignedStaffIds, true);
+        });
+    }
 }
 
 // KHỞI TẠO HEADER TIÊU CHUẨN CỦA WEBSITE (THANH ĐIỀU HƯỚNG TRÊN CÙNG LUÔN HIỆN DIỆN)
@@ -759,9 +1187,6 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                 </h1>
                                 <p class="text-secondary small mb-0">Theo dõi tiến độ đăng ký, phân công ban tổ chức và điều phối sự kiện.</p>
                             </div>
-                            <button type="button" class="btn btn-sm btn-ef-primary shadow-sm" onclick="switchWorkspaceBlock('create-event', event)">
-                                <i class="bi bi-plus-lg me-1"></i> Tạo Sự Kiện Mới
-                            </button>
                         </div>
 
                         <!-- Search & Filter Controls -->
@@ -777,11 +1202,12 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                     <select id="eventStateFilter" class="form-select form-select-sm rounded-pill" style="width: auto;">
                                         <option value="ALL">Tất cả trạng thái</option>
                                         <option value="open">Đang mở đăng ký</option>
+                                        <option value="ongoing">Đang diễn ra</option>
                                         <option value="upcoming">Sắp mở đăng ký</option>
-                                        <option value="happening">Đang diễn ra</option>
-                                        <option value="deadline_passed">Đã đóng đăng ký</option>
-                                        <option value="ended">Đã kết thúc</option>
+                                        <option value="closed">Đã đóng đăng ký</option>
+                                        <option value="finished">Đã kết thúc</option>
                                         <option value="cancelled">Đã hủy</option>
+                                        <option value="draft">Bản nháp</option>
                                     </select>
                                 </div>
                             </div>
@@ -837,11 +1263,11 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                                 </td>
                                                 <td class="pe-4 py-3 text-end">
                                                     <div class="btn-group btn-group-sm">
-                                                        <a href="<?= base_url('app/modules/events/detail.php?id=' . (int)$evt['EventID']) ?>" class="btn btn-outline-primary" title="Xem chi tiết">
+                                                        <button type="button" class="btn btn-primary" onclick="openWorkspaceConsole(<?= (int)$evt['EventID'] ?>, event)" title="Trung tâm điều hành (Console)">
+                                                            <i class="bi bi-sliders"></i>
+                                                        </button>
+                                                        <a href="<?= base_url('app/modules/events/detail.php?id=' . (int)$evt['EventID']) ?>" class="btn btn-outline-secondary" title="Xem chi tiết công khai">
                                                             <i class="bi bi-eye"></i>
-                                                        </a>
-                                                        <a href="<?= base_url('app/modules/events/form.php?id=' . (int)$evt['EventID']) ?>" class="btn btn-outline-secondary" title="Sửa thông tin">
-                                                            <i class="bi bi-pencil"></i>
                                                         </a>
                                                     </div>
                                                 </td>
@@ -853,7 +1279,487 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                         </div>
                     </div>
 
-                    <!-- ======================================================
+                                        <!-- ======================================================
+                         KHỐI 2.5: TRUNG TÂM ĐIỀU HÀNH CONSOLE (BLOCK: #event-console)
+                         Hợp nhất 4 tabs: Tổng quan, Điểm danh realtime 3s, BTC, Thống kê
+                         Đáp ứng: UAT 14, 15, 16, 08, 11, 10, 17
+                         ====================================================== -->
+                    <div id="block-event-console" class="workspace-content-block d-none">
+                        <!-- Top Header & Event Switcher Toolbar -->
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+                            <div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <h1 class="h4 fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                                        <i class="bi bi-sliders text-primary"></i> Trung Tâm Điều Hành Sự Kiện
+                                    </h1>
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace" style="font-size: 0.72rem;">
+                                        Unified Console
+                                    </span>
+                                </div>
+                                <p class="text-muted small mb-0 mt-1">Bàn điều hành tích hợp: Chỉnh sửa, Điểm danh realtime 3s, Quản lý BTC & Phân tích chuyên sâu.</p>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <label class="small text-muted fw-semibold mb-0 text-nowrap"><i class="bi bi-calendar2-event me-1 text-primary"></i>Chọn sự kiện:</label>
+                                <select id="consoleEventSelect" class="form-select form-select-sm shadow-xs" style="min-width: 270px; max-width: 330px;" onchange="switchConsoleEvent(this.value)">
+                                    <?php foreach ($allEvents as $ae): ?>
+                                        <option value="<?= (int)$ae['EventID'] ?>" <?= (int)$ae['EventID'] === (int)$consoleEventId ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($ae['EventName']) ?> (<?= date('d/m/Y', strtotime($ae['StartTime'])) ?>)
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+
+                        <?php if (!$consoleEvt): ?>
+                            <div class="alert alert-warning border-0 shadow-xs rounded-3 p-4">
+                                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                Vui lòng chọn một sự kiện hợp lệ từ danh sách để bắt đầu điều hành.
+                            </div>
+                        <?php else: 
+                            $cState = event_state($consoleEvt, $consoleStats['total'], $now);
+                        ?>
+                            <!-- Selected Event Context Banner (Gọn gàng, không có nút thoát / xem công khai thừa) -->
+                            <div class="ef-card-editorial p-3.5 mb-4 bg-white border rounded-3 shadow-xs">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                    <div>
+                                        <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                                            <h2 class="h5 fw-bold text-dark mb-0"><?= htmlspecialchars($consoleEvt['EventName']) ?></h2>
+                                            <span class="badge-pill-custom <?= $cState['css_class'] ?>" style="font-size: 0.72rem;">
+                                                <?= htmlspecialchars($cState['label']) ?>
+                                            </span>
+                                            <?php if ($consoleStaffRole): ?>
+                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace" style="font-size: 0.72rem;">
+                                                    <i class="bi bi-person-badge me-1"></i><?= htmlspecialchars($consoleStaffRole) ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="text-muted small d-flex flex-wrap gap-3">
+                                            <span><i class="bi bi-geo-alt text-primary me-1"></i><?= htmlspecialchars($consoleEvt['Location']) ?></span>
+                                            <span><i class="bi bi-clock text-primary me-1"></i><?= date('H:i, d/m/Y', strtotime($consoleEvt['StartTime'])) ?> - <?= date('H:i, d/m/Y', strtotime($consoleEvt['EndTime'])) ?></span>
+                                            <span><i class="bi bi-people text-primary me-1"></i>Sức chứa tối đa: <strong><?= (int)$consoleEvt['MaxCapacity'] ?> vé</strong></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 4 KPI Stat Cards -->
+                            <div class="row g-3 mb-4">
+                                <div class="col-6 col-md-3">
+                                    <div class="ef-card-stat p-3 h-100 bg-white border rounded-3 shadow-xs">
+                                        <div class="text-muted small font-monospace" style="font-size: 0.72rem;">SỐ LƯỢNG ĐĂNG KÝ</div>
+                                        <div class="d-flex align-items-baseline gap-2 mt-1">
+                                            <span class="h4 fw-bold text-dark mb-0"><?= $consoleStats['total'] ?></span>
+                                            <span class="text-muted small">/ <?= (int)$consoleEvt['MaxCapacity'] ?></span>
+                                        </div>
+                                        <div class="text-muted small mt-1 font-monospace" style="font-size: 0.72rem;">
+                                            Tỷ lệ lấp đầy: <strong><?= $consoleStats['cap_percent'] ?>%</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <div class="ef-card-stat p-3 h-100 bg-white border rounded-3 shadow-xs">
+                                        <div class="text-muted small font-monospace" style="font-size: 0.72rem;">ĐÃ ĐIỂM DANH</div>
+                                        <div class="d-flex align-items-baseline gap-2 mt-1">
+                                            <span class="h4 fw-bold text-success mb-0" id="consoleStatCheckedCount"><?= $consoleStats['checked'] ?></span>
+                                            <span class="text-muted small">/ <?= $consoleStats['total'] ?></span>
+                                        </div>
+                                        <div class="text-muted small mt-1 font-monospace" style="font-size: 0.72rem;">
+                                            Thực tế có mặt tại sự kiện
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <div class="ef-card-stat p-3 h-100 bg-white border rounded-3 shadow-xs">
+                                        <div class="text-muted small font-monospace" style="font-size: 0.72rem;">TỶ LỆ CHECK-IN</div>
+                                        <div class="d-flex align-items-baseline gap-2 mt-1">
+                                            <span class="h4 fw-bold text-primary mb-0" id="consoleStatPercent"><?= $consoleStats['percent'] ?>%</span>
+                                        </div>
+                                        <div class="progress mt-2" style="height: 4px;">
+                                            <div id="consoleStatProgressBar" class="progress-bar bg-primary" role="progressbar" style="width: <?= $consoleStats['percent'] ?>%;"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <div class="ef-card-stat p-3 h-100 bg-white border rounded-3 shadow-xs">
+                                        <div class="text-muted small font-monospace" style="font-size: 0.72rem;">BAN TỔ CHỨC (BTC)</div>
+                                        <div class="d-flex align-items-baseline gap-2 mt-1">
+                                            <span class="h4 fw-bold text-dark mb-0"><?= count($consoleStaffList) ?></span>
+                                            <span class="text-muted small">cán bộ</span>
+                                        </div>
+                                        <div class="text-success small mt-1 font-monospace" style="font-size: 0.72rem;">
+                                            <i class="bi bi-shield-check me-1"></i>Đạt chuẩn tối thiểu (&ge;2)
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Nav Pills cho 3 Tabs: Căn đều 3 tab vào trong khối và dàn đều khoảng cách -->
+                            <ul class="nav nav-pills nav-justified ef-console-tabs mb-4 p-1.5 bg-white border rounded-3 gap-2 shadow-xs w-100" id="consoleTabs" role="tablist">
+                                <li class="nav-item flex-fill" role="presentation">
+                                    <button class="nav-link active w-100 rounded-2 py-2.5 px-3 fw-semibold small d-flex align-items-center justify-content-center text-center" id="c-tab-edit" data-bs-toggle="pill" data-bs-target="#c-pane-edit" type="button" role="tab">
+                                        <i class="bi bi-pencil-square me-1.5"></i>1. Thông Tin & Chỉnh Sửa
+                                    </button>
+                                </li>
+                                <li class="nav-item flex-fill" role="presentation">
+                                    <button class="nav-link w-100 rounded-2 py-2.5 px-3 fw-semibold small d-flex align-items-center justify-content-center text-center" id="c-tab-checkin" data-bs-toggle="pill" data-bs-target="#c-pane-checkin" type="button" role="tab">
+                                        <i class="bi bi-qr-code-scan me-1.5"></i>2. Bàn Điểm Danh Realtime
+                                        <span class="badge bg-success ms-1.5 rounded-pill font-monospace" id="consoleTabBadgeChecked"><?= $consoleStats['checked'] ?>/<?= $consoleStats['total'] ?></span>
+                                    </button>
+                                </li>
+                                <li class="nav-item flex-fill" role="presentation">
+                                    <button class="nav-link w-100 rounded-2 py-2.5 px-3 fw-semibold small d-flex align-items-center justify-content-center text-center" id="c-tab-staff" data-bs-toggle="pill" data-bs-target="#c-pane-staff" type="button" role="tab">
+                                        <i class="bi bi-people-fill me-1.5"></i>3. Ban Tổ Chức & Phân Công
+                                        <span class="badge bg-secondary ms-1.5 rounded-pill font-monospace"><?= count($consoleStaffList) ?></span>
+                                    </button>
+                                </li>
+                            </ul>
+
+                            <!-- Tab Content Panes -->
+                            <div class="tab-content" id="consoleTabsContent">
+
+                                <!-- ==============================================
+                                     TAB 1: TỔNG QUAN & CHỈNH SỬA THÔNG TIN SỰ KIỆN
+                                     ============================================== -->
+                                <div class="tab-pane fade show active" id="c-pane-edit" role="tabpanel">
+                                    <div class="ef-card-editorial p-4 bg-white border rounded-3 shadow-xs">
+                                        <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                            <h3 class="h6 fw-bold text-dark mb-0">
+                                                <i class="bi bi-sliders text-primary me-1.5"></i>Cấu Hình & Cập Nhật Thông Tin Sự Kiện
+                                            </h3>
+                                            <span class="text-muted small">Cập nhật thông tin nhanh chóng không cần rời trang</span>
+                                        </div>
+
+                                        <form method="POST" action="<?= base_url('app/modules/dashboard/index.php') ?>" class="row g-3">
+                                            <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+                                            <input type="hidden" name="action" value="console_update_event">
+                                            <input type="hidden" name="event_id" value="<?= (int)$consoleEvt['EventID'] ?>">
+
+                                            <div class="col-md-8">
+                                                <label class="form-label small fw-bold text-dark">Tên sự kiện <span class="text-danger">*</span></label>
+                                                <input type="text" name="event_name" class="form-control form-control-sm" value="<?= htmlspecialchars($consoleEvt['EventName']) ?>" required>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label small fw-bold text-dark">Sức chứa tối đa (Vé) <span class="text-danger">*</span></label>
+                                                <input type="number" name="capacity" class="form-control form-control-sm font-monospace" min="1" value="<?= (int)$consoleEvt['MaxCapacity'] ?>" required>
+                                            </div>
+
+                                            <div class="col-12">
+                                                <label class="form-label small fw-bold text-dark">Địa điểm tổ chức <span class="text-danger">*</span></label>
+                                                <input type="text" name="location" class="form-control form-control-sm" value="<?= htmlspecialchars($consoleEvt['Location']) ?>" required>
+                                            </div>
+
+                                            <div class="col-12">
+                                                <label class="form-label small fw-bold text-dark">Mô tả sự kiện</label>
+                                                <textarea name="description" class="form-control form-control-sm" rows="3"><?= htmlspecialchars($consoleEvt['Description'] ?? '') ?></textarea>
+                                            </div>
+
+                                            <div class="col-md-6">
+                                                <label class="form-label small fw-bold text-dark">Thời gian bắt đầu <span class="text-danger">*</span></label>
+                                                <input type="datetime-local" name="start_time" class="form-control form-control-sm font-monospace" value="<?= event_dt_to_input($consoleEvt['StartTime']) ?>" required>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label small fw-bold text-dark">Thời gian kết thúc <span class="text-danger">*</span></label>
+                                                <input type="datetime-local" name="end_time" class="form-control form-control-sm font-monospace" value="<?= event_dt_to_input($consoleEvt['EndTime']) ?>" required>
+                                            </div>
+
+                                            <div class="col-md-6">
+                                                <label class="form-label small fw-bold text-dark">Mở đăng ký từ lúc</label>
+                                                <input type="datetime-local" name="reg_start" class="form-control form-control-sm font-monospace" value="<?= event_dt_to_input($consoleEvt['RegistrationStartTime']) ?>">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label small fw-bold text-dark">Hạn chót đăng ký</label>
+                                                <input type="datetime-local" name="reg_end" class="form-control form-control-sm font-monospace" value="<?= event_dt_to_input($consoleEvt['RegistrationDeadline']) ?>">
+                                            </div>
+
+                                            <div class="col-md-6">
+                                                <label class="form-label small fw-bold text-dark">Trạng thái phát hành</label>
+                                                <select name="status" class="form-select form-select-sm">
+                                                    <option value="Published" <?= $consoleEvt['Status'] === 'Published' ? 'selected' : '' ?>>Published (Công bố)</option>
+                                                    <option value="Draft" <?= $consoleEvt['Status'] === 'Draft' ? 'selected' : '' ?>>Draft (Bản nháp)</option>
+                                                    <option value="Cancelled" <?= $consoleEvt['Status'] === 'Cancelled' ? 'selected' : '' ?>>Cancelled (Đã hủy)</option>
+                                                </select>
+                                            </div>
+
+                                            <div class="col-12 pt-2 text-end">
+                                                <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold shadow-xs">
+                                                    <i class="bi bi-save me-1.5"></i>Lưu Thay Đổi Sự Kiện
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+
+                                <!-- ==============================================
+                                     TAB 2: BÀN ĐIỂM DANH REALTIME (POLLING 3S - UAT 17)
+                                     ============================================== -->
+                                <div class="tab-pane fade" id="c-pane-checkin" role="tabpanel">
+                                    <div class="ef-card-editorial p-4 bg-white border rounded-3 shadow-xs">
+                                        <!-- Toolbar của Bàn Điểm Danh -->
+                                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-3 border-bottom">
+                                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                <div class="input-group input-group-sm" style="width: 250px;">
+                                                    <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                                                    <input type="text" id="consoleSearchInput" class="form-control border-start-0" placeholder="Lọc MSSV hoặc tên...">
+                                                </div>
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1.5 d-flex align-items-center gap-1.5 font-monospace" style="font-size: 0.72rem;">
+                                                    <span class="spinner-grow spinner-grow-sm text-success" style="width: 0.5rem; height: 0.5rem;"></span>
+                                                    Realtime Polling (3s)
+                                                </span>
+                                            </div>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <!-- Form xuất CSV -->
+                                                <form method="POST" action="<?= base_url('app/modules/dashboard/index.php') ?>" class="m-0">
+                                                    <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+                                                    <input type="hidden" name="action" value="console_export_csv">
+                                                    <input type="hidden" name="event_id" value="<?= (int)$consoleEvt['EventID'] ?>">
+                                                    <button type="submit" class="btn btn-sm btn-outline-secondary rounded-pill px-3 shadow-xs">
+                                                        <i class="bi bi-file-earmark-spreadsheet text-success me-1"></i>Xuất File CSV
+                                                    </button>
+                                                </form>
+
+                                                <!-- Nút điểm danh vãng lai -->
+                                                <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 shadow-xs" data-bs-toggle="modal" data-bs-target="#modalConsoleWalkin">
+                                                    <i class="bi bi-person-plus me-1"></i>+ Điểm Danh Vãng Lai
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Bảng danh sách sinh viên đăng ký -->
+                                        <?php if (empty($consoleAttendees)): ?>
+                                            <div class="text-center py-5 text-muted">
+                                                <i class="bi bi-people display-6 d-block mb-2 text-secondary opacity-50"></i>
+                                                <p class="mb-0">Chưa có người tham dự nào đăng ký sự kiện này.</p>
+                                            </div>
+                                        <?php else: ?>
+                                            <div class="table-responsive">
+                                                <table class="table table-hover align-middle mb-0" id="consoleAttendeesTable" style="font-size: 0.86rem;">
+                                                    <thead class="bg-light text-muted font-monospace" style="font-size: 0.72rem;">
+                                                        <tr>
+                                                            <th class="ps-3 py-2.5" style="width: 50px;">STT</th>
+                                                            <th class="py-2.5">MSSV</th>
+                                                            <th class="py-2.5">HỌ VÀ TÊN</th>
+                                                            <th class="py-2.5">NGÀNH / KHÓA</th>
+                                                            <th class="py-2.5">GIỜ CHECK-IN</th>
+                                                            <th class="py-2.5 text-center">TRẠNG THÁI</th>
+                                                            <th class="pe-3 py-2.5 text-end">THAO TÁC</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <?php $cStt = 1; foreach ($consoleAttendees as $ca): 
+                                                            $isAtt = ($ca['AttendanceStatus'] !== null && (int)$ca['AttendanceStatus'] === 1);
+                                                        ?>
+                                                            <tr class="console-att-row" data-reg-id="<?= (int)$ca['RegID'] ?>" data-name="<?= htmlspecialchars(mb_strtolower($ca['FullName'], 'UTF-8')) ?>" data-code="<?= htmlspecialchars(strtolower($ca['StudentCode'] ?? '')) ?>">
+                                                                <td class="ps-3 py-2.5 font-monospace text-muted"><?= $cStt++ ?></td>
+                                                                <td class="py-2.5 font-monospace fw-semibold text-primary">
+                                                                    <?= htmlspecialchars($ca['StudentCode'] ?: '—') ?>
+                                                                </td>
+                                                                <td class="py-2.5">
+                                                                    <div class="fw-bold text-dark"><?= htmlspecialchars($ca['FullName']) ?></div>
+                                                                    <small class="text-muted"><?= htmlspecialchars($ca['Email']) ?></small>
+                                                                </td>
+                                                                <td class="py-2.5 small text-muted">
+                                                                    <?= htmlspecialchars($ca['Major'] ?: 'UEH') ?> 
+                                                                    <?php if (!empty($ca['Cohort'])): ?>
+                                                                        <span class="badge bg-light text-secondary border font-monospace ms-1">K<?= htmlspecialchars($ca['Cohort']) ?></span>
+                                                                    <?php endif; ?>
+                                                                </td>
+                                                                <td class="py-2.5 font-monospace small cell-checkin-time text-muted">
+                                                                    <?= !empty($ca['CheckInAt']) ? date('H:i d/m', strtotime($ca['CheckInAt'])) : '—' ?>
+                                                                </td>
+                                                                <td class="py-2.5 text-center cell-status-badge">
+                                                                    <?php if ($isAtt): ?>
+                                                                        <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace px-2.5 py-1">
+                                                                            <i class="bi bi-check-circle-fill me-1"></i>Đã tham dự
+                                                                        </span>
+                                                                    <?php else: ?>
+                                                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle font-monospace px-2.5 py-1">
+                                                                            Vắng mặt
+                                                                        </span>
+                                                                    <?php endif; ?>
+                                                                </td>
+                                                                <td class="pe-3 py-2.5 text-end cell-action-btn">
+                                                                    <?php if ($isAtt): ?>
+                                                                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1 font-monospace" onclick="handleConsoleCheckin(<?= (int)$ca['RegID'] ?>, false)">
+                                                                            <i class="bi bi-arrow-counterclockwise me-1"></i>Hủy
+                                                                        </button>
+                                                                    <?php else: ?>
+                                                                        <button type="button" class="btn btn-sm btn-success rounded-pill px-3 py-1 font-monospace fw-semibold" onclick="handleConsoleCheckin(<?= (int)$ca['RegID'] ?>, true)">
+                                                                            <i class="bi bi-check2 me-1"></i>Check-in
+                                                                        </button>
+                                                                    <?php endif; ?>
+                                                                </td>
+                                                            </tr>
+                                                        <?php endforeach; ?>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+
+                                <!-- ==============================================
+                                     TAB 3: BAN TỔ CHỨC & PHÂN CÔNG (UAT 10)
+                                     ============================================== -->
+                                <div class="tab-pane fade" id="c-pane-staff" role="tabpanel">
+                                    <div class="row g-3">
+                                        <!-- Danh sách cán bộ hiện tại -->
+                                        <div class="col-lg-7">
+                                            <div class="ef-card-editorial p-4 bg-white border rounded-3 shadow-xs h-100">
+                                                <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                                    <h3 class="h6 fw-bold text-dark mb-0">
+                                                        <i class="bi bi-people-fill text-primary me-1.5"></i>Cán Bộ Phụ Trách Đang Hoạt Động
+                                                    </h3>
+                                                    <span class="badge bg-primary rounded-pill font-monospace"><?= count($consoleStaffList) ?> Cán bộ</span>
+                                                </div>
+
+                                                <!-- Quy định UAT 10 -->
+                                                <div class="alert alert-info border-0 rounded-3 py-2 px-3 small mb-3 font-monospace" style="font-size: 0.76rem;">
+                                                    <i class="bi bi-shield-check me-1.5 text-primary"></i>
+                                                    <strong>Quy định UAT 10:</strong> Bắt buộc duy trì tối thiểu 2 cán bộ BĐH điều hành sự kiện. Khi danh sách còn 2 người, nút gỡ bỏ sẽ bị khóa an toàn.
+                                                </div>
+
+                                                <div class="table-responsive">
+                                                    <table class="table table-hover align-middle mb-0" style="font-size: 0.86rem;">
+                                                        <thead class="bg-light text-muted font-monospace" style="font-size: 0.72rem;">
+                                                            <tr>
+                                                                <th class="ps-2 py-2">CÁN BỘ</th>
+                                                                <th class="py-2">VAI TRÒ SỰ KIỆN</th>
+                                                                <th class="py-2">CHỨC VỤ CLB</th>
+                                                                <th class="pe-2 py-2 text-end">THAO TÁC</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <?php foreach ($consoleStaffList as $stf): 
+                                                                $roleColors = [
+                                                                    'Organizer'    => 'bg-danger-subtle text-danger border-danger-subtle',
+                                                                    'Checkin_Lead' => 'bg-success-subtle text-success border-success-subtle',
+                                                                    'Support'      => 'bg-info-subtle text-info border-info-subtle',
+                                                                    'MC'           => 'bg-warning-subtle text-warning border-warning-subtle',
+                                                                ];
+                                                                $rClass = $roleColors[$stf['StaffRole']] ?? 'bg-secondary-subtle text-secondary';
+                                                                $canDeleteStaff = count($consoleStaffList) > 2;
+                                                            ?>
+                                                                <tr>
+                                                                    <td class="ps-2 py-2.5">
+                                                                        <div class="fw-bold text-dark"><?= htmlspecialchars($stf['FullName']) ?></div>
+                                                                        <small class="text-muted font-monospace"><?= htmlspecialchars($stf['StudentCode'] ?: $stf['Email']) ?></small>
+                                                                    </td>
+                                                                    <td class="py-2.5">
+                                                                        <span class="badge <?= $rClass ?> border font-monospace" style="font-size: 0.72rem;">
+                                                                            <?= htmlspecialchars($stf['StaffRole']) ?>
+                                                                        </span>
+                                                                    </td>
+                                                                    <td class="py-2.5 small text-muted">
+                                                                        <?= htmlspecialchars($stf['ClubRole'] ?: 'Thành viên') ?>
+                                                                    </td>
+                                                                    <td class="pe-2 py-2.5 text-end">
+                                                                        <?php if ($canDeleteStaff): ?>
+                                                                            <form method="POST" action="<?= base_url('app/modules/dashboard/index.php') ?>" class="m-0 d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn gỡ bỏ cán bộ này khỏi Ban Tổ Chức?');">
+                                                                                <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+                                                                                <input type="hidden" name="action" value="console_remove_staff">
+                                                                                <input type="hidden" name="event_id" value="<?= (int)$consoleEvt['EventID'] ?>">
+                                                                                <input type="hidden" name="staff_account_id" value="<?= (int)$stf['AccountID'] ?>">
+                                                                                <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-2.5 py-1" title="Gỡ khỏi BTC">
+                                                                                    <i class="bi bi-trash"></i>
+                                                                                </button>
+                                                                            </form>
+                                                                        <?php else: ?>
+                                                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1 disabled" title="Không thể xóa khi chỉ còn 2 cán bộ (UAT 10)">
+                                                                                <i class="bi bi-lock-fill"></i>
+                                                                            </button>
+                                                                        <?php endif; ?>
+                                                                    </td>
+                                                                </tr>
+                                                            <?php endforeach; ?>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Form phân công thêm cán bộ -->
+                                        <div class="col-lg-5">
+                                            <div class="ef-card-editorial p-4 bg-white border rounded-3 shadow-xs h-100">
+                                                <h3 class="h6 fw-bold text-dark mb-3 pb-2 border-bottom">
+                                                    <i class="bi bi-person-plus text-primary me-1.5"></i>Phân Công Cán Bộ Mới
+                                                </h3>
+
+                                                <?php if (empty($availableStaffCandidates)): ?>
+                                                    <p class="text-muted small mb-0">Tất cả thành viên trong Ban Điều Hành CLB đã được phân công vào sự kiện này.</p>
+                                                <?php else: ?>
+                                                    <form method="POST" action="<?= base_url('app/modules/dashboard/index.php') ?>" class="d-flex flex-column gap-3">
+                                                        <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+                                                        <input type="hidden" name="action" value="console_add_staff">
+                                                        <input type="hidden" name="event_id" value="<?= (int)$consoleEvt['EventID'] ?>">
+
+                                                        <div>
+                                                            <label class="form-label small fw-bold text-dark">Chọn thành viên BĐH <span class="text-danger">*</span></label>
+                                                            <select name="staff_account_id" class="form-select form-select-sm" required>
+                                                                <option value="">-- Chọn cán bộ BĐH --</option>
+                                                                <?php foreach ($availableStaffCandidates as $cand): ?>
+                                                                    <option value="<?= (int)$cand['AccountID'] ?>">
+                                                                        <?= htmlspecialchars($cand['FullName']) ?> (<?= htmlspecialchars($cand['MemberRole']) ?> - <?= htmlspecialchars($cand['DepartmentName'] ?? 'CLB') ?>)
+                                                                    </option>
+                                                                <?php endforeach; ?>
+                                                            </select>
+                                                        </div>
+
+                                                        <div>
+                                                            <label class="form-label small fw-bold text-dark">Vai trò phụ trách trong sự kiện <span class="text-danger">*</span></label>
+                                                            <select name="staff_role" class="form-select form-select-sm" required>
+                                                                <option value="Organizer">Trưởng Ban Tổ Chức (Organizer)</option>
+                                                                <option value="Checkin_Lead">Trưởng Bàn Điểm Danh (Checkin_Lead)</option>
+                                                                <option value="Support" selected>Ban Hỗ Trợ & Hậu Cần (Support)</option>
+                                                                <option value="MC">Dẫn Chương Trình (MC)</option>
+                                                            </select>
+                                                            <div class="form-text small text-muted font-monospace" style="font-size: 0.72rem;">
+                                                                Cán bộ được phân công sẽ có quyền mở bàn check-in sự kiện này (RBAC Tầng 3).
+                                                            </div>
+                                                        </div>
+
+                                                        <button type="submit" class="btn btn-primary rounded-pill w-100 fw-semibold mt-2 shadow-xs">
+                                                            <i class="bi bi-person-check me-1.5"></i>Lưu Phân Công Cán Bộ
+                                                        </button>
+                                                    </form>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- MODAL ĐIỂM DANH VÃNG LAI (WALK-IN CHECK-IN MODAL) -->
+                    <div class="modal fade" id="modalConsoleWalkin" tabindex="-1" aria-labelledby="modalConsoleWalkinLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content border-0 shadow rounded-4">
+                                <div class="modal-header border-bottom py-3">
+                                    <h5 class="modal-title fw-bold text-dark fs-6" id="modalConsoleWalkinLabel">
+                                        <i class="bi bi-person-plus-fill text-primary me-2"></i>Điểm Danh Vãng Lai (Walk-in)
+                                    </h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body p-4">
+                                    <p class="text-muted small mb-3">Tra cứu sinh viên UEH bằng MSSV, Họ tên hoặc Email để bổ sung đăng ký và ghi nhận điểm danh ngay lập tức.</p>
+                                    <div class="mb-3">
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                                            <input type="text" id="walkinSearchQuery" class="form-control border-start-0" placeholder="Nhập tên, MSSV (vd: 3123...) hoặc email..." oninput="searchWalkinCandidate(this.value)">
+                                        </div>
+                                    </div>
+                                    <div id="walkinSearchResults" class="border rounded-3 p-2 bg-light" style="min-height: 120px; max-height: 250px; overflow-y: auto;">
+                                        <p class="text-muted small text-center my-4">Nhập thông tin để tìm kiếm sinh viên...</p>
+                                    </div>
+                                </div>
+                                <div class="modal-footer border-top py-2.5">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Đóng</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+<!-- ======================================================
                          KHỐI 3: TẠO SỰ KIỆN MỚI (BLOCK: #create-event)
                          ====================================================== -->
                     <div id="block-create-event" class="workspace-content-block d-none">
@@ -1003,9 +1909,9 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                                         <strong><?= (int)$se['RegisteredCount'] ?></strong> / <?= (int)$se['MaxCapacity'] ?>
                                                     </td>
                                                     <td class="pe-3 py-3 text-end">
-                                                        <a href="<?= base_url('app/modules/events/detail.php?id=' . (int)$se['EventID']) ?>" class="btn btn-sm btn-outline-primary rounded-pill px-3">
-                                                            Xem Chi Tiết
-                                                        </a>
+                                                        <button type="button" onclick="openWorkspaceConsole(<?= (int)$se['EventID'] ?>, event)" class="btn btn-sm btn-primary rounded-pill px-3 fw-semibold">
+                                                            <i class="bi bi-sliders me-1"></i> Điều Hành Console
+                                                        </button>
                                                     </td>
                                                 </tr>
                                             <?php endforeach; ?>
@@ -1688,6 +2594,34 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
 .current-time-pill { position: absolute; left: 4px; top: -10px; background-color: #ef4444; color: #ffffff; font-size: 0.65rem; padding: 1px 5px; border-radius: 4px; font-weight: 700; }
 .timeline-event-block { position: absolute; left: 4px; right: 4px; border-radius: 8px; padding: 6px 8px; font-size: 0.74rem; line-height: 1.25; overflow: hidden; cursor: pointer; border-left: 3px solid #2563eb; background: #eff6ff; z-index: 5; }
 .timeline-event-block:hover { transform: scale(1.02); z-index: 8; box-shadow: 0 6px 14px rgba(37, 99, 235, 0.2); }
+
+/* Unified Event Console Tabs: Căn đều 4 tab rộng trọn vẹn khối */
+.ef-console-tabs {
+    display: flex;
+    width: 100%;
+}
+.ef-console-tabs .nav-item {
+    flex: 1 1 0;
+    min-width: 0;
+}
+.ef-console-tabs .nav-link {
+    width: 100%;
+    color: #64748b;
+    background: transparent;
+    border: none;
+    transition: all 0.2s ease;
+    text-align: center;
+    white-space: nowrap;
+}
+.ef-console-tabs .nav-link:hover:not(.active) {
+    background-color: #f1f5f9;
+    color: #2563eb;
+}
+.ef-console-tabs .nav-link.active {
+    background-color: #2563eb;
+    color: #ffffff !important;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
 </style>
 
 <!-- JSON Data Payload cho Lịch -->
@@ -1699,6 +2633,193 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
      JAVASCRIPT CHUYỂN ĐỔI KHỐI NỘI DUNG TỨC THÌ (CONTAINER CONTROLLER)
      ========================================================================== -->
 <script>
+// ============================================================================
+// JAVASCRIPT ĐIỀU HÀNH CONSOLE & REALTIME POLLING (UAT 14, 15, 16, 17)
+// ============================================================================
+function openWorkspaceConsole(eventId, event) {
+    if (event) event.preventDefault();
+    const select = document.getElementById('consoleEventSelect');
+    if (select && parseInt(select.value) !== parseInt(eventId)) {
+        window.location.href = '<?= base_url("app/modules/dashboard/index.php?event_id=") ?>' + eventId + '#event-console';
+        return;
+    }
+    switchWorkspaceBlock('event-console', event);
+}
+
+function switchConsoleEvent(eventId) {
+    window.location.href = '<?= base_url("app/modules/dashboard/index.php?event_id=") ?>' + eventId + '#event-console';
+}
+
+function handleConsoleCheckin(regId, isCheckin) {
+    const csrf = '<?= csrf_token() ?>';
+    const eventId = '<?= (int)($consoleEvt['EventID'] ?? 0) ?>';
+    const action = isCheckin ? 'console_checkin' : 'console_undo_checkin';
+
+    const formData = new FormData();
+    formData.append('csrf_token', csrf);
+    formData.append('action', action);
+    formData.append('event_id', eventId);
+    formData.append('reg_id', regId);
+    formData.append('ajax', '1');
+
+    fetch('<?= base_url("app/modules/dashboard/index.php") ?>', {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.success) {
+            updateRowCheckinUI(regId, isCheckin, res.checked_in_at);
+        } else {
+            alert(res.message || 'Lỗi thao tác điểm danh');
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Không thể kết nối đến máy chủ.');
+    });
+}
+
+function updateRowCheckinUI(regId, isCheckedIn, checkinAt) {
+    const row = document.querySelector(`.console-att-row[data-reg-id="${regId}"]`);
+    if (!row) return;
+
+    const timeCell = row.querySelector('.cell-checkin-time');
+    const badgeCell = row.querySelector('.cell-status-badge');
+    const actionCell = row.querySelector('.cell-action-btn');
+
+    if (isCheckedIn) {
+        if (timeCell) timeCell.textContent = checkinAt || 'Vừa xong';
+        if (badgeCell) {
+            badgeCell.innerHTML = `
+                <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace px-2.5 py-1">
+                    <i class="bi bi-check-circle-fill me-1"></i>Đã tham dự
+                </span>
+            `;
+        }
+        if (actionCell) {
+            actionCell.innerHTML = `
+                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1 font-monospace" onclick="handleConsoleCheckin(${regId}, false)">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Hủy
+                </button>
+            `;
+        }
+    } else {
+        if (timeCell) timeCell.textContent = '—';
+        if (badgeCell) {
+            badgeCell.innerHTML = `
+                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle font-monospace px-2.5 py-1">
+                    Vắng mặt
+                </span>
+            `;
+        }
+        if (actionCell) {
+            actionCell.innerHTML = `
+                <button type="button" class="btn btn-sm btn-success rounded-pill px-3 py-1 font-monospace fw-semibold" onclick="handleConsoleCheckin(${regId}, true)">
+                    <i class="bi bi-check2 me-1"></i>Check-in
+                </button>
+            `;
+        }
+    }
+}
+
+// 3s Polling cho Console (UAT 17)
+let consolePollingTimer = null;
+function pollConsoleAttendance() {
+    const block = document.getElementById('block-event-console');
+    if (!block || block.classList.contains('d-none')) return;
+    const checkinPane = document.getElementById('c-pane-checkin');
+    if (!checkinPane || !checkinPane.classList.contains('show')) return;
+
+    const eventId = '<?= (int)($consoleEvt['EventID'] ?? 0) ?>';
+    if (!eventId || eventId === '0') return;
+
+    fetch('<?= base_url("app/modules/dashboard/index.php?ajax=get_attendance_status&event_id=") ?>' + eventId)
+    .then(r => r.json())
+    .then(res => {
+        if (res.success && res.items) {
+            res.items.forEach(it => {
+                updateRowCheckinUI(it.reg_id, it.is_checked_in, it.checked_in_at);
+            });
+            if (res.stats) {
+                const countEl = document.getElementById('consoleStatCheckedCount');
+                const pctEl = document.getElementById('consoleStatPercent');
+                const barEl = document.getElementById('consoleStatProgressBar');
+                const badgeEl = document.getElementById('consoleTabBadgeChecked');
+                if (countEl) countEl.textContent = res.stats.checked;
+                if (pctEl) pctEl.textContent = res.stats.percent + '%';
+                if (barEl) barEl.style.width = res.stats.percent + '%';
+                if (badgeEl) badgeEl.textContent = res.stats.checked + '/' + res.stats.total;
+            }
+        }
+    })
+    .catch(e => console.log('Polling check-in silent fail', e));
+}
+
+// Walk-in Candidate Search Debounce
+let walkinSearchTimer = null;
+function searchWalkinCandidate(q) {
+    clearTimeout(walkinSearchTimer);
+    const resultsBox = document.getElementById('walkinSearchResults');
+    if (!q || q.trim().length < 2) {
+        if (resultsBox) resultsBox.innerHTML = '<p class="text-muted small text-center my-4">Nhập tối thiểu 2 ký tự để tìm...</p>';
+        return;
+    }
+    walkinSearchTimer = setTimeout(() => {
+        const eventId = '<?= (int)($consoleEvt['EventID'] ?? 0) ?>';
+        fetch('<?= base_url("app/modules/dashboard/index.php?ajax=search_candidates&event_id=") ?>' + eventId + '&q=' + encodeURIComponent(q.trim()))
+        .then(r => r.json())
+        .then(data => {
+            if (!resultsBox) return;
+            if (!data || data.length === 0) {
+                resultsBox.innerHTML = '<p class="text-muted small text-center my-4">Không tìm thấy sinh viên nào phù hợp (hoặc đã điểm danh).</p>';
+                return;
+            }
+            let html = '<div class="list-group list-group-flush">';
+            data.forEach(c => {
+                html += `
+                    <div class="list-group-item d-flex justify-content-between align-items-center py-2 px-2 bg-white rounded-2 mb-1.5 border">
+                        <div>
+                            <div class="fw-bold small text-dark">${c.fullname}</div>
+                            <small class="text-muted font-monospace">${c.student_code || 'Chưa có MSSV'} &bull; ${c.email}</small>
+                        </div>
+                        <form method="POST" action="<?= base_url('app/modules/dashboard/index.php') ?>" class="m-0">
+                            <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+                            <input type="hidden" name="action" value="console_walkin_checkin">
+                            <input type="hidden" name="event_id" value="${eventId}">
+                            <input type="hidden" name="target_account_id" value="${c.account_id}">
+                            <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 shadow-xs">
+                                <i class="bi bi-check-circle me-1"></i>Check-in
+                            </button>
+                        </form>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            resultsBox.innerHTML = html;
+        });
+    }, 300);
+}
+
+// Bật polling định kỳ 3 giây
+document.addEventListener('DOMContentLoaded', () => {
+    setInterval(pollConsoleAttendance, 3000);
+
+    // Lọc bảng điểm danh
+    const attSearch = document.getElementById('consoleSearchInput');
+    if (attSearch) {
+        attSearch.addEventListener('input', function() {
+            const q = this.value.toLowerCase().trim();
+            document.querySelectorAll('.console-att-row').forEach(r => {
+                const name = r.getAttribute('data-name') || '';
+                const code = r.getAttribute('data-code') || '';
+                r.style.display = (!q || name.includes(q) || code.includes(q)) ? '' : 'none';
+            });
+        });
+    }
+});
+
 // 1. Chuyển đổi Khối nội dung trong Container (Không reload trang, giữ nguyên top-nav và left-menu)
 function switchWorkspaceBlock(blockId, event) {
     if (event) event.preventDefault();
@@ -1718,10 +2839,11 @@ function switchWorkspaceBlock(blockId, event) {
         targetBlock.classList.remove('d-none');
     }
 
-    // Cập nhật trạng thái active trên Left Menu
+    // Cập nhật trạng thái active trên Left Menu (Console thuộc phân hệ Quản lý Sự kiện)
+    const activeNavBlock = (blockId === 'event-console') ? 'events' : blockId;
     document.querySelectorAll('.workspace-nav-link').forEach(link => {
         link.classList.remove('active');
-        if (link.getAttribute('data-block') === blockId) {
+        if (link.getAttribute('data-block') === activeNavBlock) {
             link.classList.add('active');
         }
     });
@@ -1736,6 +2858,9 @@ function switchWorkspaceBlock(blockId, event) {
     // Kích hoạt render lại Lịch nếu chuyển vào khối Lịch
     if (blockId === 'calendar' && typeof window.renderWorkspaceCalendar === 'function') {
         window.renderWorkspaceCalendar();
+    }
+    if (blockId === 'event-console' && typeof pollConsoleAttendance === 'function') {
+        pollConsoleAttendance();
     }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1786,11 +2911,27 @@ document.addEventListener('DOMContentLoaded', () => {
         const query = (searchInput ? searchInput.value : '').toLowerCase().trim();
         const selectedState = stateFilter ? stateFilter.value : 'ALL';
 
+        const aliasMap = {
+            'happening': 'ongoing',
+            'ongoing': 'ongoing',
+            'ended': 'finished',
+            'finished': 'finished',
+            'deadline_passed': 'closed',
+            'closed': 'closed',
+            'REG_OPEN': 'open',
+            'HAPPENING': 'ongoing',
+            'ENDED': 'finished',
+            'REG_CLOSED': 'closed',
+            'UPCOMING': 'upcoming'
+        };
+        const normalizedSelected = aliasMap[selectedState] || selectedState;
+
         rows.forEach(r => {
             const name = r.getAttribute('data-name') || '';
             const state = r.getAttribute('data-state') || '';
+            const normalizedState = aliasMap[state] || state;
             const matchesQuery = !query || name.includes(query);
-            const matchesState = (selectedState === 'ALL') || (state === selectedState);
+            const matchesState = (normalizedSelected === 'ALL') || (normalizedState === normalizedSelected);
 
             r.style.display = (matchesQuery && matchesState) ? '' : 'none';
         });

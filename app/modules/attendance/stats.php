@@ -295,9 +295,13 @@ require_once __DIR__ . '/../../includes/header.php';
                                 </div>
                             </td>
                             <td class="text-end pe-4 text-nowrap">
+                                <a href="<?= base_url('app/modules/events/console.php?id=' . (int)$evt['EventID']) ?>"
+                                   class="btn btn-sm btn-primary rounded-pill px-2.5 me-1" title="Mở Event Console">
+                                    <i class="bi bi-sliders me-1"></i> Console
+                                </a>
                                 <a href="<?= base_url('app/modules/attendance/checkin.php?event_id=' . (int)$evt['EventID']) ?>"
-                                   class="btn btn-sm btn-outline-primary" title="Điểm danh / Xem danh sách">
-                                    <i class="bi bi-clipboard-check me-1"></i>Điểm danh
+                                   class="btn btn-sm btn-outline-secondary rounded-pill" title="Điểm danh / Xem danh sách">
+                                    <i class="bi bi-clipboard-check me-1"></i> Điểm danh
                                 </a>
                             </td>
                         </tr>
