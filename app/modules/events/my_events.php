@@ -24,7 +24,7 @@ $now    = event_now($pdo);
 
 // 1. Tab 1: Sự kiện tôi điều hành / hỗ trợ (Event_Staff)
 $staffStmt = $pdo->prepare("
-    SELECT es.StaffRole, es.AssignedAt,
+    SELECT es.StaffRole, es.AssignedAt, es.CheckInAt,
            e.EventID, e.EventName, e.Location, e.StartTime, e.EndTime, e.Status AS EventStatus, e.BannerImage, e.MaxCapacity,
            c.ClubName,
            (SELECT COUNT(*) FROM Event_Registration r WHERE r.EventID = e.EventID AND r.Status = 'Registered') AS RegisteredCount
@@ -158,6 +158,15 @@ require_once __DIR__ . '/../../includes/header.php';
                                             <span class="badge rounded-pill bg-primary-subtle text-primary font-monospace px-2.5 py-1.5" style="font-size: 0.72rem;">
                                                 <i class="bi bi-shield-check me-1"></i><?= $h($se['StaffRole']) ?>
                                             </span>
+                                            <?php if (!empty($se['CheckInAt'])): ?>
+                                                <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle font-monospace ms-1 px-2 py-1" style="font-size: 0.7rem;">
+                                                    <i class="bi bi-check-circle-fill me-1"></i>Đã trực ca
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="badge rounded-pill bg-secondary-subtle text-secondary border border-secondary-subtle font-monospace ms-1 px-2 py-1" style="font-size: 0.7rem;">
+                                                    Chưa trực ca
+                                                </span>
+                                            <?php endif; ?>
                                         </td>
                                         <td class="py-3 font-monospace small">
                                             <div class="fw-semibold text-dark"><?= date('d/m/Y', strtotime($se['StartTime'])) ?></div>

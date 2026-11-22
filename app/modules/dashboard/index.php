@@ -361,7 +361,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($isAjax) { header('Content-Type: application/json'); echo json_encode(['success' => false, 'message' => $ex->getMessage()]); exit; }
             set_flash('danger', 'Lỗi điểm danh: ' . $ex->getMessage());
         }
-        header("Location: " . base_url("app/modules/dashboard/index.php?event_id={$cEvtId}#event-console"));
+        header("Location: " . base_url("app/modules/dashboard/index.php?event_id={$cEvtId}&console_tab=c-tab-checkin#event-console"));
         exit;
     }
 
@@ -384,7 +384,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($isAjax) { header('Content-Type: application/json'); echo json_encode(['success' => false, 'message' => $ex->getMessage()]); exit; }
             set_flash('danger', 'Lỗi hủy điểm danh: ' . $ex->getMessage());
         }
-        header("Location: " . base_url("app/modules/dashboard/index.php?event_id={$cEvtId}#event-console"));
+        header("Location: " . base_url("app/modules/dashboard/index.php?event_id={$cEvtId}&console_tab=c-tab-checkin#event-console"));
         exit;
     }
 
@@ -421,7 +421,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($pdo->inTransaction()) $pdo->rollBack();
             set_flash('danger', 'Lỗi điểm danh vãng lai: ' . $ex->getMessage());
         }
-        header("Location: " . base_url("app/modules/dashboard/index.php?event_id={$cEvtId}#event-console"));
+        header("Location: " . base_url("app/modules/dashboard/index.php?event_id={$cEvtId}&console_tab=c-tab-checkin#event-console"));
         exit;
     }
 
@@ -447,7 +447,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 set_flash('danger', 'Lỗi phân công: ' . $ex->getMessage());
             }
         }
-        header("Location: " . base_url("app/modules/dashboard/index.php?event_id={$cEvtId}#event-console"));
+        header("Location: " . base_url("app/modules/dashboard/index.php?event_id={$cEvtId}&console_tab=c-tab-staff#event-console"));
         exit;
     }
 
@@ -467,7 +467,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $del->execute([':eid' => $cEvtId, ':aid' => $staffAccId]);
             set_flash('success', 'Đã xóa cán bộ khỏi danh sách Ban Tổ Chức.');
         }
-        header("Location: " . base_url("app/modules/dashboard/index.php?event_id={$cEvtId}#event-console"));
+        header("Location: " . base_url("app/modules/dashboard/index.php?event_id={$cEvtId}&console_tab=c-tab-staff#event-console"));
+        exit;
+    }
+
+    // 12.1. ĐIỂM DANH CA TRỰC CÁN BỘ BAN TỔ CHỨC (Staff Shift Check-in)
+    elseif ($action === 'console_staff_checkin') {
+        $cEvtId = (int)($_POST['event_id'] ?? 0);
+        $staffAccId = (int)($_POST['staff_account_id'] ?? 0);
+        $isCheckin = (int)($_POST['is_checkin'] ?? 1);
+        $isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') || isset($_POST['ajax']);
+
+        try {
+            if ($isCheckin) {
+                $upd = $pdo->prepare("UPDATE Event_Staff SET CheckInAt = NOW(), CheckedInBy = :by WHERE EventID = :eid AND AccountID = :aid");
+                $upd->execute([':by' => $userId, ':eid' => $cEvtId, ':aid' => $staffAccId]);
+            } else {
+                $upd = $pdo->prepare("UPDATE Event_Staff SET CheckInAt = NULL, CheckedInBy = NULL WHERE EventID = :eid AND AccountID = :aid");
+                $upd->execute([':eid' => $cEvtId, ':aid' => $staffAccId]);
+            }
+
+            if ($isAjax) {
+                session_write_close();
+                header('Content-Type: application/json; charset=utf-8');
+                echo json_encode(['success' => true, 'is_checked_in' => (bool)$isCheckin, 'checkin_time' => $isCheckin ? date('H:i d/m') : null]);
+                exit;
+            }
+            set_flash('success', $isCheckin ? 'Đã ghi nhận cán bộ có mặt trực ca sự kiện.' : 'Đã hủy điểm danh ca trực cán bộ.');
+        } catch (Throwable $ex) {
+            if ($isAjax) {
+                session_write_close();
+                header('Content-Type: application/json; charset=utf-8', true, 500);
+                echo json_encode(['success' => false, 'message' => $ex->getMessage()]);
+                exit;
+            }
+            set_flash('danger', 'Lỗi: ' . $ex->getMessage());
+        }
+        header("Location: " . base_url("app/modules/dashboard/index.php?event_id={$cEvtId}&console_tab=c-tab-staff#event-console"));
+        exit;
+    }
+
+    // 12.2. ĐIỂM DANH TOÀN BỘ CÁN BỘ BAN TỔ CHỨC CÙNG LÚC
+    elseif ($action === 'console_staff_checkin_all') {
+        $cEvtId = (int)($_POST['event_id'] ?? 0);
+        try {
+            $upd = $pdo->prepare("UPDATE Event_Staff SET CheckInAt = NOW(), CheckedInBy = :by WHERE EventID = :eid AND CheckInAt IS NULL");
+            $upd->execute([':by' => $userId, ':eid' => $cEvtId]);
+            set_flash('success', 'Đã điểm danh có mặt toàn bộ Ban Tổ Chức sự kiện.');
+        } catch (Throwable $ex) {
+            set_flash('danger', 'Lỗi điểm danh: ' . $ex->getMessage());
+        }
+        header("Location: " . base_url("app/modules/dashboard/index.php?event_id={$cEvtId}&console_tab=c-tab-staff#event-console"));
         exit;
     }
 
@@ -515,7 +565,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 set_flash('danger', 'Lỗi cập nhật: ' . $ex->getMessage());
             }
         }
-        header("Location: " . base_url("app/modules/dashboard/index.php?event_id={$cEvtId}#event-console"));
+        header("Location: " . base_url("app/modules/dashboard/index.php?event_id={$cEvtId}&console_tab=c-tab-edit#event-console"));
         exit;
     }
 
@@ -644,7 +694,7 @@ $myRegsStmt->execute([':uid' => $userId]);
 $myRegistrations = $myRegsStmt->fetchAll();
 
 $myStaffEventsStmt = $pdo->prepare("
-    SELECT s.StaffRole, s.AssignedAt,
+    SELECT s.StaffRole, s.AssignedAt, s.CheckInAt,
            e.EventID, e.EventName, e.Location, e.StartTime, e.EndTime, e.Status AS EventStatus,
            (SELECT COUNT(*) FROM Event_Registration r WHERE r.EventID = e.EventID AND r.Status = 'Registered') AS RegisteredCount,
            e.MaxCapacity
@@ -819,16 +869,18 @@ if ($consoleEventId > 0) {
             'cap_percent' => round(($cTotalRegs / $cMaxCap) * 100, 1),
         ];
 
-        // Staff list (UAT 10)
+        // Staff list (UAT 10 & Điểm danh ca trực BTC)
         $stfStmt = $pdo->prepare("
-            SELECT es.EventStaffID, es.StaffRole, es.AssignedAt,
+            SELECT es.EventStaffID, es.StaffRole, es.AssignedAt, es.CheckInAt, es.CheckedInBy,
                    a.AccountID, a.FullName, a.StudentCode, a.Email,
                    cm.MemberRole AS ClubRole,
-                   assigner.FullName AS AssignedByName
+                   assigner.FullName AS AssignedByName,
+                   staffChecker.FullName AS StaffCheckerName
             FROM Event_Staff es
             JOIN Account a ON a.AccountID = es.AccountID
             LEFT JOIN Club_Member cm ON cm.AccountID = a.AccountID AND cm.ClubID = :cid
             LEFT JOIN Account assigner ON assigner.AccountID = es.AssignedBy
+            LEFT JOIN Account staffChecker ON staffChecker.AccountID = es.CheckedInBy
             WHERE es.EventID = :eid
             ORDER BY CASE WHEN es.StaffRole = 'Organizer' THEN 1
                           WHEN es.StaffRole = 'Checkin_Lead' THEN 2
@@ -837,6 +889,15 @@ if ($consoleEventId > 0) {
         ");
         $stfStmt->execute([':cid' => $consoleEvt['ClubID'], ':eid' => $consoleEventId]);
         $consoleStaffList = $stfStmt->fetchAll();
+
+        // Thống kê điểm danh ca trực cán bộ BTC
+        $staffCheckedCount = 0;
+        foreach ($consoleStaffList as $stf) {
+            if (!empty($stf['CheckInAt'])) {
+                $staffCheckedCount++;
+            }
+        }
+        $staffCheckinPercent = count($consoleStaffList) > 0 ? round(($staffCheckedCount / count($consoleStaffList)) * 100) : 0;
 
         // Available candidates for staff assignment
         $assignedStaffIds = array_column($consoleStaffList, 'AccountID');
@@ -1409,7 +1470,7 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                 <li class="nav-item flex-fill" role="presentation">
                                     <button class="nav-link w-100 rounded-2 py-2.5 px-3 fw-semibold small d-flex align-items-center justify-content-center text-center" id="c-tab-staff" data-bs-toggle="pill" data-bs-target="#c-pane-staff" type="button" role="tab">
                                         <i class="bi bi-people-fill me-1.5"></i>3. Ban Tổ Chức & Phân Công
-                                        <span class="badge bg-secondary ms-1.5 rounded-pill font-monospace"><?= count($consoleStaffList) ?></span>
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1.5 rounded-pill font-monospace" id="consoleTabBadgeStaff"><?= $staffCheckedCount ?>/<?= count($consoleStaffList) ?> có mặt</span>
                                     </button>
                                 </li>
                             </ul>
@@ -1612,6 +1673,24 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                                     <span class="badge bg-primary rounded-pill font-monospace"><?= count($consoleStaffList) ?> Cán bộ</span>
                                                 </div>
 
+                                                <!-- Băng kiểm diện quân số ca trực BTC -->
+                                                <div class="d-flex flex-wrap justify-content-between align-items-center bg-light p-2.5 rounded-3 mb-3 border">
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <span class="small fw-semibold text-dark"><i class="bi bi-person-check-fill text-success me-1"></i>Quân số trực ca:</span>
+                                                        <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace fw-bold" id="staffShiftStatusBarText">
+                                                            <?= $staffCheckedCount ?> / <?= count($consoleStaffList) ?> có mặt (<?= $staffCheckinPercent ?>%)
+                                                        </span>
+                                                    </div>
+                                                    <form method="POST" action="<?= base_url('app/modules/dashboard/index.php') ?>" class="m-0" onsubmit="return confirm('Điểm danh có mặt cho toàn bộ cán bộ Ban Tổ Chức?');">
+                                                        <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+                                                        <input type="hidden" name="action" value="console_staff_checkin_all">
+                                                        <input type="hidden" name="event_id" value="<?= (int)$consoleEvt['EventID'] ?>">
+                                                        <button type="submit" id="btnStaffCheckinAll" class="btn btn-xs btn-outline-success rounded-pill px-2.5 py-1 font-monospace" style="font-size: 0.74rem;" <?= ($staffCheckedCount === count($consoleStaffList)) ? 'disabled' : '' ?>>
+                                                            <i class="bi bi-check-all me-1"></i>Điểm danh tất cả
+                                                        </button>
+                                                    </form>
+                                                </div>
+
                                                 <!-- Quy định UAT 10 -->
                                                 <div class="alert alert-info border-0 rounded-3 py-2 px-3 small mb-3 font-monospace" style="font-size: 0.76rem;">
                                                     <i class="bi bi-shield-check me-1.5 text-primary"></i>
@@ -1625,6 +1704,7 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                                                 <th class="ps-2 py-2">CÁN BỘ</th>
                                                                 <th class="py-2">VAI TRÒ SỰ KIỆN</th>
                                                                 <th class="py-2">CHỨC VỤ CLB</th>
+                                                                <th class="py-2">ĐIỂM DANH CA TRỰC</th>
                                                                 <th class="pe-2 py-2 text-end">THAO TÁC</th>
                                                             </tr>
                                                         </thead>
@@ -1638,6 +1718,7 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                                                 ];
                                                                 $rClass = $roleColors[$stf['StaffRole']] ?? 'bg-secondary-subtle text-secondary';
                                                                 $canDeleteStaff = count($consoleStaffList) > 2;
+                                                                $isStaffPresent = !empty($stf['CheckInAt']);
                                                             ?>
                                                                 <tr>
                                                                     <td class="ps-2 py-2.5">
@@ -1651,6 +1732,22 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                                                     </td>
                                                                     <td class="py-2.5 small text-muted">
                                                                         <?= htmlspecialchars($stf['ClubRole'] ?: 'Thành viên') ?>
+                                                                    </td>
+                                                                    <td class="py-2.5 staff-checkin-cell" id="staff-checkin-cell-<?= (int)$stf['AccountID'] ?>">
+                                                                        <?php if ($isStaffPresent): ?>
+                                                                            <div class="d-flex align-items-center gap-1.5 flex-wrap">
+                                                                                <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace px-2 py-1" style="font-size: 0.72rem;">
+                                                                                    <i class="bi bi-check-circle-fill me-1"></i>Đã có mặt (<?= date('H:i d/m', strtotime($stf['CheckInAt'])) ?>)
+                                                                                </span>
+                                                                                <button type="button" class="btn btn-outline-secondary rounded-pill px-1.5 py-0.5 font-monospace" style="font-size: 0.68rem;" onclick="handleStaffCheckin(<?= (int)$stf['AccountID'] ?>, 0, this)" title="Hủy điểm danh ca trực">
+                                                                                    Hủy
+                                                                                </button>
+                                                                            </div>
+                                                                        <?php else: ?>
+                                                                            <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-2.5 py-1 font-monospace" style="font-size: 0.75rem;" onclick="handleStaffCheckin(<?= (int)$stf['AccountID'] ?>, 1, this)">
+                                                                                <i class="bi bi-check2 me-1"></i>Check-in ca trực
+                                                                            </button>
+                                                                        <?php endif; ?>
                                                                     </td>
                                                                     <td class="pe-2 py-2.5 text-end">
                                                                         <?php if ($canDeleteStaff): ?>
@@ -1901,6 +1998,15 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                                     </td>
                                                     <td class="py-3">
                                                         <span class="badge bg-primary-subtle text-primary font-monospace"><?= htmlspecialchars($se['StaffRole']) ?></span>
+                                                        <?php if (!empty($se['CheckInAt'])): ?>
+                                                            <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace ms-1" style="font-size: 0.7rem;">
+                                                                <i class="bi bi-check-circle-fill me-1"></i>Đã trực ca
+                                                            </span>
+                                                        <?php else: ?>
+                                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle font-monospace ms-1" style="font-size: 0.7rem;">
+                                                                Chưa trực ca
+                                                            </span>
+                                                        <?php endif; ?>
                                                     </td>
                                                     <td class="py-3 font-monospace small">
                                                         <?= date('d/m/Y', strtotime($se['StartTime'])) ?> (<?= date('H:i', strtotime($se['StartTime'])) ?> - <?= date('H:i', strtotime($se['EndTime'])) ?>)
@@ -2638,16 +2744,18 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
 // ============================================================================
 function openWorkspaceConsole(eventId, event) {
     if (event) event.preventDefault();
+    sessionStorage.setItem('activeConsoleTab', 'c-tab-edit');
     const select = document.getElementById('consoleEventSelect');
     if (select && parseInt(select.value) !== parseInt(eventId)) {
-        window.location.href = '<?= base_url("app/modules/dashboard/index.php?event_id=") ?>' + eventId + '#event-console';
+        window.location.href = '<?= base_url("app/modules/dashboard/index.php?event_id=") ?>' + eventId + '&console_tab=c-tab-edit#event-console';
         return;
     }
     switchWorkspaceBlock('event-console', event);
 }
 
 function switchConsoleEvent(eventId) {
-    window.location.href = '<?= base_url("app/modules/dashboard/index.php?event_id=") ?>' + eventId + '#event-console';
+    const currentTab = sessionStorage.getItem('activeConsoleTab') || 'c-tab-edit';
+    window.location.href = '<?= base_url("app/modules/dashboard/index.php?event_id=") ?>' + eventId + '&console_tab=' + currentTab + '#event-console';
 }
 
 function handleConsoleCheckin(regId, isCheckin) {
@@ -2720,6 +2828,110 @@ function updateRowCheckinUI(regId, isCheckedIn, checkinAt) {
                     <i class="bi bi-check2 me-1"></i>Check-in
                 </button>
             `;
+        }
+    }
+}
+
+// ============================================================================
+// ĐIỂM DANH CA TRỰC BAN TỔ CHỨC (STAFF SHIFT CHECK-IN AJAX - ZERO RELOAD)
+// ============================================================================
+function handleStaffCheckin(staffAccId, isCheckin, btn) {
+    const csrf = '<?= csrf_token() ?>';
+    const eventId = '<?= (int)($consoleEvt['EventID'] ?? 0) ?>';
+    const formData = new FormData();
+    formData.append('csrf_token', csrf);
+    formData.append('action', 'console_staff_checkin');
+    formData.append('event_id', eventId);
+    formData.append('staff_account_id', staffAccId);
+    formData.append('is_checkin', isCheckin ? '1' : '0');
+    formData.append('ajax', '1');
+
+    if (btn) btn.disabled = true;
+
+    fetch('<?= base_url("app/modules/dashboard/index.php") ?>', {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.success) {
+            updateStaffCheckinCellUI(staffAccId, isCheckin, res.checkin_time);
+        } else {
+            alert(res.message || 'Lỗi thao tác điểm danh cán bộ');
+            if (btn) btn.disabled = false;
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Không thể kết nối đến máy chủ.');
+        if (btn) btn.disabled = false;
+    });
+}
+
+function updateStaffCheckinCellUI(staffAccId, isCheckin, timeStr) {
+    const cell = document.getElementById('staff-checkin-cell-' + staffAccId);
+    if (!cell) return;
+
+    if (isCheckin) {
+        cell.innerHTML = `
+            <div class="d-flex align-items-center gap-1.5 flex-wrap">
+                <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace px-2 py-1" style="font-size: 0.72rem;">
+                    <i class="bi bi-check-circle-fill me-1"></i>Đã có mặt (${timeStr || 'Vừa xong'})
+                </span>
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-1.5 py-0.5 font-monospace" style="font-size: 0.68rem;" onclick="handleStaffCheckin(${staffAccId}, 0, this)" title="Hủy điểm danh ca trực">
+                    Hủy
+                </button>
+            </div>
+        `;
+    } else {
+        cell.innerHTML = `
+            <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-2.5 py-1 font-monospace" style="font-size: 0.75rem;" onclick="handleStaffCheckin(${staffAccId}, 1, this)">
+                <i class="bi bi-check2 me-1"></i>Check-in ca trực
+            </button>
+        `;
+    }
+
+    recalcStaffCheckinStats();
+}
+
+function recalcStaffCheckinStats() {
+    const totalStaffRows = document.querySelectorAll('.staff-checkin-cell');
+    let presentCount = 0;
+    totalStaffRows.forEach(c => {
+        if (c.querySelector('.badge.bg-success-subtle')) {
+            presentCount++;
+        }
+    });
+    const total = totalStaffRows.length;
+    const percent = total > 0 ? Math.round((presentCount / total) * 100) : 0;
+
+    const tabBadge = document.getElementById('consoleTabBadgeStaff');
+    if (tabBadge) {
+        tabBadge.textContent = `${presentCount}/${total} có mặt`;
+    }
+
+    const statusText = document.getElementById('staffShiftStatusBarText');
+    if (statusText) {
+        statusText.textContent = `${presentCount} / ${total} có mặt (${percent}%)`;
+    }
+
+    const btnAll = document.getElementById('btnStaffCheckinAll');
+    if (btnAll) {
+        btnAll.disabled = (presentCount === total);
+    }
+}
+
+// Khôi phục Tab đang active trong Console (Tránh nhảy về Tab 1 khi reload/thao tác)
+function restoreActiveConsoleTab() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlTab = urlParams.get('console_tab');
+    const savedTab = urlTab || sessionStorage.getItem('activeConsoleTab');
+    if (savedTab) {
+        const tabEl = document.getElementById(savedTab);
+        if (tabEl) {
+            const tabInst = bootstrap.Tab.getOrCreateInstance(tabEl);
+            tabInst.show();
         }
     }
 }
@@ -2859,8 +3071,11 @@ function switchWorkspaceBlock(blockId, event) {
     if (blockId === 'calendar' && typeof window.renderWorkspaceCalendar === 'function') {
         window.renderWorkspaceCalendar();
     }
-    if (blockId === 'event-console' && typeof pollConsoleAttendance === 'function') {
-        pollConsoleAttendance();
+    if (blockId === 'event-console') {
+        restoreActiveConsoleTab();
+        if (typeof pollConsoleAttendance === 'function') {
+            pollConsoleAttendance();
+        }
     }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2868,12 +3083,22 @@ function switchWorkspaceBlock(blockId, event) {
 
 // Lắng nghe URL Hash khi vừa tải trang để mở đúng khối
 window.addEventListener('DOMContentLoaded', () => {
+    // Ghi nhớ Tab đang mở trong Console
+    document.querySelectorAll('#consoleTabs button[data-bs-toggle="pill"]').forEach(btn => {
+        btn.addEventListener('shown.bs.tab', function(e) {
+            sessionStorage.setItem('activeConsoleTab', e.target.id);
+        });
+    });
+
     let hash = window.location.hash.replace('#', '');
     const defaultBlock = <?= json_encode($isStaffOrManager ? 'stats' : ($isAdmin ? 'admin-accounts' : 'my-events')) ?>;
     if (!hash || !document.getElementById('block-' + hash)) {
         hash = defaultBlock;
     }
     switchWorkspaceBlock(hash);
+    if (hash === 'event-console') {
+        restoreActiveConsoleTab();
+    }
 });
 
 // Lắng nghe thay đổi hash (Back / Forward / Click hash link từ bên ngoài)

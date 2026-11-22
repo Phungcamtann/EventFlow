@@ -60,14 +60,19 @@
 
 ---
 
-#### 🚀 Phase 3: Unified Event Console & Staffing RBAC & My Events Dual-Tab (UAT 14, 15, 16, 08, 11, 10) — ĐANG TRIỂN KHAI
+#### 🚀 Phase 3: Unified Event Console & Staffing RBAC & My Events Dual-Tab (UAT 14, 15, 16, 08, 11, 10) — ĐÃ HOÀN THÀNH (Đã commit `b57125d`)
 - [x] **Xây dựng Unified Event Console (`app/modules/dashboard/index.php#event-console` & `console.php`):**
   - [x] Nhúng trực tiếp khối Điều Hành Console vào Workspace Single Container giữ trọn vẹn Left Menu Midnight Navy và Top-Nav.
-  - [x] Hợp nhất 4 tabs toàn diện: Tổng quan & Chỉnh sửa (Tab 1), Điểm danh Realtime Polling 3s (Tab 2), Ban Tổ Chức & Phân công cán bộ (Tab 3), Thống kê tỷ lệ check-in & phân bổ (Tab 4).
+  - [x] Hợp nhất 3 tabs cốt lõi dàn đều 33.33%: Thông tin & Chỉnh sửa (Tab 1), Điểm danh Realtime Polling 3s (Tab 2), Ban Tổ Chức & Phân công cán bộ (Tab 3).
   - [x] Loại bỏ nút cây bút trùng lặp ở bảng sự kiện (chỉ giữ nút Sliders Console và Con Mắt xem công khai).
-  - [x] Loại bỏ nút "Xem trang công khai" và nút "Quay về" thừa trong console.
+  - [x] Loại bỏ nút "+ Tạo sự kiện mới" trùng lặp trên header của bảng sự kiện.
+  - [x] Giữ nguyên active xanh trên Left Menu "Quản lý Sự kiện" khi mở Console.
   - [x] Xuất dữ liệu điểm danh sang file CSV (UTF-8 BOM hỗ trợ Excel tiếng Việt).
   - [x] Bàn điểm danh bổ sung Walk-in check-in tích hợp tra cứu tức thì (Modal popup AJAX).
+- [x] **Tính năng mới: Điểm danh ca trực Ban Tổ Chức (Staff Shift Check-in):**
+  - [x] Tích hợp trực tiếp vào Tab 3 Console: Băng kiểm diện quân số trực ca, nút "Điểm danh tất cả", và nút Check-in ca trực 1-click cho từng cán bộ.
+  - [x] Badge hiển thị sĩ số có mặt ngay trên tiêu đề Tab 3 (`X/Y có mặt`).
+  - [x] Hiển thị nhãn `✓ Đã trực ca` tại trang "Sự kiện của tôi" (Tab Sự kiện tôi điều hành).
 - [x] **Siết chặt RBAC tầng 3:**
   - [x] Chỉ cán bộ được chỉ định trong `Event_Staff` hoặc Club Manager / Admin của sự kiện X mới được mở bàn điểm danh và check-in cho sự kiện X.
   - [x] Chặn trái quyền ở cả `console.php` và `checkin.php`.
@@ -75,7 +80,7 @@
   - [x] Bắt buộc chọn $\ge 2$ cán bộ BĐH khi tạo sự kiện mới ở cả `form.php` và `dashboard/index.php`.
   - [x] Khóa chức năng xóa cán bộ nếu sự kiện chỉ còn đúng 2 cán bộ BĐH phụ trách.
 - [x] **Tách "Sự kiện của tôi" thành 2 tabs rõ ràng:**
-  - [x] "Sự kiện tôi điều hành / hỗ trợ" (Event_Staff) với nút mở bàn điều hành Console.
+  - [x] "Sự kiện tôi điều hành / hỗ trợ" (Event_Staff) với nút mở bàn điều hành Console và trạng thái trực ca.
   - [x] "Sự kiện tôi tham gia" (Participant) với trạng thái điểm danh thực tế.
   - [x] Áp dụng đồng bộ ở cả `app/modules/events/my_events.php` và `app/modules/dashboard/index.php#my-events`.
 

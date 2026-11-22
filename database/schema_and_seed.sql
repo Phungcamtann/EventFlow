@@ -134,12 +134,16 @@ CREATE TABLE IF NOT EXISTS Event_Staff (
     StaffRole ENUM('Organizer', 'Checkin_Lead', 'Support', 'MC') NOT NULL DEFAULT 'Support',
     AssignedBy INT NOT NULL,
     AssignedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CheckInAt DATETIME NULL DEFAULT NULL,
+    CheckedInBy INT NULL DEFAULT NULL,
     CONSTRAINT fk_staff_event FOREIGN KEY (EventID) REFERENCES Event(EventID)
         ON UPDATE CASCADE ON DELETE CASCADE,
     CONSTRAINT fk_staff_account FOREIGN KEY (AccountID) REFERENCES Account(AccountID)
         ON UPDATE CASCADE ON DELETE CASCADE,
     CONSTRAINT fk_staff_assigner FOREIGN KEY (AssignedBy) REFERENCES Account(AccountID)
         ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_staff_checker FOREIGN KEY (CheckedInBy) REFERENCES Account(AccountID)
+        ON UPDATE CASCADE ON DELETE SET NULL,
     UNIQUE KEY uk_event_account_staff (EventID, AccountID)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
