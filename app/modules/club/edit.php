@@ -16,6 +16,12 @@ if (!can_manage_club_profile()) {
     exit;
 }
 
+// Tích hợp Single Workspace Shell: Điều hướng tức thời vào Container Thông tin CLB
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    header('Location: ' . base_url('app/modules/dashboard/index.php#club-info'));
+    exit;
+}
+
 $pdo = get_db_connection();
 
 // Lấy thông tin CLB hiện tại (ClubID = 1)

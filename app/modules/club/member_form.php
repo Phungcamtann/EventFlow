@@ -13,13 +13,85 @@ require_role('Club Manager');
 
 $pdo = get_db_connection();
 
+// Xử lý AJAX tra cứu tài khoản theo MSSV hoặc Email (UAT 07)
+if (isset($_GET['ajax']) && $_GET['ajax'] === 'search_account') {
+    header('Content-Type: application/json; charset=utf-8');
+    $q = trim($_GET['q'] ?? '');
+    if ($q === '') {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Vui lòng nhập MSSV hoặc Email để tìm kiếm.',
+            'data'    => []
+        ]);
+        exit;
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT 
+            a.AccountID,
+            a.FullName,
+            a.StudentCode,
+            a.Email,
+            a.RoleID,
+            r.RoleName,
+            cm.MemberID,
+            cm.MemberRole,
+            cm.Status AS ClubMemberStatus
+        FROM Account a
+        JOIN Role r ON a.RoleID = r.RoleID
+        LEFT JOIN Club_Member cm ON (cm.AccountID = a.AccountID AND cm.ClubID = 1)
+        WHERE a.IsActive = 1
+          AND (a.StudentCode = :exact_code OR a.Email = :exact_email OR a.StudentCode LIKE :like_code OR a.Email LIKE :like_email OR a.FullName LIKE :like_name)
+        ORDER BY 
+            CASE 
+                WHEN a.StudentCode = :exact_code2 THEN 1
+                WHEN a.Email = :exact_email2 THEN 2
+                WHEN a.StudentCode LIKE :like_code2 THEN 3
+                ELSE 4
+            END,
+            a.FullName ASC
+        LIMIT 10
+    ");
+    $like = '%' . $q . '%';
+    $stmt->execute([
+        ':exact_code'   => $q,
+        ':exact_email'  => $q,
+        ':like_code'    => $like,
+        ':like_email'   => $like,
+        ':like_name'    => $like,
+        ':exact_code2'  => $q,
+        ':exact_email2' => $q,
+        ':like_code2'   => $like
+    ]);
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    if (empty($results)) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Không tìm thấy tài khoản nào khớp với từ khóa "' . htmlspecialchars($q) . '". Vui lòng kiểm tra lại MSSV hoặc Email.',
+            'data'    => []
+        ]);
+    } else {
+        echo json_encode([
+            'success' => true,
+            'count'   => count($results),
+            'data'    => $results
+        ]);
+    }
+    exit;
+}
+
 $memberId = isset($_GET['id']) ? (int)$_GET['id'] : null;
 $isEditMode = !empty($memberId);
 
 $memberData = null;
 $isManager = false;
 $availableAccounts = [];
+$selectedAccount = null;
 $errors = [];
+
+// Danh sách phòng ban phục vụ lựa chọn
+$departments = $pdo->query("SELECT DepartmentID, DepartmentCode, DepartmentName FROM Department WHERE ClubID = 1 ORDER BY OrderIndex ASC")->fetchAll();
 
 // Nếu là chế độ Edit
 if ($isEditMode) {
@@ -50,16 +122,18 @@ if ($isEditMode) {
 
     $isManager = (bool)$memberData['IsClubManager'];
 } else {
-    // Chế độ Add: Lấy danh sách các Account đang hoạt động chưa tham gia CLB
-    $accStmt = $pdo->query("
-        SELECT a.AccountID, a.FullName, a.StudentCode, a.Email, r.RoleName
-        FROM Account a
-        JOIN Role r ON a.RoleID = r.RoleID
-        WHERE a.AccountID NOT IN (SELECT AccountID FROM Club_Member WHERE ClubID = 1)
-          AND a.IsActive = 1
-        ORDER BY a.FullName ASC
-    ");
-    $availableAccounts = $accStmt->fetchAll();
+    // Chế độ Add: Nếu trước đó đã chọn account trong POST, khôi phục lại thông tin đối chiếu
+    $selAccId = (int)($_POST['account_id'] ?? 0);
+    if ($selAccId > 0) {
+        $selStmt = $pdo->prepare("
+            SELECT a.AccountID, a.FullName, a.StudentCode, a.Email, r.RoleName
+            FROM Account a
+            JOIN Role r ON a.RoleID = r.RoleID
+            WHERE a.AccountID = :id AND a.IsActive = 1
+        ");
+        $selStmt->execute([':id' => $selAccId]);
+        $selectedAccount = $selStmt->fetch();
+    }
 }
 
 // Xử lý Form Submit POST
@@ -67,12 +141,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token()) {
         $errors[] = "Mã xác thực CSRF không hợp lệ hoặc phiên làm việc đã hết hạn. Vui lòng thử lại.";
     } else {
+        $departmentId = !empty($_POST['department_id']) ? (int)$_POST['department_id'] : null;
         $memberRole = trim($_POST['member_role'] ?? 'Member');
         $status = trim($_POST['status'] ?? 'Active');
         $joinedDate = trim($_POST['joined_date'] ?? date('Y-m-d'));
 
         // Kiểm tra hợp lệ dữ liệu vai trò & trạng thái
-        if (!in_array($memberRole, ['Member', 'Board Member', 'Event Supporter'], true)) {
+        $allowedRoles = ['President', 'Vice President', 'Head', 'Vice Head', 'Member', 'Board Member', 'Event Supporter'];
+        if (!in_array($memberRole, $allowedRoles, true)) {
             $errors[] = "Vai trò nội bộ không hợp lệ.";
         }
 
@@ -93,12 +169,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (empty($errors)) {
                 $updateStmt = $pdo->prepare("
                     UPDATE Club_Member 
-                    SET MemberRole = :role,
+                    SET DepartmentID = :deptId,
+                        MemberRole = :role,
                         Status = :status,
                         JoinedDate = :joinedDate
                     WHERE MemberID = :memberId AND ClubID = 1
                 ");
                 $updateStmt->execute([
+                    ':deptId'     => $departmentId,
                     ':role'       => $memberRole,
                     ':status'     => $status,
                     ':joinedDate' => $joinedDate,
@@ -109,6 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($memberData['AccountID'] == current_user_id()) {
                     $_SESSION['user']['MemberRole'] = $memberRole;
                     $_SESSION['user']['ClubStatus'] = $status;
+                    $_SESSION['user']['DepartmentID'] = $departmentId;
                 }
 
                 set_flash('success', "Cập nhật thành viên '{$memberData['FullName']}' thành công!");
@@ -135,11 +214,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 try {
                     // 1. Thêm vào bảng Club_Member
                     $insertStmt = $pdo->prepare("
-                        INSERT INTO Club_Member (AccountID, ClubID, MemberRole, Status, JoinedDate)
-                        VALUES (:accId, 1, :role, :status, :joinedDate)
+                        INSERT INTO Club_Member (AccountID, ClubID, DepartmentID, MemberRole, Status, JoinedDate)
+                        VALUES (:accId, 1, :deptId, :role, :status, :joinedDate)
                     ");
                     $insertStmt->execute([
                         ':accId'      => $accountId,
+                        ':deptId'     => $departmentId,
                         ':role'       => $memberRole,
                         ':status'     => $status,
                         ':joinedDate' => $joinedDate
@@ -258,30 +338,117 @@ require_once __DIR__ . '/../../includes/header.php';
                             </div>
                         <?php else: ?>
                             <div class="mb-4">
-                                <label for="account_id" class="form-label fw-bold text-dark">
-                                    Chọn tài khoản người dùng <span class="text-danger">*</span>
+                                <label class="form-label fw-bold text-dark">
+                                    Tìm & Thêm tài khoản thành viên <span class="text-danger">*</span>
                                 </label>
-                                <?php if (empty($availableAccounts)): ?>
-                                    <div class="p-3 bg-light text-muted rounded-3 border">
-                                        <i class="bi bi-info-circle me-1"></i> Hiện tại tất cả các tài khoản trên hệ thống đều đã thuộc CLB.
+
+                                <!-- Khung Tìm kiếm theo MSSV hoặc Email -->
+                                <div id="search_box_container" class="<?= !empty($selectedAccount) ? 'd-none' : '' ?>">
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-white border-end-0 text-muted">
+                                            <i class="bi bi-search"></i>
+                                        </span>
+                                        <input 
+                                            type="text" 
+                                            id="search_keyword" 
+                                            class="form-control border-start-0 ps-0 form-control-lg fs-6" 
+                                            placeholder="Nhập MSSV (VD: 31241020999) hoặc Email sinh viên để tìm kiếm..."
+                                            autocomplete="off"
+                                        >
+                                        <button class="btn btn-primary px-4 fw-semibold" type="button" id="btn_search">
+                                            <span id="btn_search_text"><i class="bi bi-search me-1"></i> Tìm kiếm</span>
+                                            <span id="btn_search_spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                                        </button>
                                     </div>
-                                <?php else: ?>
-                                    <select name="account_id" id="account_id" class="form-select form-select-lg fs-6 rounded-3" required>
-                                        <option value="">-- Chọn sinh viên cần thêm vào CLB --</option>
-                                        <?php foreach ($availableAccounts as $acc): ?>
-                                            <option value="<?= $acc['AccountID'] ?>">
-                                                <?= htmlspecialchars($acc['FullName']) ?> 
-                                                <?= !empty($acc['StudentCode']) ? ' - MSSV: ' . htmlspecialchars($acc['StudentCode']) : '' ?>
-                                                (<?= htmlspecialchars($acc['Email']) ?>) [<?= htmlspecialchars($acc['RoleName']) ?>]
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                    <div class="form-text text-muted">
-                                        Chọn tài khoản đã đăng ký trên hệ thống. Nếu tài khoản có vai trò 'Event Participant', hệ thống sẽ tự động chuyển thành 'Club Member'.
+                                    <div class="form-text text-muted mt-2">
+                                        <i class="bi bi-info-circle me-1"></i> Nhập chính xác MSSV hoặc địa chỉ Email của sinh viên để tra cứu thông tin đối chiếu trước khi thêm.
                                     </div>
-                                <?php endif; ?>
+
+                                    <!-- Thông báo lỗi khi không tìm thấy / từ khóa không hợp lệ -->
+                                    <div id="search_alert" class="alert alert-warning border-0 rounded-3 mt-3 d-none">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <i class="bi bi-exclamation-triangle-fill fs-5 text-warning flex-shrink-0"></i>
+                                            <span id="search_alert_msg"></span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Danh sách kết quả tìm kiếm -->
+                                    <div id="search_results_container" class="mt-3 d-none">
+                                        <div class="d-flex align-items-center justify-content-between mb-2">
+                                            <span class="small fw-bold text-muted text-uppercase">Kết quả tìm kiếm:</span>
+                                            <span class="badge bg-secondary-subtle text-secondary rounded-pill" id="search_results_count">0 kết quả</span>
+                                        </div>
+                                        <div class="list-group rounded-3 shadow-sm border" id="search_results_list"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Hidden Input gửi AccountID khi submit form -->
+                                <input type="hidden" name="account_id" id="account_id" value="<?= !empty($selectedAccount) ? (int)$selectedAccount['AccountID'] : '' ?>">
+
+                                <!-- Khung đối chiếu thông tin tài khoản đã chọn (Verification Card) -->
+                                <div id="selected_user_card" class="card border border-success-subtle bg-success-subtle bg-opacity-10 rounded-3 p-3 mt-2 <?= empty($selectedAccount) ? 'd-none' : '' ?>">
+                                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <div class="avatar-circle bg-primary text-white fw-bold rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 48px; height: 48px; font-size: 1.25rem;" id="preview_avatar">
+                                                <?= !empty($selectedAccount) ? strtoupper(mb_substr($selectedAccount['FullName'], 0, 1)) : 'U' ?>
+                                            </div>
+                                            <div>
+                                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                    <h5 class="mb-0 fw-bold text-dark" id="preview_fullname">
+                                                        <?= !empty($selectedAccount) ? htmlspecialchars($selectedAccount['FullName']) : '' ?>
+                                                    </h5>
+                                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill small" id="preview_role">
+                                                        <?= !empty($selectedAccount) ? htmlspecialchars($selectedAccount['RoleName']) : '' ?>
+                                                    </span>
+                                                </div>
+                                                <div class="small text-muted mt-1">
+                                                    <span class="me-3">
+                                                        <i class="bi bi-person-badge text-primary me-1"></i> MSSV: 
+                                                        <strong class="text-dark font-mono" id="preview_code">
+                                                            <?= !empty($selectedAccount['StudentCode']) ? htmlspecialchars($selectedAccount['StudentCode']) : 'Chưa cập nhật' ?>
+                                                        </strong>
+                                                    </span>
+                                                    <span>
+                                                        <i class="bi bi-envelope text-primary me-1"></i> Email: 
+                                                        <strong class="text-dark" id="preview_email">
+                                                            <?= !empty($selectedAccount) ? htmlspecialchars($selectedAccount['Email']) : '' ?>
+                                                        </strong>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <button type="button" class="btn btn-outline-danger btn-sm px-3" id="btn_clear_selection">
+                                                <i class="bi bi-arrow-repeat me-1"></i> Chọn người khác
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2 pt-2 border-top border-success-subtle text-success small d-flex align-items-center gap-1">
+                                        <i class="bi bi-check-circle-fill"></i>
+                                        <span>Thông tin tài khoản đối chiếu hợp lệ. Vui lòng chọn vai trò nội bộ và bấm xác nhận bên dưới.</span>
+                                    </div>
+                                </div>
                             </div>
                         <?php endif; ?>
+
+                        <!-- Phòng ban chuyên môn trực thuộc -->
+                        <div class="mb-4">
+                            <label for="department_id" class="form-label fw-bold text-dark">
+                                Phòng ban chuyên môn trực thuộc
+                            </label>
+                            <?php $currentDeptId = $isEditMode ? ($memberData['DepartmentID'] ?? null) : ($_POST['department_id'] ?? null); ?>
+                            <select name="department_id" id="department_id" class="form-select rounded-3">
+                                <option value="">-- Ban Điều Hành (Không thuộc phòng ban) --</option>
+                                <?php foreach ($departments as $dept): ?>
+                                    <option value="<?= $dept['DepartmentID'] ?>" <?= ($currentDeptId == $dept['DepartmentID']) ? 'selected' : '' ?>>
+                                        Phòng <?= htmlspecialchars($dept['DepartmentCode']) ?> — <?= htmlspecialchars($dept['DepartmentName']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="form-text text-muted">
+                                Gán thành viên vào 1 trong 4 phòng ban chuyên môn của BELL UEH (HR, Specialist, Communications, External Relations).
+                            </div>
+                        </div>
 
                         <!-- Vai trò nội bộ CLB (Tầng 2: MemberRole) -->
                         <div class="mb-4">
@@ -290,18 +457,30 @@ require_once __DIR__ . '/../../includes/header.php';
                             </label>
                             <?php $currentRole = $isEditMode ? $memberData['MemberRole'] : 'Member'; ?>
                             <select name="member_role" id="member_role" class="form-select rounded-3" required>
-                                <option value="Member" <?= $currentRole === 'Member' ? 'selected' : '' ?>>
-                                    Thành Viên Thường (Member)
+                                <option value="President" <?= $currentRole === 'President' ? 'selected' : '' ?>>
+                                    Chủ nhiệm CLB (President — Ban Điều Hành)
+                                </option>
+                                <option value="Vice President" <?= $currentRole === 'Vice President' ? 'selected' : '' ?>>
+                                    Phó Chủ nhiệm CLB (Vice President — Ban Điều Hành)
+                                </option>
+                                <option value="Head" <?= $currentRole === 'Head' ? 'selected' : '' ?>>
+                                    Trưởng phòng (Head of Department)
+                                </option>
+                                <option value="Vice Head" <?= $currentRole === 'Vice Head' ? 'selected' : '' ?>>
+                                    Phó phòng (Vice Head of Department)
                                 </option>
                                 <option value="Event Supporter" <?= $currentRole === 'Event Supporter' ? 'selected' : '' ?>>
                                     Hỗ Trợ Sự Kiện (Event Supporter — Được ủy quyền Điểm danh)
                                 </option>
+                                <option value="Member" <?= $currentRole === 'Member' ? 'selected' : '' ?>>
+                                    Thành Viên Thường (Member)
+                                </option>
                                 <option value="Board Member" <?= $currentRole === 'Board Member' ? 'selected' : '' ?>>
-                                    Ban Điều Hành CLB (Board Member)
+                                    Ban Điều Hành (Board Member)
                                 </option>
                             </select>
                             <div class="form-text text-muted">
-                                <span class="text-primary fw-semibold"><i class="bi bi-info-circle me-1"></i> Lưu ý phân quyền:</span> Thành viên có vai trò <strong>Event Supporter</strong> hoặc <strong>Board Member</strong> ở trạng thái <em>Active</em> sẽ được cấp quyền truy cập tính năng Quản lý danh sách đăng ký và Điểm danh sự kiện.
+                                <span class="text-primary fw-semibold"><i class="bi bi-info-circle me-1"></i> Lưu ý phân quyền:</span> Cán bộ giữ vai trò <strong>President</strong>, <strong>Vice President</strong> hoặc được chỉ định vào <strong>Event_Staff</strong> sẽ có quyền quản trị và thực hiện điểm danh sự kiện.
                             </div>
                         </div>
 
@@ -351,8 +530,9 @@ require_once __DIR__ . '/../../includes/header.php';
                             </a>
                             <button 
                                 type="submit" 
+                                id="btn_submit_member"
                                 class="btn btn-primary px-4 fw-semibold"
-                                <?= (!$isEditMode && empty($availableAccounts)) ? 'disabled' : '' ?>
+                                <?= (!$isEditMode && empty($selectedAccount)) ? 'disabled' : '' ?>
                             >
                                 <i class="bi bi-check2-circle me-1"></i>
                                 <?= $isEditMode ? 'Cập nhật thông tin' : 'Xác nhận thêm thành viên' ?>
@@ -364,5 +544,232 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
     </div>
 </div>
+
+<?php if (!$isEditMode): ?>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchKeyword = document.getElementById('search_keyword');
+    const btnSearch = document.getElementById('btn_search');
+    const btnSearchText = document.getElementById('btn_search_text');
+    const btnSearchSpinner = document.getElementById('btn_search_spinner');
+    const searchAlert = document.getElementById('search_alert');
+    const searchAlertMsg = document.getElementById('search_alert_msg');
+    const searchResultsContainer = document.getElementById('search_results_container');
+    const searchResultsList = document.getElementById('search_results_list');
+    const searchResultsCount = document.getElementById('search_results_count');
+    const searchBoxContainer = document.getElementById('search_box_container');
+    
+    const accountIdInput = document.getElementById('account_id');
+    const selectedUserCard = document.getElementById('selected_user_card');
+    const previewAvatar = document.getElementById('preview_avatar');
+    const previewFullname = document.getElementById('preview_fullname');
+    const previewRole = document.getElementById('preview_role');
+    const previewCode = document.getElementById('preview_code');
+    const previewEmail = document.getElementById('preview_email');
+    const btnClearSelection = document.getElementById('btn_clear_selection');
+    const btnSubmitMember = document.getElementById('btn_submit_member');
+
+    let searchAbortController = null;
+
+    function showAlert(msg) {
+        searchAlertMsg.textContent = msg;
+        searchAlert.classList.remove('d-none');
+        searchResultsContainer.classList.add('d-none');
+    }
+
+    function hideAlert() {
+        searchAlert.classList.add('d-none');
+    }
+
+    function setLoading(isLoading) {
+        if (isLoading) {
+            btnSearch.disabled = true;
+            btnSearchText.classList.add('d-none');
+            btnSearchSpinner.classList.remove('d-none');
+        } else {
+            btnSearch.disabled = false;
+            btnSearchText.classList.remove('d-none');
+            btnSearchSpinner.classList.add('d-none');
+        }
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    async function performSearch() {
+        const query = searchKeyword.value.trim();
+        hideAlert();
+
+        if (query.length < 2) {
+            if (searchAbortController) searchAbortController.abort();
+            searchResultsContainer.classList.add('d-none');
+            return;
+        }
+
+        // Hủy request trước đó nếu chưa hoàn tất để tránh trùng lặp kết quả
+        if (searchAbortController) {
+            searchAbortController.abort();
+        }
+        searchAbortController = new AbortController();
+
+        setLoading(true);
+
+        try {
+            const url = '<?= base_url("app/modules/club/member_form.php") ?>?ajax=search_account&q=' + encodeURIComponent(query);
+            const response = await fetch(url, { signal: searchAbortController.signal });
+            const data = await response.json();
+
+            setLoading(false);
+
+            if (!data.success || !data.data || data.data.length === 0) {
+                showAlert(data.message || 'Không tìm thấy tài khoản nào phù hợp.');
+                return;
+            }
+
+            // Render danh sách kết quả
+            renderSearchResults(data.data);
+
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                return; // Bị hủy do người dùng gõ tiếp
+            }
+            setLoading(false);
+            showAlert('Đã có lỗi xảy ra khi kết nối máy chủ. Vui lòng thử lại.');
+            console.error('Search error:', error);
+        }
+    }
+
+    function renderSearchResults(users) {
+        searchResultsList.innerHTML = '';
+        searchResultsCount.textContent = users.length + ' kết quả';
+
+        users.forEach(user => {
+            const isAlreadyMember = Boolean(user.MemberID);
+            const studentCode = user.StudentCode ? escapeHtml(user.StudentCode) : 'Chưa cập nhật';
+            const initial = user.FullName ? escapeHtml(user.FullName.charAt(0).toUpperCase()) : 'U';
+
+            const item = document.createElement('div');
+            item.className = 'list-group-item list-group-item-action p-3 d-flex align-items-center justify-content-between flex-wrap gap-2';
+
+            let statusBadge = '';
+            let actionBtn = '';
+
+            if (isAlreadyMember) {
+                const roleMap = {
+                    'President': 'Chủ nhiệm CLB',
+                    'Vice President': 'Phó Chủ nhiệm',
+                    'Head': 'Trưởng phòng',
+                    'Vice Head': 'Phó phòng',
+                    'Board Member': 'Ủy viên BĐH',
+                    'Event Supporter': 'CTV Sự kiện',
+                    'Member': 'Thành viên'
+                };
+                const displayRole = roleMap[user.MemberRole] || user.MemberRole || 'Thành viên';
+                statusBadge = `<span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="bi bi-x-circle me-1"></i>Đã trong CLB (${escapeHtml(displayRole)})</span>`;
+                actionBtn = `<button type="button" class="btn btn-sm btn-secondary disabled" disabled>Đã là thành viên</button>`;
+            } else {
+                statusBadge = `<span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-check-circle me-1"></i>Chưa tham gia</span>`;
+                actionBtn = `<button type="button" class="btn btn-sm btn-primary fw-semibold select-user-btn"><i class="bi bi-check2 me-1"></i>Chọn người này</button>`;
+            }
+
+            item.innerHTML = `
+                <div class="d-flex align-items-center gap-3">
+                    <div class="avatar-circle bg-primary-subtle text-primary fw-bold rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 40px; height: 40px;">
+                        ${initial}
+                    </div>
+                    <div>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <strong class="text-dark">${escapeHtml(user.FullName)}</strong>
+                            <span class="badge bg-light text-muted border small">${escapeHtml(user.RoleName)}</span>
+                            ${statusBadge}
+                        </div>
+                        <div class="small text-muted mt-1">
+                            <span class="me-3"><i class="bi bi-person-badge text-primary me-1"></i>MSSV: <span class="font-mono">${studentCode}</span></span>
+                            <span><i class="bi bi-envelope text-primary me-1"></i>${escapeHtml(user.Email)}</span>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    ${actionBtn}
+                </div>
+            `;
+
+            if (!isAlreadyMember) {
+                const btn = item.querySelector('.select-user-btn');
+                btn.addEventListener('click', () => selectUser(user));
+            }
+
+            searchResultsList.appendChild(item);
+        });
+
+        searchResultsContainer.classList.remove('d-none');
+    }
+
+    function selectUser(user) {
+        accountIdInput.value = user.AccountID;
+        previewAvatar.textContent = user.FullName ? user.FullName.charAt(0).toUpperCase() : 'U';
+        previewFullname.textContent = user.FullName;
+        previewRole.textContent = user.RoleName;
+        previewCode.textContent = user.StudentCode ? user.StudentCode : 'Chưa cập nhật';
+        previewEmail.textContent = user.Email;
+
+        searchBoxContainer.classList.add('d-none');
+        searchResultsContainer.classList.add('d-none');
+        selectedUserCard.classList.remove('d-none');
+
+        if (btnSubmitMember) {
+            btnSubmitMember.disabled = false;
+        }
+    }
+
+    btnClearSelection.addEventListener('click', function() {
+        accountIdInput.value = '';
+        selectedUserCard.classList.add('d-none');
+        searchBoxContainer.classList.remove('d-none');
+        searchResultsContainer.classList.add('d-none');
+        hideAlert();
+        searchKeyword.value = '';
+        searchKeyword.focus();
+
+        if (btnSubmitMember) {
+            btnSubmitMember.disabled = true;
+        }
+    });
+
+    btnSearch.addEventListener('click', performSearch);
+    searchKeyword.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            performSearch();
+        }
+    });
+
+    // Tự động tìm kiếm tức thì theo sự kiện thay đổi (input event) không độ trễ
+    searchKeyword.addEventListener('input', function() {
+        const query = this.value.trim();
+        if (query.length === 0) {
+            if (searchAbortController) searchAbortController.abort();
+            hideAlert();
+            searchResultsContainer.classList.add('d-none');
+            return;
+        }
+        if (query.length < 2) {
+            if (searchAbortController) searchAbortController.abort();
+            hideAlert();
+            searchResultsContainer.classList.add('d-none');
+            return;
+        }
+        performSearch();
+    });
+});
+</script>
+<?php endif; ?>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

@@ -6,6 +6,12 @@ require_once __DIR__ . '/../../includes/event_helpers.php';
 
 require_role('Club Manager');
 
+// Tích hợp Single Workspace Shell: Điều hướng tức thời vào Container Quản lý Sự kiện
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    header('Location: ' . base_url('app/modules/dashboard/index.php#events'));
+    exit;
+}
+
 $pdo       = get_db_connection();
 $h         = static fn($v): string => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
 $manageUrl = base_url('app/modules/events/manage.php');
@@ -94,21 +100,21 @@ $stmt = $pdo->prepare("
 $stmt->execute([':c' => $clubId]);
 $events = $stmt->fetchAll();
 
-$pageTitle = 'Quản lý sự kiện — EventFlow';
-require_once __DIR__ . '/../../includes/header.php';
+require_once __DIR__ . '/../../includes/workspace_layout.php';
+workspace_header('Quản lý sự kiện CLB', 'events_manage');
 ?>
 
-<div class="container py-4">
+<div>
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-4">
         <div>
             <h1 class="h3 fw-bold text-dark mb-1">Quản lý sự kiện</h1>
             <p class="text-muted small mb-0"><?= $h($club['ClubName']) ?> — gồm cả bản nháp và sự kiện đã hủy.</p>
         </div>
         <div class="d-flex gap-2">
-            <a href="<?= base_url('app/modules/attendance/stats.php') ?>" class="btn btn-outline-primary fw-semibold">
+            <a href="<?= base_url('app/modules/attendance/stats.php') ?>" class="btn btn-outline-primary fw-semibold btn-sm">
                 <i class="bi bi-bar-chart-line me-1"></i> Báo cáo thống kê
             </a>
-            <a href="<?= base_url('app/modules/events/form.php') ?>" class="btn btn-primary fw-semibold">
+            <a href="<?= base_url('app/modules/events/form.php') ?>" class="btn btn-primary fw-semibold btn-sm">
                 <i class="bi bi-plus-circle me-1"></i> Tạo sự kiện mới
             </a>
         </div>
@@ -148,9 +154,6 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <?php endif; ?>
                                     <div>
                                         <div class="fw-semibold text-dark"><?= $h($evt['EventName']) ?></div>
-                                        <?php if ($isEnded && $evt['Status'] === 'Published'): ?>
-                                            <div class="small text-muted">Đã kết thúc</div>
-                                        <?php endif; ?>
                                     </div>
                                 </div>
                             </td>
@@ -192,4 +195,4 @@ require_once __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 
-<?php require_once __DIR__ . '/../../includes/footer.php'; ?>
+<?php workspace_footer(); ?>

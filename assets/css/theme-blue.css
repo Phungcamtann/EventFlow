@@ -1,0 +1,295 @@
+/**
+ * EventFlow — Unified Blue Theme Design System
+ * Tông màu chủ đạo: Xanh Hoàng Gia (Royal Blue #2563eb) & Xanh Biển Sâu (Navy #0f172a / #0b192c)
+ * Tinh thần: Chuyên nghiệp, Tinh gọn, Trẻ trung sinh viên UEH, Trực quan, Dịu mắt
+ */
+
+:root {
+  /* ==========================================================================
+     1. COLOR PALETTE — TÔNG XANH THỐNG NHẤT
+     ========================================================================== */
+  /* PRIMARY BLUES (Royal Blue Family) */
+  --ef-blue-50:        #eff6ff;   /* Nền pill tag, alert nhạt */
+  --ef-blue-100:       #dbeafe;   /* Nền badge, hover card nhạt */
+  --ef-blue-200:       #bfdbfe;   /* Border badge, outline mềm */
+  --ef-blue-300:       #93c5fd;   /* Border hover, focus ring */
+  --ef-blue-400:       #60a5fa;   /* Icon, text highlight */
+  --ef-blue-500:       #3b82f6;   /* Vibrant Blue */
+  --ef-blue-600:       #2563eb;   /* ★ Brand Primary Blue (Chính) */
+  --ef-blue-700:       #1d4ed8;   /* Primary Dark / Hover button */
+  --ef-blue-800:       #1e40af;   /* Deep Royal Blue / Text đậm */
+  --ef-blue-900:       #1e3a8a;   /* Slate Blue */
+  --ef-blue-950:       #0f172a;   /* ★ Midnight Navy (Thanh top, Hero card) */
+
+  /* SECONDARY ACCENTS (Sky / Cyan & Indigo) */
+  --ef-sky-400:        #38bdf8;   /* Text highlight trên nền tối */
+  --ef-sky-500:        #0ea5e9;   /* Cyan Blue Accent */
+  --ef-sky-600:        #0284c7;   /* Deep Sky */
+  --ef-indigo-500:     #6366f1;   /* Chuyên môn SPEC */
+  --ef-teal-500:       #0d9488;   /* Đối ngoại ER */
+
+  /* NEUTRAL & SURFACES (Dịu mắt, không chói - Chuẩn 60-30-10 Rule) */
+  --ef-canvas:         #f1f5f9;   /* ★ Slate-100 Canvas chuẩn hóa tương phản */
+  --ef-surface:        #ffffff;   /* Mặt phẳng thẻ card, modal */
+  --ef-surface-subtle: #f1f5f9;   /* Nền phụ, header bảng */
+  --ef-border:         #e2e8f0;   /* Viền chuẩn (Slate 200) */
+  --ef-border-subtle:  rgba(15, 23, 42, 0.06);
+
+  /* TYPOGRAPHY COLORS */
+  --ef-text-primary:   #0f172a;   /* Slate 900 — Chữ tiêu đề chính */
+  --ef-text-secondary: #334155;   /* Slate 700 — Chữ nội dung */
+  --ef-text-muted:     #64748b;   /* Slate 500 — Chữ phụ chú */
+  --ef-text-light:     #94a3b8;   /* Slate 400 — Placeholder, text mờ */
+
+  /* SEMANTIC FEEDBACK */
+  --ef-success:        #10b981;
+  --ef-warning:        #f59e0b;
+  --ef-danger:         #ef4444;
+  --ef-info:           #0ea5e9;
+
+  /* ELEVATION & SHADOWS */
+  --ef-shadow-xs:      0 1px 2px rgba(15, 23, 42, 0.04);
+  --ef-shadow-sm:      0 2px 8px rgba(37, 99, 235, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --ef-shadow-md:      0 8px 20px rgba(37, 99, 235, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04);
+  --ef-shadow-lg:      0 16px 36px rgba(15, 23, 42, 0.1), 0 4px 12px rgba(37, 99, 235, 0.06);
+  --ef-shadow-glow:    0 4px 16px rgba(37, 99, 235, 0.35);
+
+  /* TYPOGRAPHY FAMILY (THỐNG NHẤT VỚI INTER & ROBOTO) */
+  --ef-font-sans:      'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --ef-font-display:   'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --ef-font-serif:     'Inter', 'Roboto', sans-serif;
+}
+
+body {
+  background-color: #e6f4fb;
+  background-image: url('../images/bg_bell_pattern.webp');
+  background-repeat: no-repeat;
+  background-position: center top;
+  background-size: cover;
+  background-attachment: fixed;
+}
+
+/* ==========================================================================
+   2. GLOBAL UTILITY CLASSES — THEME XANH
+   ========================================================================== */
+
+/* NỀN & BẢNG MÀU (ÁP DỤNG BACKGROUND HỌA TIẾT CHUÔNG BELL THEO YÊU CẦU USER) */
+.bg-ef-canvas {
+  background-color: #e6f4fb !important;
+  background-image: url('../images/bg_bell_pattern.webp') !important;
+  background-repeat: no-repeat !important;
+  background-position: center top !important;
+  background-size: cover !important;
+  background-attachment: fixed !important;
+}
+.bg-ef-surface { background-color: var(--ef-surface) !important; }
+.bg-ef-navy { background-color: #0b192c !important; }
+.bg-ef-blue-subtle { background-color: var(--ef-blue-50) !important; }
+
+/* CHỮ */
+.text-ef-primary { color: var(--ef-blue-600) !important; }
+.text-ef-dark { color: var(--ef-text-primary) !important; }
+.text-ef-muted { color: var(--ef-text-muted) !important; }
+.text-ef-sky { color: var(--ef-sky-400) !important; }
+
+/* NÚT BẤM (BUTTONS) */
+.btn-ef-primary {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 9999px !important;
+  font-weight: 600;
+  padding: 0.55rem 1.4rem;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+.btn-ef-primary:hover {
+  background: linear-gradient(135deg, #1d4ed8, #1e40af) !important;
+  color: #ffffff !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.4);
+}
+.btn-ef-primary:active {
+  transform: translateY(0);
+}
+
+.btn-ef-outline {
+  background-color: transparent !important;
+  color: var(--ef-blue-600) !important;
+  border: 1.5px solid var(--ef-blue-600) !important;
+  border-radius: 9999px !important;
+  font-weight: 600;
+  padding: 0.55rem 1.4rem;
+  transition: all 0.25s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+.btn-ef-outline:hover {
+  background-color: var(--ef-blue-50) !important;
+  color: var(--ef-blue-700) !important;
+  border-color: var(--ef-blue-700) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);
+}
+
+.btn-ef-dark {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 9999px !important;
+  font-weight: 600;
+  padding: 0.55rem 1.4rem;
+  transition: all 0.25s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+.btn-ef-dark:hover {
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+  transform: translateY(-2px);
+}
+
+/* HUY HIỆU & PILLS (BADGES) */
+.badge-ef-blue {
+  background-color: var(--ef-blue-50) !important;
+  color: var(--ef-blue-800) !important;
+  border: 1px solid var(--ef-blue-200) !important;
+  font-weight: 600;
+}
+
+.badge-ef-sky {
+  background-color: #f0f9ff !important;
+  color: #0369a1 !important;
+  border: 1px solid #bae6fd !important;
+  font-weight: 600;
+}
+
+.badge-ef-indigo {
+  background-color: #eef2ff !important;
+  color: #4338ca !important;
+  border: 1px solid #c7d2fe !important;
+  font-weight: 600;
+}
+
+.badge-ef-teal {
+  background-color: #f0fdfa !important;
+  color: #0f766e !important;
+  border: 1px solid #99f6e4 !important;
+  font-weight: 600;
+}
+
+/* THẺ TRÌNH BÀY HIỆN ĐẠI (EDITORIAL CARDS) */
+.ef-card-editorial {
+  background-color: #ffffff;
+  border: 1px solid var(--ef-border);
+  border-radius: 20px;
+  box-shadow: var(--ef-shadow-sm);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ef-card-editorial:hover {
+  transform: translateY(-4px);
+  border-color: var(--ef-blue-300);
+  box-shadow: var(--ef-shadow-md);
+}
+
+/* THẺ POLAROID CÁN BỘ LÃNH ĐẠO */
+.ef-polaroid {
+  background-color: #ffffff;
+  border: 1px solid var(--ef-border);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: var(--ef-shadow-sm);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ef-polaroid:hover {
+  transform: translateY(-4px);
+  border-color: var(--ef-blue-300);
+  box-shadow: var(--ef-shadow-md);
+}
+
+/* CHẤM TRÒN ĐIỂM NHẤN (ACCENT DOT) */
+.ef-dot-blue {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--ef-blue-600);
+  margin-right: 8px;
+}
+
+/* HERO CONTAINER MIDNIGHT NAVY */
+.ef-hero-navy {
+  background: radial-gradient(120% 120% at 85% 15%, #1e3a8a 0%, #0b192c 60%, #060d17 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 24px;
+}
+
+/* TOP TICKER STRIP */
+.ef-top-ticker {
+  background-color: #f8fafc !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: #64748b !important;
+}
+
+/* ==========================================================================
+   DEPARTMENT BADGES (CHỐNG LỖI TƯƠNG PHẢN WHITE-ON-WHITE)
+   ========================================================================== */
+.badge-dept-hr {
+  background-color: #f3e8ff !important;
+  color: #6b21a8 !important;
+  border: 1px solid #d8b4fe !important;
+}
+.badge-dept-spec {
+  background-color: #fef3c7 !important;
+  color: #92400e !important;
+  border: 1px solid #fde68a !important;
+}
+.badge-dept-coms {
+  background-color: #eff6ff !important;
+  color: #1e40af !important;
+  border: 1px solid #bfdbfe !important;
+}
+.badge-dept-er {
+  background-color: #ecfdf5 !important;
+  color: #065f46 !important;
+  border: 1px solid #a7f3d0 !important;
+}
+
+/* ==========================================================================
+   FLOATING TOAST NOTIFICATION WITH 3.5S PROGRESS BAR
+   ========================================================================== */
+@keyframes efToastShrink {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+.ef-toast-progress-bar {
+  animation: efToastShrink 3.5s linear forwards;
+}
+
+/* BRAND LOGO BADGE */
+.ef-brand-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  font-weight: 800;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}

@@ -97,6 +97,7 @@ $sql .= " ORDER BY e.StartTime DESC";
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $eventStats = $stmt->fetchAll();
+$now = event_now($pdo);
 
 $pageTitle = 'Báo cáo thống kê hoạt động — EventFlow';
 require_once __DIR__ . '/../../includes/header.php';
@@ -201,7 +202,7 @@ require_once __DIR__ . '/../../includes/header.php';
             <div class="col-md-4">
                 <select name="status" class="form-select" onchange="this.form.submit()">
                     <option value="all" <?= $statusFilter === 'all' ? 'selected' : '' ?>>Tất cả trạng thái sự kiện</option>
-                    <option value="Published" <?= $statusFilter === 'Published' ? 'selected' : '' ?>>Đang công bố (Published)</option>
+                    <option value="Published" <?= $statusFilter === 'Published' ? 'selected' : '' ?>>Đã công bố (Published)</option>
                     <option value="Draft" <?= $statusFilter === 'Draft' ? 'selected' : '' ?>>Bản nháp (Draft)</option>
                     <option value="Cancelled" <?= $statusFilter === 'Cancelled' ? 'selected' : '' ?>>Đã hủy (Cancelled)</option>
                 </select>
@@ -267,15 +268,14 @@ require_once __DIR__ . '/../../includes/header.php';
                         }
 
                         $capText = $evt['MaxCapacity'] !== null ? (int)$evt['MaxCapacity'] : '∞';
+                        $st = event_state($evt, $reg, $now);
                     ?>
                         <tr>
                             <td class="ps-4">
                                 <div class="fw-semibold text-dark"><?= $h($evt['EventName']) ?></div>
                                 <div class="small text-muted">
                                     <i class="bi bi-geo-alt me-1"></i><?= $h($evt['Location']) ?>
-                                    · <span class="badge badge-sm <?= $evt['Status'] === 'Published' ? 'bg-success-subtle text-success' : ($evt['Status'] === 'Cancelled' ? 'bg-danger-subtle text-danger' : 'bg-secondary-subtle text-secondary') ?>">
-                                        <?= $evt['Status'] ?>
-                                    </span>
+                                    · <span class="badge-pill-custom <?= $h($st['css_class']) ?>"><?= $h($st['label']) ?></span>
                                 </div>
                             </td>
                             <td class="small text-nowrap">
@@ -295,9 +295,13 @@ require_once __DIR__ . '/../../includes/header.php';
                                 </div>
                             </td>
                             <td class="text-end pe-4 text-nowrap">
+                                <a href="<?= base_url('app/modules/events/console.php?id=' . (int)$evt['EventID']) ?>"
+                                   class="btn btn-sm btn-primary rounded-pill px-2.5 me-1" title="Mở Event Console">
+                                    <i class="bi bi-sliders me-1"></i> Console
+                                </a>
                                 <a href="<?= base_url('app/modules/attendance/checkin.php?event_id=' . (int)$evt['EventID']) ?>"
-                                   class="btn btn-sm btn-outline-primary" title="Điểm danh / Xem danh sách">
-                                    <i class="bi bi-clipboard-check me-1"></i>Điểm danh
+                                   class="btn btn-sm btn-outline-secondary rounded-pill" title="Điểm danh / Xem danh sách">
+                                    <i class="bi bi-clipboard-check me-1"></i> Điểm danh
                                 </a>
                             </td>
                         </tr>

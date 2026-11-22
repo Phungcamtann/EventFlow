@@ -28,6 +28,11 @@ if ($clubIds === []) {
     render_forbidden_page('Tài khoản của bạn chưa được gán cho CLB nào để điểm danh.');
 }
 
+// Kiểm tra RBAC Tầng 3 (UAT 08, 11): Chỉ cán bộ trong Event_Staff hoặc Manager mới được check-in
+if ($eventId > 0 && !can_user_checkin_event($pdo, $eventId, (int)current_user_id())) {
+    render_forbidden_page('Bạn không được chỉ định trong Ban Tổ Chức (Event Staff) của sự kiện này nên không có quyền mở bàn điểm danh.');
+}
+
 /**
  * Điểm danh một người có sẵn trong danh sách đăng ký. Trả về [bool, thông báo].
  * Khóa dòng đăng ký (FOR UPDATE); Attendance.RegID là UNIQUE nên chặn trùng ở tầng DB.
@@ -240,15 +245,53 @@ function att_undo(PDO $pdo, int $eventId, int $regId): array {
     }
 }
 
+/**
+ * Lấy số lượng thống kê điểm danh hiện tại của sự kiện (Total & Checked)
+ */
+function att_event_stats(PDO $pdo, int $eventId): array {
+    $stmt = $pdo->prepare("
+        SELECT 
+            COUNT(*) AS Total,
+            SUM(CASE WHEN att.AttendanceID IS NOT NULL THEN 1 ELSE 0 END) AS Checked
+        FROM Event_Registration r
+        LEFT JOIN Attendance att ON att.RegID = r.RegID
+        WHERE r.EventID = :e AND r.Status = 'Registered'
+    ");
+    $stmt->execute([':e' => $eventId]);
+    $row = $stmt->fetch();
+    return [
+        'total'   => (int)($row['Total'] ?? 0),
+        'checked' => (int)($row['Checked'] ?? 0)
+    ];
+}
+
 // ---------------------------------------------------------------------------
 // POST: điểm danh / bỏ điểm danh / điểm danh bổ sung walk-in
 // ---------------------------------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $evt = att_load_event($pdo, $eventId, $clubIds);
+    $isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+           || isset($_POST['ajax'])
+           || (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false);
+
     if (!$evt) {
+        if ($isAjax) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['success' => false, 'message' => 'Không tìm thấy sự kiện hoặc bạn không thuộc CLB tổ chức sự kiện này.']);
+            exit;
+        }
         set_flash('danger', 'Không tìm thấy sự kiện hoặc bạn không thuộc CLB tổ chức sự kiện này.');
         header('Location: ' . $pageUrl);
         exit;
+    }
+
+    if (!can_user_checkin_event($pdo, $eventId, (int)current_user_id())) {
+        if ($isAjax) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['success' => false, 'message' => 'Bạn không thuộc ban tổ chức (Event Staff) của sự kiện này nên không có quyền điểm danh.']);
+            exit;
+        }
+        render_forbidden_page('Bạn không được chỉ định trong Ban Tổ Chức (Event Staff) của sự kiện này nên không có quyền mở bàn điểm danh.');
     }
 
     $action = $_POST['action'] ?? '';
@@ -256,20 +299,95 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $last   = '';
 
     if (!verify_csrf_token()) {
+        if ($isAjax) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['success' => false, 'message' => 'Mã xác thực không hợp lệ hoặc phiên làm việc đã hết hạn. Vui lòng tải lại trang.']);
+            exit;
+        }
         set_flash('danger', 'Mã xác thực không hợp lệ hoặc phiên làm việc đã hết hạn. Vui lòng thử lại.');
     } elseif ($action === 'checkin') {
         [$ok, $msg] = att_checkin($pdo, $eventId, $regId, (int)current_user_id());
+        if ($isAjax) {
+            header('Content-Type: application/json; charset=utf-8');
+            $checkInAt = null;
+            if ($ok) {
+                $timeStmt = $pdo->prepare("SELECT CheckInAt FROM Attendance WHERE RegID = :r LIMIT 1");
+                $timeStmt->execute([':r' => $regId]);
+                $timeVal = $timeStmt->fetchColumn();
+                $checkInAt = $timeVal ? event_fmt_dt($timeVal) : date('H:i d/m/Y');
+            }
+            $stats = att_event_stats($pdo, $eventId);
+            echo json_encode([
+                'success'       => $ok,
+                'message'       => $msg,
+                'action'        => 'checkin',
+                'reg_id'        => $regId,
+                'checked_in_at' => $checkInAt,
+                'stats'         => $stats
+            ]);
+            exit;
+        }
         set_flash($ok ? 'success' : 'danger', $msg);
         $last = $ok ? '&last=' . $regId : '';
     } elseif ($action === 'undo') {
         [$ok, $msg] = att_undo($pdo, $eventId, $regId);
+        if ($isAjax) {
+            header('Content-Type: application/json; charset=utf-8');
+            $stats = att_event_stats($pdo, $eventId);
+            echo json_encode([
+                'success' => $ok,
+                'message' => $msg,
+                'action'  => 'undo',
+                'reg_id'  => $regId,
+                'stats'   => $stats
+            ]);
+            exit;
+        }
         set_flash($ok ? 'success' : 'danger', $msg);
     } elseif ($action === 'walkin_checkin') {
         $targetAccountId = (int)($_POST['account_id'] ?? 0);
         [$ok, $msg, $newRegId] = att_walkin_checkin($pdo, $eventId, $targetAccountId, (int)current_user_id());
+        if ($isAjax) {
+            header('Content-Type: application/json; charset=utf-8');
+            $userRow = null;
+            if ($ok && $newRegId > 0) {
+                $uStmt = $pdo->prepare("
+                    SELECT r.RegID, a.FullName, a.StudentCode, att.CheckInAt
+                    FROM Event_Registration r
+                    JOIN Account a ON a.AccountID = r.AccountID
+                    LEFT JOIN Attendance att ON att.RegID = r.RegID
+                    WHERE r.RegID = :r
+                ");
+                $uStmt->execute([':r' => $newRegId]);
+                $uData = $uStmt->fetch();
+                if ($uData) {
+                    $userRow = [
+                        'reg_id'        => (int)$uData['RegID'],
+                        'fullname'      => $uData['FullName'],
+                        'student_code'  => $uData['StudentCode'] ?? '',
+                        'checked_in_at' => !empty($uData['CheckInAt']) ? event_fmt_dt($uData['CheckInAt']) : date('H:i d/m/Y')
+                    ];
+                }
+            }
+            $stats = att_event_stats($pdo, $eventId);
+            echo json_encode([
+                'success' => $ok,
+                'message' => $msg,
+                'action'  => 'walkin_checkin',
+                'reg_id'  => $newRegId,
+                'user'    => $userRow,
+                'stats'   => $stats
+            ]);
+            exit;
+        }
         set_flash($ok ? 'success' : 'danger', $msg);
         $last = $ok && $newRegId > 0 ? '&last=' . $newRegId : '';
     } else {
+        if ($isAjax) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['success' => false, 'message' => 'Thao tác không hợp lệ.']);
+            exit;
+        }
         set_flash('danger', 'Thao tác không hợp lệ.');
     }
 
@@ -281,9 +399,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // GET 1: chưa chọn sự kiện → danh sách sự kiện của CLB
 // ---------------------------------------------------------------------------
 if ($eventId === 0) {
+    $now = event_now($pdo);
     $in = implode(',', array_map('intval', $clubIds));
     $events = $pdo->query("
-        SELECT e.EventID, e.EventName, e.StartTime, e.Location, e.Status,
+        SELECT e.*,
                (SELECT COUNT(*) FROM Event_Registration r
                  WHERE r.EventID = e.EventID AND r.Status = 'Registered') AS RegisteredCount
         FROM Event e
@@ -321,12 +440,14 @@ if ($eventId === 0) {
                             </tr>
                         </thead>
                         <tbody>
-                        <?php foreach ($events as $e): ?>
+                        <?php foreach ($events as $e): 
+                            $st = event_state($e, (int)$e['RegisteredCount'], $now);
+                        ?>
                             <tr>
                                 <td class="ps-4 fw-semibold text-dark"><?= $h($e['EventName']) ?></td>
                                 <td class="small text-nowrap"><?= $h(event_fmt_dt($e['StartTime'])) ?></td>
                                 <td class="font-mono small"><?= (int)$e['RegisteredCount'] ?></td>
-                                <td class="small"><?= $e['Status'] === 'Cancelled' ? 'Đã hủy' : 'Đang công bố' ?></td>
+                                <td><span class="badge-pill-custom <?= $h($st['css_class']) ?>"><?= $h($st['label']) ?></span></td>
                                 <td class="text-end pe-4">
                                     <?php if ($e['Status'] !== 'Cancelled'): ?>
                                         <a href="<?= $h($pageUrl . '?event_id=' . (int)$e['EventID']) ?>" class="btn btn-sm btn-primary">Điểm danh</a>
@@ -350,8 +471,53 @@ if ($eventId === 0) {
 // ---------------------------------------------------------------------------
 $evt = att_load_event($pdo, $eventId, $clubIds);
 if (!$evt) {
+    if (isset($_GET['ajax'])) {
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['success' => false, 'message' => 'Không tìm thấy sự kiện']);
+        exit;
+    }
     set_flash('danger', 'Không tìm thấy sự kiện hoặc bạn không thuộc CLB tổ chức sự kiện này.');
     header('Location: ' . $pageUrl);
+    exit;
+}
+
+// Xử lý AJAX Polling trạng thái điểm danh thời gian thực (UAT 17)
+if (isset($_GET['ajax']) && $_GET['ajax'] === 'get_attendance_status') {
+    session_write_close();
+    header('Content-Type: application/json; charset=utf-8');
+    $stmt = $pdo->prepare("
+        SELECT r.RegID, a.FullName, a.StudentCode,
+               att.AttendanceStatus, att.CheckInAt
+        FROM Event_Registration r
+        JOIN Account a ON a.AccountID = r.AccountID
+        LEFT JOIN Attendance att ON att.RegID = r.RegID
+        WHERE r.EventID = :e AND r.Status = 'Registered'
+        ORDER BY a.FullName ASC
+    ");
+    $stmt->execute([':e' => $eventId]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $total = count($rows);
+    $checked = 0;
+    $items = [];
+    foreach ($rows as $row) {
+        $isDone = !empty($row['AttendanceStatus']);
+        if ($isDone) $checked++;
+        $items[$row['RegID']] = [
+            'reg_id'        => (int)$row['RegID'],
+            'fullname'      => $row['FullName'],
+            'student_code'  => $row['StudentCode'] ?? '',
+            'is_checked'    => $isDone,
+            'checked_in_at' => $isDone && !empty($row['CheckInAt']) ? event_fmt_dt($row['CheckInAt']) : null
+        ];
+    }
+
+    echo json_encode([
+        'success' => true,
+        'total'   => $total,
+        'checked' => $checked,
+        'items'   => $items
+    ]);
     exit;
 }
 
@@ -420,6 +586,9 @@ require_once __DIR__ . '/../../includes/header.php';
             <p class="text-muted small mb-0"><?= $h(event_fmt_dt($evt['StartTime'])) ?> · <?= $h($evt['Location']) ?></p>
         </div>
         <div class="d-flex flex-wrap align-items-center gap-2 text-md-end">
+            <a href="<?= base_url('app/modules/events/console.php?id=' . $eventId . '#checkin') ?>" class="btn btn-primary btn-sm rounded-pill px-3 fw-semibold">
+                <i class="bi bi-sliders me-1"></i> Mở Unified Event Console
+            </a>
             <a href="<?= base_url('app/modules/attendance/registrations.php?event_id=' . $eventId) ?>" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-people me-1"></i> Danh sách đăng ký
             </a>
@@ -430,7 +599,10 @@ require_once __DIR__ . '/../../includes/header.php';
             <?php endif; ?>
             <div class="ms-lg-2">
                 <div class="small text-muted">Đã điểm danh</div>
-                <div class="h4 fw-bold mb-0 font-mono"><?= $checked ?> / <?= $total ?> <span class="fs-6 fw-normal text-muted">người đăng ký</span></div>
+                <div class="h4 fw-bold mb-0 font-mono">
+                    <span id="checkedCount"><?= $checked ?></span> / <span id="totalCount"><?= $total ?></span> 
+                    <span class="fs-6 fw-normal text-muted">người đăng ký</span>
+                </div>
             </div>
         </div>
     </div>
@@ -479,11 +651,14 @@ require_once __DIR__ . '/../../includes/header.php';
                         $done   = $r['AttendanceStatus'] !== null;
                         $isLast = (int)$r['RegID'] === $last;
                     ?>
-                        <tr data-name="<?= $h($r['FullName']) ?>" data-mssv="<?= $h($r['StudentCode'] ?? '') ?>"
+                        <tr data-reg-id="<?= (int)$r['RegID'] ?>"
+                            data-name="<?= $h($r['FullName']) ?>" 
+                            data-mssv="<?= $h($r['StudentCode'] ?? '') ?>"
+                            data-done="<?= $done ? '1' : '0' ?>"
                             class="<?= $isLast ? 'table-success' : '' ?>">
                             <td class="ps-4 fw-semibold text-dark"><?= $h($r['FullName']) ?></td>
                             <td class="font-mono small"><?= $h($r['StudentCode'] ?? '—') ?></td>
-                            <td>
+                            <td class="status-cell">
                                 <?php if ($done): ?>
                                     <span class="badge rounded-pill px-3 py-2 bg-success-subtle text-success">
                                         Đã điểm danh · <?= $h(event_fmt_dt($r['CheckInAt'])) ?>
@@ -492,11 +667,11 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <span class="badge rounded-pill px-3 py-2 bg-warning-subtle text-warning-emphasis">Chưa điểm danh</span>
                                 <?php endif; ?>
                             </td>
-                            <td class="text-end pe-4">
+                            <td class="text-end pe-4 action-cell">
                                 <?php if (!$canCheckIn): ?>
                                     <span class="text-muted small">—</span>
                                 <?php elseif ($done): ?>
-                                    <form method="POST" action="<?= $h($eventUrl) ?>" class="d-inline">
+                                    <form method="POST" action="<?= $h($eventUrl) ?>" class="d-inline att-form">
                                         <?= csrf_field() ?>
                                         <input type="hidden" name="action" value="undo">
                                         <input type="hidden" name="reg_id" value="<?= (int)$r['RegID'] ?>">
@@ -504,7 +679,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                         <button type="submit" class="btn btn-sm btn-outline-secondary">Bỏ điểm danh</button>
                                     </form>
                                 <?php else: ?>
-                                    <form method="POST" action="<?= $h($eventUrl) ?>" class="d-inline">
+                                    <form method="POST" action="<?= $h($eventUrl) ?>" class="d-inline att-form">
                                         <?= csrf_field() ?>
                                         <input type="hidden" name="action" value="checkin">
                                         <input type="hidden" name="reg_id" value="<?= (int)$r['RegID'] ?>">
@@ -592,13 +767,13 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <td class="ps-4 py-3 fw-semibold text-dark"><?= $h($cand['FullName']) ?></td>
                                     <td class="py-3 font-mono"><?= $h($cand['StudentCode'] ?? '—') ?></td>
                                     <td class="py-3 text-muted"><?= $h($cand['Email']) ?></td>
-                                    <td class="py-3">
+                                    <td class="py-3 walkin-status-cell">
                                         <span class="badge rounded-pill px-3 py-2 <?= $statusClass ?>">
                                             <?= $statusLabel ?>
                                         </span>
                                     </td>
-                                    <td class="text-end pe-4 py-3">
-                                        <form method="POST" action="<?= $h($eventUrl) ?>" class="d-inline">
+                                    <td class="text-end pe-4 py-3 walkin-action-cell">
+                                        <form method="POST" action="<?= $h($eventUrl) ?>" class="d-inline walkin-form">
                                             <?= csrf_field() ?>
                                             <input type="hidden" name="action" value="walkin_checkin">
                                             <input type="hidden" name="account_id" value="<?= (int)$cand['AccountID'] ?>">
@@ -626,6 +801,19 @@ require_once __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 <?php endif; ?>
+
+<!-- Toast thông báo kết quả điểm danh realtime -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1090;">
+    <div id="attToast" class="toast align-items-center text-white bg-success border-0 shadow" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body d-flex align-items-center gap-2" id="attToastBody">
+                <i class="bi bi-check-circle-fill fs-5"></i>
+                <span id="attToastMsg">Thao tác thành công.</span>
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
 
 <script>
 // 1. Lọc trực tiếp bảng điểm danh chính
@@ -678,6 +866,305 @@ require_once __DIR__ . '/../../includes/header.php';
         });
         if (wNoMatch) wNoMatch.hidden = shown > 0;
     });
+})();
+
+// 3. Realtime AJAX Check-in & Background Polling Sync (UAT 17)
+(function() {
+    const regTable = document.getElementById('regTable');
+    const walkinTable = document.getElementById('walkinTable');
+    const checkedCountEl = document.getElementById('checkedCount');
+    const totalCountEl = document.getElementById('totalCount');
+    const eventUrl = '<?= $h($eventUrl) ?>';
+    const csrfToken = '<?= csrf_token() ?>';
+    const canCheckIn = <?= $canCheckIn ? 'true' : 'false' ?>;
+
+    if (!canCheckIn) return;
+
+    function showToast(message, type = 'success') {
+        const toastEl = document.getElementById('attToast');
+        const toastMsg = document.getElementById('attToastMsg');
+        if (!toastEl || !toastMsg) return;
+        toastMsg.textContent = message;
+        toastEl.className = `toast align-items-center text-white border-0 shadow ${type === 'success' ? 'bg-success' : 'bg-danger'}`;
+        const toast = new bootstrap.Toast(toastEl, { delay: 3500 });
+        toast.show();
+    }
+
+    function updateStatsCounter(checked, total) {
+        if (checkedCountEl) checkedCountEl.textContent = checked;
+        if (totalCountEl) totalCountEl.textContent = total;
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function updateRowStatus(regId, isChecked, checkInAt) {
+        const tr = document.querySelector(`tr[data-reg-id="${regId}"]`);
+        if (!tr) return;
+
+        tr.setAttribute('data-done', isChecked ? '1' : '0');
+        const statusCell = tr.querySelector('.status-cell');
+        const actionCell = tr.querySelector('.action-cell');
+
+        if (isChecked) {
+            tr.classList.add('table-success');
+            setTimeout(() => tr.classList.remove('table-success'), 1500);
+
+            if (statusCell) {
+                statusCell.innerHTML = `<span class="badge rounded-pill px-3 py-2 bg-success-subtle text-success">Đã điểm danh · ${escapeHtml(checkInAt || 'Vừa xong')}</span>`;
+            }
+            if (actionCell) {
+                actionCell.innerHTML = `
+                    <form method="POST" action="${eventUrl}" class="d-inline att-form">
+                        <input type="hidden" name="csrf_token" value="${csrfToken}">
+                        <input type="hidden" name="action" value="undo">
+                        <input type="hidden" name="reg_id" value="${regId}">
+                        <input type="hidden" name="event_id" value="<?= $eventId ?>">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">Bỏ điểm danh</button>
+                    </form>
+                `;
+            }
+        } else {
+            tr.classList.remove('table-success');
+            if (statusCell) {
+                statusCell.innerHTML = `<span class="badge rounded-pill px-3 py-2 bg-warning-subtle text-warning-emphasis">Chưa điểm danh</span>`;
+            }
+            if (actionCell) {
+                actionCell.innerHTML = `
+                    <form method="POST" action="${eventUrl}" class="d-inline att-form">
+                        <input type="hidden" name="csrf_token" value="${csrfToken}">
+                        <input type="hidden" name="action" value="checkin">
+                        <input type="hidden" name="reg_id" value="${regId}">
+                        <input type="hidden" name="event_id" value="<?= $eventId ?>">
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            <i class="bi bi-check2 me-1"></i>Điểm danh
+                        </button>
+                    </form>
+                `;
+            }
+        }
+    }
+
+    function insertRowIntoTable(user) {
+        let tbody = document.querySelector('#regTable tbody');
+        if (!tbody) {
+            const emptyNotice = document.querySelector('.card.border-0.shadow-sm.rounded-4.overflow-hidden .p-5.text-center');
+            if (emptyNotice) {
+                const parent = emptyNotice.parentElement;
+                emptyNotice.remove();
+                const div = document.createElement('div');
+                div.className = 'table-responsive';
+                div.innerHTML = `
+                    <table class="table align-middle mb-0" id="regTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">Họ và tên</th>
+                                <th>MSSV</th>
+                                <th>Trạng thái</th>
+                                <th class="text-end pe-4">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                `;
+                parent.appendChild(div);
+                tbody = div.querySelector('tbody');
+            }
+        }
+        if (!tbody) return;
+
+        const existing = document.querySelector(`tr[data-reg-id="${user.reg_id}"]`);
+        if (existing) {
+            updateRowStatus(user.reg_id, user.is_checked, user.checked_in_at);
+            return;
+        }
+
+        const tr = document.createElement('tr');
+        tr.setAttribute('data-reg-id', user.reg_id);
+        tr.setAttribute('data-name', user.fullname);
+        tr.setAttribute('data-mssv', user.student_code || '');
+        tr.setAttribute('data-done', user.is_checked ? '1' : '0');
+        tr.className = 'table-success';
+        setTimeout(() => tr.classList.remove('table-success'), 2000);
+
+        tr.innerHTML = `
+            <td class="ps-4 fw-semibold text-dark">${escapeHtml(user.fullname)} <span class="badge bg-info-subtle text-info border border-info-subtle small ms-1">Bổ sung</span></td>
+            <td class="font-mono small">${escapeHtml(user.student_code || '—')}</td>
+            <td class="status-cell">
+                <span class="badge rounded-pill px-3 py-2 bg-success-subtle text-success">Đã điểm danh · ${escapeHtml(user.checked_in_at || 'Vừa xong')}</span>
+            </td>
+            <td class="text-end pe-4 action-cell">
+                <form method="POST" action="${eventUrl}" class="d-inline att-form">
+                    <input type="hidden" name="csrf_token" value="${csrfToken}">
+                    <input type="hidden" name="action" value="undo">
+                    <input type="hidden" name="reg_id" value="${user.reg_id}">
+                    <input type="hidden" name="event_id" value="<?= $eventId ?>">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary">Bỏ điểm danh</button>
+                </form>
+            </td>
+        `;
+        tbody.prepend(tr);
+    }
+
+    // Bắt sự kiện submit Điểm danh / Bỏ điểm danh tại bảng chính
+    if (regTable) {
+        regTable.addEventListener('submit', async function(e) {
+            const form = e.target.closest('form.att-form');
+            if (!form) return;
+            e.preventDefault();
+
+            const button = form.querySelector('button[type="submit"]');
+            if (!button || button.disabled) return;
+            const originalHtml = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+
+            const formData = new FormData(form);
+            formData.append('ajax', '1');
+            const targetUrl = form.getAttribute('action') || window.location.href;
+
+            try {
+                const response = await fetch(targetUrl, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Máy chủ phản hồi mã lỗi HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    updateRowStatus(result.reg_id, result.action === 'checkin', result.checked_in_at);
+                    if (result.stats) {
+                        updateStatsCounter(result.stats.checked, result.stats.total);
+                    }
+                    showToast(result.message, 'success');
+                } else {
+                    button.disabled = false;
+                    button.innerHTML = originalHtml;
+                    showToast(result.message || 'Lỗi khi cập nhật điểm danh.', 'danger');
+                }
+            } catch (err) {
+                button.disabled = false;
+                button.innerHTML = originalHtml;
+                showToast(err.message || 'Lỗi kết nối máy chủ.', 'danger');
+                console.error('Check-in error:', err);
+            }
+        });
+    }
+
+    // Bắt sự kiện submit Điểm danh bổ sung Walk-in trong Modal
+    if (walkinTable) {
+        walkinTable.addEventListener('submit', async function(e) {
+            const form = e.target.closest('form.walkin-form');
+            if (!form) return;
+            e.preventDefault();
+
+            const button = form.querySelector('button[type="submit"]');
+            if (!button || button.disabled) return;
+            const originalHtml = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+
+            const formData = new FormData(form);
+            formData.append('ajax', '1');
+            const targetUrl = form.getAttribute('action') || window.location.href;
+
+            try {
+                const response = await fetch(targetUrl, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Máy chủ phản hồi mã lỗi HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Cập nhật trạng thái dòng trong modal
+                    const walkinRow = form.closest('tr');
+                    if (walkinRow) {
+                        const statusCell = walkinRow.querySelector('.walkin-status-cell');
+                        const actionCell = walkinRow.querySelector('.walkin-action-cell');
+                        if (statusCell) {
+                            statusCell.innerHTML = '<span class="badge rounded-pill px-3 py-2 bg-success-subtle text-success">Đã điểm danh</span>';
+                        }
+                        if (actionCell) {
+                            actionCell.innerHTML = '<button type="button" class="btn btn-sm btn-secondary disabled" disabled>Đã điểm danh</button>';
+                        }
+                    }
+
+                    // Chèn hoặc cập nhật người tham gia vào bảng chính
+                    if (result.user) {
+                        insertRowIntoTable({
+                            reg_id: result.reg_id,
+                            fullname: result.user.fullname,
+                            student_code: result.user.student_code,
+                            is_checked: true,
+                            checked_in_at: result.user.checked_in_at
+                        });
+                    }
+
+                    if (result.stats) {
+                        updateStatsCounter(result.stats.checked, result.stats.total);
+                    }
+                    showToast(result.message, 'success');
+                } else {
+                    button.disabled = false;
+                    button.innerHTML = originalHtml;
+                    showToast(result.message || 'Lỗi khi điểm danh bổ sung.', 'danger');
+                }
+            } catch (err) {
+                button.disabled = false;
+                button.innerHTML = originalHtml;
+                showToast(err.message || 'Lỗi kết nối máy chủ.', 'danger');
+                console.error('Walk-in error:', err);
+            }
+        });
+    }
+
+    // Polling Realtime đồng bộ giữa nhiều người điểm danh cùng lúc (mỗi 3 giây)
+    setInterval(async function() {
+        try {
+            const pollUrl = new URL(window.location.href);
+            pollUrl.searchParams.set('ajax', 'get_attendance_status');
+            const response = await fetch(pollUrl.toString(), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (!response.ok) return;
+            const result = await response.json();
+            if (result.success) {
+                updateStatsCounter(result.checked, result.total);
+                for (const regId in result.items) {
+                    const item = result.items[regId];
+                    const tr = document.querySelector(`tr[data-reg-id="${regId}"]`);
+                    if (tr) {
+                        const currentlyDone = tr.getAttribute('data-done') === '1';
+                        if (currentlyDone !== item.is_checked) {
+                            updateRowStatus(item.reg_id, item.is_checked, item.checked_in_at);
+                        }
+                    } else if (item.is_checked) {
+                        insertRowIntoTable(item);
+                    }
+                }
+            }
+        } catch (e) {
+            // Polling im lặng
+        }
+    }, 3000);
 })();
 </script>
 

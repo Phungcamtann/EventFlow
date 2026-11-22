@@ -44,6 +44,31 @@ if ($isEditMode) {
     $registered = (int)$cnt->fetchColumn();
 }
 
+// Lấy danh sách cán bộ BĐH để phân công vào Event_Staff (UAT 10)
+$staffStmt = $pdo->prepare("
+    SELECT cm.AccountID, cm.MemberRole, a.FullName, a.StudentCode, d.DepartmentName, d.DepartmentCode
+    FROM Club_Member cm
+    JOIN Account a ON a.AccountID = cm.AccountID
+    LEFT JOIN Department d ON d.DepartmentID = cm.DepartmentID
+    WHERE cm.ClubID = :c AND cm.Status = 'Active'
+    ORDER BY CASE WHEN cm.MemberRole = 'President' THEN 1 
+                  WHEN cm.MemberRole = 'Vice President' THEN 2 
+                  WHEN cm.MemberRole = 'Head' THEN 3 
+                  WHEN cm.MemberRole = 'Vice Head' THEN 4 
+                  ELSE 5 END, a.FullName ASC
+");
+$staffStmt->execute([':c' => $clubId]);
+$availableStaff = $staffStmt->fetchAll();
+
+$currentStaffIds = [];
+if ($isEditMode) {
+    $csStmt = $pdo->prepare("SELECT AccountID FROM Event_Staff WHERE EventID = :e");
+    $csStmt->execute([':e' => $eventId]);
+    $currentStaffIds = array_map('intval', $csStmt->fetchAll(PDO::FETCH_COLUMN));
+} else {
+    $currentStaffIds = [(int)current_user_id()];
+}
+
 // Sự kiện đã công bố thì không đưa ngược về bản nháp (tránh ẩn sự kiện đã có người đăng ký)
 $canChooseStatus = !$isEditMode || $evt['Status'] === 'Draft';
 
@@ -52,24 +77,26 @@ $form = [
     'EventName'            => $isEditMode ? $evt['EventName'] : '',
     'Description'          => $isEditMode ? (string)$evt['Description'] : '',
     'Location'             => $isEditMode ? $evt['Location'] : '',
-    'StartTime'            => $isEditMode ? event_dt_to_input($evt['StartTime']) : '',
-    'EndTime'              => $isEditMode ? event_dt_to_input($evt['EndTime']) : '',
-    'RegistrationDeadline' => $isEditMode ? event_dt_to_input($evt['RegistrationDeadline']) : '',
-    'MaxCapacity'          => ($isEditMode && $evt['MaxCapacity'] !== null) ? (string)$evt['MaxCapacity'] : '',
-    'Status'               => $isEditMode ? $evt['Status'] : 'Published',
+    'StartTime'             => $isEditMode ? event_dt_to_input($evt['StartTime']) : '',
+    'EndTime'               => $isEditMode ? event_dt_to_input($evt['EndTime']) : '',
+    'RegistrationStartTime' => ($isEditMode && !empty($evt['RegistrationStartTime'])) ? event_dt_to_input($evt['RegistrationStartTime']) : '',
+    'RegistrationDeadline'  => $isEditMode ? event_dt_to_input($evt['RegistrationDeadline']) : '',
+    'MaxCapacity'           => ($isEditMode && $evt['MaxCapacity'] !== null) ? (string)$evt['MaxCapacity'] : '',
+    'Status'                => $isEditMode ? $evt['Status'] : 'Published',
 ];
 
 // ---------------------------------------------------------------------------
 // Xử lý POST
 // ---------------------------------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $form['EventName']            = trim($_POST['event_name'] ?? '');
-    $form['Description']          = trim($_POST['description'] ?? '');
-    $form['Location']             = trim($_POST['location'] ?? '');
-    $form['StartTime']            = trim($_POST['start_time'] ?? '');
-    $form['EndTime']              = trim($_POST['end_time'] ?? '');
-    $form['RegistrationDeadline'] = trim($_POST['registration_deadline'] ?? '');
-    $form['MaxCapacity']          = trim($_POST['max_capacity'] ?? '');
+    $form['EventName']             = trim($_POST['event_name'] ?? '');
+    $form['Description']           = trim($_POST['description'] ?? '');
+    $form['Location']              = trim($_POST['location'] ?? '');
+    $form['StartTime']             = trim($_POST['start_time'] ?? '');
+    $form['EndTime']               = trim($_POST['end_time'] ?? '');
+    $form['RegistrationStartTime'] = trim($_POST['registration_start_time'] ?? '');
+    $form['RegistrationDeadline']  = trim($_POST['registration_deadline'] ?? '');
+    $form['MaxCapacity']           = trim($_POST['max_capacity'] ?? '');
     if ($canChooseStatus) {
         $form['Status'] = trim($_POST['status'] ?? 'Published');
     }
@@ -96,6 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $start    = $form['StartTime'] === '' ? null : event_input_to_dt($form['StartTime']);
         $end      = $form['EndTime'] === '' ? null : event_input_to_dt($form['EndTime']);
+        $regStart = $form['RegistrationStartTime'] === '' ? null : event_input_to_dt($form['RegistrationStartTime']);
         $deadline = $form['RegistrationDeadline'] === '' ? null : event_input_to_dt($form['RegistrationDeadline']);
 
         if ($form['StartTime'] === '') {
@@ -115,6 +143,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // --- Ràng buộc thời gian ---
+        if ($form['RegistrationStartTime'] !== '' && $regStart === null) {
+            $errors[] = 'Thời gian mở đăng ký không hợp lệ.';
+        }
+        if ($regStart !== null && $deadline !== null && $regStart >= $deadline) {
+            $errors[] = 'Thời gian mở đăng ký phải diễn ra trước hạn chót đăng ký.';
+        }
+        if ($regStart !== null && $start !== null && $regStart >= $start) {
+            $errors[] = 'Thời gian mở đăng ký phải diễn ra trước thời gian bắt đầu sự kiện.';
+        }
         if ($start !== null && $end !== null && $end <= $start) {
             $errors[] = 'Thời gian kết thúc phải sau thời gian bắt đầu.';
         }
@@ -134,6 +171,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!in_array($form['Status'], ['Draft', 'Published'], true)) {
             $errors[] = 'Trạng thái sự kiện không hợp lệ.';
+        }
+
+        // --- Kiểm tra phân công tối thiểu 2 cán bộ BĐH (UAT 10) ---
+        $staffIds = array_map('intval', $_POST['staff_ids'] ?? []);
+        if (!$isEditMode && count($staffIds) < 2) {
+            $errors[] = 'Vui lòng phân công tối thiểu 2 cán bộ Ban Điều Hành phụ trách sự kiện.';
+        } elseif ($isEditMode && !empty($_POST['staff_ids']) && count($staffIds) < 2) {
+            $errors[] = 'Sự kiện phải có tối thiểu 2 cán bộ Ban Điều Hành phụ trách.';
         }
 
         // --- Xử lý tải lên Banner sự kiện ---
@@ -200,7 +245,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $up = $pdo->prepare("
                             UPDATE Event
                             SET EventName = :name, Description = :descr, Location = :loc,
-                                StartTime = :st, EndTime = :et, RegistrationDeadline = :dl,
+                                StartTime = :st, EndTime = :et, RegistrationStartTime = :rst, RegistrationDeadline = :dl,
                                 MaxCapacity = :cap, Status = :status, BannerImage = :banner
                             WHERE EventID = :id AND ClubID = :c
                         ");
@@ -210,6 +255,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             ':loc'    => $form['Location'],
                             ':st'     => $start,
                             ':et'     => $end,
+                            ':rst'    => $regStart,
                             ':dl'     => $deadline,
                             ':cap'    => $capacity,
                             ':status' => $form['Status'],
@@ -217,16 +263,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             ':id'     => $eventId,
                             ':c'      => $clubId,
                         ]);
+
+                        // Cập nhật Event_Staff nếu có thay đổi
+                        if (!empty($staffIds)) {
+                            $delStaff = $pdo->prepare("DELETE FROM Event_Staff WHERE EventID = :eid");
+                            $delStaff->execute([':eid' => $eventId]);
+
+                            $insStaff = $pdo->prepare("
+                                INSERT INTO Event_Staff (EventID, AccountID, StaffRole, AssignedBy, AssignedAt)
+                                VALUES (:eid, :aid, :role, :by, NOW())
+                            ");
+                            $roleMap = ['Organizer', 'Checkin_Lead', 'Support', 'MC', 'Logistics'];
+                            $idx = 0;
+                            foreach ($staffIds as $aid) {
+                                $r = $roleMap[$idx] ?? 'Support';
+                                $insStaff->execute([
+                                    ':eid'  => $eventId,
+                                    ':aid'  => $aid,
+                                    ':role' => $r,
+                                    ':by'   => (int)current_user_id()
+                                ]);
+                                $idx++;
+                            }
+                        }
+
                         $pdo->commit();
                         set_flash('success', 'Cập nhật sự kiện thành công!');
-                        header('Location: ' . $manageUrl);
+                        header('Location: ' . base_url('app/modules/events/console.php?id=' . $eventId));
                         exit;
                     }
                 } else {
                     $ins = $pdo->prepare("
                         INSERT INTO Event
-                            (ClubID, EventName, Description, Location, StartTime, EndTime, RegistrationDeadline, MaxCapacity, Status, BannerImage)
-                        VALUES (:c, :name, :descr, :loc, :st, :et, :dl, :cap, :status, :banner)
+                            (ClubID, EventName, Description, Location, StartTime, EndTime, RegistrationStartTime, RegistrationDeadline, MaxCapacity, Status, BannerImage)
+                        VALUES (:c, :name, :descr, :loc, :st, :et, :rst, :dl, :cap, :status, :banner)
                     ");
                     $ins->execute([
                         ':c'      => $clubId,
@@ -235,14 +305,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ':loc'    => $form['Location'],
                         ':st'     => $start,
                         ':et'     => $end,
+                        ':rst'    => $regStart,
                         ':dl'     => $deadline,
                         ':cap'    => $capacity,
                         ':status' => $form['Status'],
                         ':banner' => $bannerPath,
                     ]);
+                    $newEventId = (int)$pdo->lastInsertId();
+
+                    // Lưu Event_Staff cho sự kiện mới (tối thiểu 2 cán bộ BĐH - UAT 10)
+                    $insStaff = $pdo->prepare("
+                        INSERT INTO Event_Staff (EventID, AccountID, StaffRole, AssignedBy, AssignedAt)
+                        VALUES (:eid, :aid, :role, :by, NOW())
+                    ");
+                    $roleMap = ['Organizer', 'Checkin_Lead', 'Support', 'MC', 'Logistics'];
+                    $idx = 0;
+                    foreach ($staffIds as $aid) {
+                        $r = $roleMap[$idx] ?? 'Support';
+                        $insStaff->execute([
+                            ':eid'  => $newEventId,
+                            ':aid'  => $aid,
+                            ':role' => $r,
+                            ':by'   => (int)current_user_id()
+                        ]);
+                        $idx++;
+                    }
+
                     $pdo->commit();
-                    set_flash('success', 'Tạo sự kiện thành công!');
-                    header('Location: ' . $manageUrl);
+                    set_flash('success', 'Tạo sự kiện và phân công cán bộ thành công!');
+                    header('Location: ' . base_url('app/modules/events/console.php?id=' . $newEventId));
                     exit;
                 }
             } catch (Throwable $e) {
@@ -338,23 +429,27 @@ require_once __DIR__ . '/../../includes/header.php';
                         </div>
 
                         <div class="row g-3 mb-4">
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <label for="start_time" class="form-label fw-bold text-dark">Thời gian bắt đầu <span class="text-danger">*</span></label>
                                 <input type="datetime-local" class="form-control rounded-3" id="start_time" name="start_time"
                                        value="<?= $h($form['StartTime']) ?>" required>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <label for="end_time" class="form-label fw-bold text-dark">Thời gian kết thúc <span class="text-danger">*</span></label>
                                 <input type="datetime-local" class="form-control rounded-3" id="end_time" name="end_time"
                                        value="<?= $h($form['EndTime']) ?>" required>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
+                                <label for="registration_start_time" class="form-label fw-bold text-dark">Thời gian mở đăng ký</label>
+                                <input type="datetime-local" class="form-control rounded-3" id="registration_start_time" name="registration_start_time"
+                                       value="<?= $h($form['RegistrationStartTime']) ?>">
+                                <div class="form-text text-muted">Để trống nếu mở đăng ký ngay khi công bố (hoặc đặt thời điểm tương lai để sự kiện ở trạng thái "Sắp mở đăng ký").</div>
+                            </div>
+                            <div class="col-md-6">
                                 <label for="registration_deadline" class="form-label fw-bold text-dark">Hạn chót đăng ký <span class="text-danger">*</span></label>
                                 <input type="datetime-local" class="form-control rounded-3" id="registration_deadline" name="registration_deadline"
                                        value="<?= $h($form['RegistrationDeadline']) ?>" required>
-                            </div>
-                            <div class="col-12 form-text text-muted mt-0">
-                                Hạn chót đăng ký phải nhỏ hơn hoặc bằng thời gian bắt đầu; thời gian kết thúc phải sau thời gian bắt đầu.
+                                <div class="form-text text-muted">Phải trước hoặc bằng thời gian bắt đầu sự kiện.</div>
                             </div>
                         </div>
 
@@ -375,6 +470,48 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <input type="text" class="form-control rounded-3" value="Đã công bố" disabled>
                                     <div class="form-text text-muted">Muốn dừng sự kiện, hãy dùng chức năng "Hủy sự kiện" ở trang quản lý.</div>
                                 <?php endif; ?>
+                            </div>
+                        </div>
+
+                        <!-- Phân công Ban Tổ Chức -->
+                        <div class="mb-4 pt-3 border-top">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <label class="form-label fw-bold text-dark mb-0">
+                                    <i class="bi bi-people-fill text-primary me-2"></i>Phân công Cán bộ Ban Điều Hành phụ trách <span class="text-danger">*</span>
+                                </label>
+                                <span class="badge bg-primary-subtle text-primary font-monospace" style="font-size: 0.75rem;">
+                                    Tối thiểu 2 cán bộ Ban Điều Hành
+                                </span>
+                            </div>
+                            <p class="text-muted small mb-2">Chọn các cán bộ được cấp quyền điều hành và mở bàn điểm danh cho sự kiện này:</p>
+
+                            <!-- Search box for staff -->
+                            <div class="input-group input-group-sm mb-2">
+                                <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                                <input type="text" class="form-control border-start-0" id="formStaffSearchInput" placeholder="Lọc theo tên cán bộ, vai trò..." oninput="filterFormStaff(this.value)">
+                            </div>
+
+                            <div class="row g-2 overflow-y-auto p-2 rounded-2 bg-white border" id="formStaffListWrapper" style="max-height: 260px;">
+                                <?php foreach ($availableStaff as $stf): 
+                                    $checked = in_array((int)$stf['AccountID'], $currentStaffIds, true);
+                                ?>
+                                    <div class="col-md-6 form-staff-card" data-text="<?= htmlspecialchars(mb_strtolower($stf['FullName'] . ' ' . format_club_member_role($stf['MemberRole']) . ' ' . $stf['MemberRole'] . ' ' . ($stf['DepartmentCode'] ?? ''), 'UTF-8')) ?>">
+                                        <div class="p-3 border rounded-3 bg-light d-flex align-items-center justify-content-between h-100">
+                                            <div class="form-check mb-0">
+                                                <input class="form-check-input staff-checkbox" type="checkbox" name="staff_ids[]" value="<?= (int)$stf['AccountID'] ?>" id="staff_<?= (int)$stf['AccountID'] ?>" <?= $checked ? 'checked' : '' ?>>
+                                                <label class="form-check-label ps-2" for="staff_<?= (int)$stf['AccountID'] ?>" style="cursor: pointer;">
+                                                    <div class="fw-bold text-dark small"><?= htmlspecialchars($stf['FullName']) ?></div>
+                                                    <div class="text-muted font-monospace" style="font-size: 0.72rem;">
+                                                        <?= htmlspecialchars($stf['StudentCode'] ?? '') ?> · <?= htmlspecialchars($stf['DepartmentCode'] ?? 'BĐH') ?>
+                                                    </div>
+                                                </label>
+                                            </div>
+                                            <span class="badge bg-white text-secondary border font-monospace" style="font-size: 0.68rem;">
+                                                <?= htmlspecialchars(format_club_member_role($stf['MemberRole'])) ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
                             </div>
                         </div>
 
@@ -411,6 +548,11 @@ require_once __DIR__ . '/../../includes/header.php';
         if (s && en && en <= s) msgs.push('Thời gian kết thúc phải sau thời gian bắt đầu.');
         if (s && d && d > s) msgs.push('Hạn đăng ký phải nhỏ hơn hoặc bằng thời gian bắt đầu sự kiện.');
 
+        var staffChecks = form.querySelectorAll('input[name="staff_ids[]"]:checked');
+        if (staffChecks && staffChecks.length < 2) {
+            msgs.push('Vui lòng phân công tối thiểu 2 cán bộ Ban Điều Hành phụ trách sự kiện.');
+        }
+
         if (msgs.length) {
             e.preventDefault();
             box.innerHTML = '<div class="fw-bold mb-1">Vui lòng kiểm tra lại:</div><ul class="mb-0 ps-3"><li>' + msgs.join('</li><li>') + '</li></ul>';
@@ -420,6 +562,15 @@ require_once __DIR__ . '/../../includes/header.php';
             box.classList.add('d-none');
         }
     });
+
+    function filterFormStaff(val) {
+        var q = (val || '').toLowerCase().trim();
+        document.querySelectorAll('.form-staff-card').forEach(function(c) {
+            var t = c.getAttribute('data-text') || '';
+            c.style.display = (q === '' || t.includes(q)) ? '' : 'none';
+        });
+    }
+    window.filterFormStaff = filterFormStaff;
 
     var bannerInput = document.getElementById('banner_image');
     var bannerPrevBox = document.getElementById('newBannerPreviewContainer');

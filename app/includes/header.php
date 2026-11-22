@@ -22,19 +22,38 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
     <!-- Bootstrap Icons CDN -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
-    <!-- Custom Design System CSS -->
+    <!-- Custom Design System CSS (Unified Blue Theme & Core Styles) -->
+    <link rel="stylesheet" href="<?= base_url('assets/css/theme-blue.css') ?>?v=<?= filemtime(__DIR__ . '/../../assets/css/theme-blue.css') ?>">
     <link rel="stylesheet" href="<?= base_url('assets/css/style.css') ?>?v=<?= filemtime(__DIR__ . '/../../assets/css/style.css') ?>">
 </head>
 <body>
+
+    <!-- TOP UTILITY TICKER STRIP -->
+    <div class="py-1 border-bottom ef-top-ticker">
+        <div class="container d-flex justify-content-between align-items-center">
+            <span class="text-uppercase fw-semibold d-none d-md-inline font-monospace" style="color: #64748b; font-size: 0.72rem; letter-spacing: 0.06em;">
+                EVENTFLOW — NỀN TẢNG QUẢN LÝ & ĐIỂM DANH SỰ KIỆN CLB SINH VIÊN
+            </span>
+            <span class="text-uppercase fw-semibold d-inline d-md-none font-monospace" style="color: #64748b; font-size: 0.72rem; letter-spacing: 0.06em;">
+                EVENTFLOW · UEH
+            </span>
+            <span class="text-uppercase fw-bold font-monospace" style="font-size: 0.72rem; color: #2563eb; letter-spacing: 0.05em;">
+                ĐẠI HỌC KINH TẾ TP. HỒ CHÍ MINH <span style="color: #94a3b8;">✱</span> UEH
+            </span>
+        </div>
+    </div>
 
     <!-- TOP NAVBAR -->
     <?php if (empty($hideNavbar)): ?>
     <nav class="navbar navbar-expand-lg ef-navbar sticky-top">
         <div class="container">
-            <!-- Brand Logo -->
+            <!-- Brand Logo: EventFlow (Logo chữ E cũ + Tên thương hiệu & Slogan) -->
             <a class="navbar-brand d-flex align-items-center gap-2" href="<?= base_url() ?>">
-                <img src="<?= base_url('assets/images/logo.png') ?>" alt="EventFlow Logo" class="ef-logo-img">
-                <span class="ef-logo-text">EventFlow</span>
+                <img src="<?= base_url('assets/images/logo.png') ?>" alt="EventFlow" class="rounded-3 shadow-xs" style="width: 38px; height: 38px; object-fit: contain;">
+                <div class="d-flex flex-column">
+                    <span class="fw-bold text-dark lh-1" style="font-family: 'Inter', sans-serif; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em;">Event<span style="color: #2563eb;">Flow</span></span>
+                    <span class="text-muted fw-semibold font-monospace" style="font-size: 0.65rem; letter-spacing: 0.06em;">CAMPUS EVENT PLATFORM · UEH</span>
+                </div>
             </a>
 
             <!-- Mobile toggle button -->
@@ -42,59 +61,31 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
                 <i class="bi bi-list fs-2 text-dark"></i>
             </button>
 
-            <!-- Navigation Links -->
+            <!-- Navigation Links (Căn giữa navbar-nav mx-auto: 3 links cho khách / 4 links cho Cán bộ) -->
             <div class="collapse navbar-collapse" id="efNavbarContent">
-                <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4 gap-1">
+                <ul class="navbar-nav mx-auto mb-2 mb-lg-0 gap-2">
                     <li class="nav-item">
-                        <a class="nav-link ef-nav-link" href="<?= base_url('index.php') ?>">Khám phá</a>
+                        <a class="nav-link ef-nav-link" href="<?= base_url('index.php') ?>">Trang chủ</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link ef-nav-link" href="<?= base_url('app/modules/club/info.php') ?>">Thông tin CLB</a>
+                        <a class="nav-link ef-nav-link" href="<?= base_url('app/modules/club/info.php') ?>">Câu Lạc Bộ</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link ef-nav-link" href="<?= base_url('app/modules/events/index.php') ?>">Sự kiện</a>
                     </li>
 
                     <?php if (is_logged_in()): ?>
-                        <li class="nav-item">
-                            <a class="nav-link ef-nav-link" href="<?= base_url('app/modules/events/my_events.php') ?>">Sự kiện của tôi</a>
-                        </li>
-
-                        <!-- Menu nghiệp vụ dành cho Club Manager -->
-                        <?php if (is_club_manager()): ?>
-                            <li class="nav-item dropdown">
-                                <a class="nav-link ef-nav-link dropdown-toggle text-primary fw-semibold" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="bi bi-gear-fill me-1"></i> Quản lý CLB
-                                </a>
-                                <ul class="dropdown-menu border-0 shadow-sm rounded-3 mt-2">
-                                    <li><a class="dropdown-item py-2" href="<?= base_url('app/modules/club/members.php') ?>"><i class="bi bi-people me-2"></i> Danh sách thành viên</a></li>
-                                    <li><a class="dropdown-item py-2" href="<?= base_url('app/modules/club/edit.php') ?>"><i class="bi bi-pencil-square me-2"></i> Chỉnh sửa thông tin CLB</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item py-2" href="<?= base_url('app/modules/events/manage.php') ?>"><i class="bi bi-calendar-event me-2"></i> Quản lý sự kiện nội bộ</a></li>
-                                    <li><a class="dropdown-item py-2" href="<?= base_url('app/modules/attendance/checkin.php') ?>"><i class="bi bi-clipboard-check me-2"></i> Điểm danh sự kiện</a></li>
-                                    <li><a class="dropdown-item py-2" href="<?= base_url('app/modules/attendance/stats.php') ?>"><i class="bi bi-bar-chart-line me-2"></i> Báo cáo thống kê</a></li>
-                                </ul>
-                            </li>
-                        <?php endif; ?>
-
-                        <!-- Menu ủy quyền hỗ trợ dành cho Authorized Club Member (không phải Manager) -->
-                        <?php if (!is_club_manager() && is_authorized_club_member()): ?>
+                        <!-- Lối tắt trực tiếp vào Không Gian Quản Lý CLB dành cho Ban Điều Hành -->
+                        <?php if (is_club_manager() || is_authorized_club_member()): ?>
                             <li class="nav-item">
-                                <a class="nav-link ef-nav-link text-success fw-semibold" href="<?= base_url('app/modules/attendance/checkin.php') ?>">
-                                    <i class="bi bi-clipboard-check me-1"></i> Hỗ trợ điểm danh
+                                <a class="nav-link ef-nav-link text-primary fw-bold d-inline-flex align-items-center gap-1.5 px-3 py-1.5 rounded-pill bg-primary-subtle ms-lg-2" href="<?= base_url('app/modules/dashboard/index.php#stats') ?>">
+                                    <i class="bi bi-sliders text-primary"></i> Quản lý CLB
                                 </a>
                             </li>
-                            <?php if (can_manage_club_profile()): ?>
-                                <li class="nav-item">
-                                    <a class="nav-link ef-nav-link text-primary fw-semibold" href="<?= base_url('app/modules/club/edit.php') ?>">
-                                        <i class="bi bi-pencil-square me-1"></i> Cập nhật CLB
-                                    </a>
-                                </li>
-                            <?php endif; ?>
-                        <?php endif; ?>
-
-                        <!-- Menu Quản trị Hệ thống dành riêng cho System Administrator -->
-                        <?php if (is_system_admin()): ?>
+                        <?php elseif (is_system_admin()): ?>
                             <li class="nav-item">
-                                <a class="nav-link ef-nav-link text-danger fw-semibold" href="<?= base_url('app/modules/admin/accounts.php') ?>">
-                                    <i class="bi bi-shield-lock-fill me-1"></i> Quản trị tài khoản
+                                <a class="nav-link ef-nav-link text-danger fw-semibold d-inline-flex align-items-center gap-1.5 px-3 py-1.5 rounded-pill bg-danger-subtle ms-lg-2" href="<?= base_url('app/modules/dashboard/index.php#admin-accounts') ?>">
+                                    <i class="bi bi-shield-lock-fill me-1 text-danger"></i> Quản trị tài khoản
                                 </a>
                             </li>
                         <?php endif; ?>
@@ -139,17 +130,29 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
                                         <?= htmlspecialchars($currentUser['Email']) ?>
                                     </small>
                                     <small class="badge bg-light text-primary border rounded-pill mt-1 font-mono">
-                                        <?= htmlspecialchars($currentUser['MemberRole'] ?? $currentUser['RoleName']) ?>
+                                        <?= htmlspecialchars(format_club_member_role($currentUser['MemberRole'] ?? $currentUser['RoleName'])) ?>
                                     </small>
                                 </li>
                                 <li>
-                                    <a class="dropdown-item py-2" href="<?= base_url('app/modules/profile/index.php') ?>">
+                                    <a class="dropdown-item py-2" href="<?= (is_club_manager() || is_authorized_club_member() || is_system_admin()) ? base_url('app/modules/dashboard/index.php#profile') : base_url('app/modules/profile/index.php') ?>">
                                         <i class="bi bi-person me-2 text-primary"></i> Hồ sơ cá nhân
                                     </a>
                                 </li>
+                                <li>
+                                    <a class="dropdown-item py-2" href="<?= (is_club_manager() || is_authorized_club_member() || is_system_admin()) ? base_url('app/modules/dashboard/index.php#my-events') : base_url('app/modules/events/my_events.php') ?>">
+                                        <i class="bi bi-bookmark-check me-2 text-primary"></i> Sự kiện của tôi
+                                    </a>
+                                </li>
+                                <?php if (is_club_manager() || is_authorized_club_member()): ?>
+                                    <li>
+                                        <a class="dropdown-item py-2 text-primary fw-semibold" href="<?= base_url('app/modules/dashboard/index.php#stats') ?>">
+                                            <i class="bi bi-sliders me-2"></i> Quản lý CLB
+                                        </a>
+                                    </li>
+                                <?php endif; ?>
                                 <?php if (is_system_admin()): ?>
                                     <li>
-                                        <a class="dropdown-item py-2 text-danger" href="<?= base_url('app/modules/admin/accounts.php') ?>">
+                                        <a class="dropdown-item py-2 text-danger" href="<?= base_url('app/modules/dashboard/index.php#admin-accounts') ?>">
                                             <i class="bi bi-shield-lock me-2"></i> Quản trị tài khoản
                                         </a>
                                     </li>
@@ -163,12 +166,10 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
                             </ul>
                         </div>
                     <?php else: ?>
-                        <!-- Guest actions -->
-                        <a href="<?= base_url('app/modules/auth/login.php') ?>" class="btn btn-outline-primary btn-sm px-3">
-                            Đăng nhập
-                        </a>
-                        <a href="<?= base_url('app/modules/auth/register.php') ?>" class="btn btn-primary btn-sm px-3">
-                            Đăng ký
+                        <!-- Guest actions: Nút Đăng nhập chuẩn hóa khoảng cách icon & text -->
+                        <a href="<?= base_url('app/modules/auth/login.php') ?>" class="btn btn-ef-primary rounded-pill px-3.5 py-1.5 fw-semibold d-inline-flex align-items-center gap-2 shadow-sm" style="font-size: 0.875rem;">
+                            <i class="bi bi-box-arrow-in-right"></i>
+                            <span>Đăng nhập</span>
                         </a>
                     <?php endif; ?>
                 </div>
@@ -177,15 +178,37 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
     </nav>
     <?php endif; ?>
 
-    <!-- FLASH MESSAGES ALERT -->
+    <!-- FLOATING TOAST NOTIFICATION (AUTO DISMISS 3.5S WITH PROGRESS BAR) -->
     <?php if ($flash): ?>
-        <div class="container mt-3">
-            <div class="alert alert-<?= htmlspecialchars($flash['type']) ?> alert-dismissible fade show shadow-sm border-0 rounded-3 d-flex align-items-center" role="alert">
-                <i class="bi bi-info-circle-fill me-2 fs-5"></i>
-                <div><?= htmlspecialchars($flash['message']) ?></div>
-                <button type="button" class="btn-close shadow-none" data-bs-dismiss="alert" aria-label="Close"></button>
+    <div id="efToastContainer" class="position-fixed top-0 end-0 p-3" style="z-index: 1090; margin-top: 52px;">
+        <div id="efToast" class="toast show align-items-center border-0 shadow-lg bg-white rounded-3 overflow-hidden" role="alert" aria-live="assertive" aria-atomic="true" style="min-width: 320px; max-width: 420px; border: 1px solid #e2e8f0 !important;">
+            <div class="d-flex align-items-center p-3">
+                <div class="me-3 fs-4 text-<?= htmlspecialchars($flash['type'] === 'danger' ? 'danger' : ($flash['type'] === 'warning' ? 'warning' : 'primary')) ?>">
+                    <i class="bi <?= $flash['type'] === 'danger' ? 'bi-exclamation-triangle-fill' : ($flash['type'] === 'warning' ? 'bi-exclamation-circle-fill' : 'bi-check-circle-fill') ?>"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="fw-bold text-dark fs-6 mb-0.5">Thông báo hệ thống</div>
+                    <div class="text-secondary small"><?= htmlspecialchars($flash['message']) ?></div>
+                </div>
+                <button type="button" class="btn-close ms-2 me-0 shadow-none" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="ef-toast-progress-wrapper" style="height: 3px; background: #e2e8f0; width: 100%;">
+                <div class="ef-toast-progress-bar bg-<?= htmlspecialchars($flash['type'] === 'danger' ? 'danger' : ($flash['type'] === 'warning' ? 'warning' : 'primary')) ?>" style="height: 100%; width: 100%;"></div>
             </div>
         </div>
+    </div>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const toastEl = document.getElementById('efToast');
+        if (toastEl) {
+            setTimeout(function() {
+                toastEl.classList.remove('show');
+                const container = document.getElementById('efToastContainer');
+                if (container) container.remove();
+            }, 3500);
+        }
+    });
+    </script>
     <?php endif; ?>
 
     <!-- MAIN BODY WRAPPER -->

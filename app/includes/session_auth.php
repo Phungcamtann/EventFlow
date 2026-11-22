@@ -205,12 +205,12 @@ function is_authorized_club_member(): bool {
     $memberRole = $_SESSION['user']['MemberRole'] ?? '';
     $clubStatus = $_SESSION['user']['ClubStatus'] ?? '';
     
-    return ($clubStatus === 'Active') && in_array($memberRole, ['Board Member', 'Event Supporter'], true);
+    return ($clubStatus === 'Active') && in_array($memberRole, ['President', 'Vice President', 'Head', 'Vice Head', 'Board Member', 'Event Supporter'], true);
 }
 
 /**
  * Kiểm tra xem người dùng có quyền cập nhật thông tin và hình ảnh CLB không
- * Điều kiện: Club Manager HOẶC (Club Member có Status = 'Active' VÀ MemberRole = 'Board Member')
+ * Điều kiện: Club Manager HOẶC (Club Member có Status = 'Active' VÀ MemberRole IN ('President', 'Vice President', 'Board Member'))
  */
 function can_manage_club_profile(): bool {
     if (!is_logged_in()) {
@@ -221,7 +221,52 @@ function can_manage_club_profile(): bool {
     }
     $memberRole = $_SESSION['user']['MemberRole'] ?? '';
     $clubStatus = $_SESSION['user']['ClubStatus'] ?? '';
-    return ($clubStatus === 'Active') && ($memberRole === 'Board Member');
+    return ($clubStatus === 'Active') && in_array($memberRole, ['President', 'Vice President', 'Board Member'], true);
+}
+
+/**
+ * Kiểm tra quyền quản lý tuyển quân & cấp tài khoản tự động (UAT 02, 09)
+ * Dành cho: President, Vice President, Head/Vice Head (đặc biệt HR) hoặc Club Manager.
+ * System Admin chỉ quản trị tài khoản hệ thống & logs, không can thiệp tuyển quân CLB.
+ */
+function can_manage_recruitment(): bool {
+    if (!is_logged_in()) {
+        return false;
+    }
+    if (is_system_admin()) {
+        return false;
+    }
+    if (is_club_manager()) {
+        return true;
+    }
+    $memberRole = $_SESSION['user']['MemberRole'] ?? '';
+    $clubStatus = $_SESSION['user']['ClubStatus'] ?? '';
+    return ($clubStatus === 'Active') && in_array($memberRole, ['President', 'Vice President', 'Board Member', 'Head', 'Vice Head'], true);
+}
+
+/**
+ * Chuẩn hóa tên tiếng Việt cho chức vụ / vai trò thành viên CLB & vai trò hệ thống
+ */
+if (!function_exists('format_club_member_role')) {
+    function format_club_member_role(?string $role): string {
+        if (empty($role)) {
+            return 'Thành viên';
+        }
+        $r = trim($role);
+        return match(strtolower($r)) {
+            'president'                           => 'Chủ nhiệm CLB',
+            'vice president', 'vice_president'    => 'Phó Chủ nhiệm',
+            'head'                                => 'Trưởng phòng',
+            'vice head', 'vice_head', 'vice-head' => 'Phó phòng',
+            'board member', 'board_member'        => 'Ủy viên BĐH',
+            'event supporter', 'event_supporter'  => 'CTV Sự kiện',
+            'member'                              => 'Thành viên',
+            'club manager', 'club_manager'        => 'Ban Chủ Nhiệm',
+            'admin'                               => 'Quản trị viên',
+            'student'                             => 'Sinh viên',
+            default                               => htmlspecialchars($role),
+        };
+    }
 }
 
 /**

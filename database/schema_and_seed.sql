@@ -1,7 +1,7 @@
 -- ============================================================================
--- EVENTFLOW DATABASE SCHEMA & SEED DATA (MYSQL INNODB)
--- Phạm vi: MVP 01 CLB Tiếng Anh Sinh Viên (7 Bảng Chuẩn Hóa 3NF)
--- Thiết kế: UEH - Quản lý Dự án CNTT - Nhóm 8
+-- EVENTFLOW DATABASE SCHEMA & SEED DATA (BLUEPRINT V2.0 - SPRINT 7)
+-- Đơn vị: CLB Tiếng Anh Sinh Viên UEH (BELL CLUB UEH)
+-- Chuẩn hóa: 11 Bảng Quan Hệ 3NF + Foreign Keys + Composite Indexes
 -- ============================================================================
 
 CREATE DATABASE IF NOT EXISTS eventflow_db
@@ -10,20 +10,29 @@ CREATE DATABASE IF NOT EXISTS eventflow_db
 
 USE eventflow_db;
 
--- 1. Bảng Role (Vai trò hệ thống)
+-- ----------------------------------------------------------------------------
+-- 1. BẢNG ROLE (Vai trò hệ thống cấp cao)
+-- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS Role (
     RoleID INT AUTO_INCREMENT PRIMARY KEY,
     RoleName VARCHAR(50) NOT NULL UNIQUE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 2. Bảng Account (Tài khoản người dùng)
+-- ----------------------------------------------------------------------------
+-- 2. BẢNG ACCOUNT (Tài khoản người dùng toàn hệ thống)
+-- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS Account (
     AccountID INT AUTO_INCREMENT PRIMARY KEY,
     Email VARCHAR(100) NOT NULL UNIQUE,
     PasswordHash VARCHAR(255) NOT NULL,
     FullName VARCHAR(100) NOT NULL,
     StudentCode VARCHAR(20) NULL UNIQUE,
+    Phone VARCHAR(20) NULL,
+    Cohort VARCHAR(10) NULL,              -- K48, K49, K50, K51, K52
+    Major VARCHAR(100) NULL,              -- Chuyên ngành đào tạo tại UEH
+    AvatarUrl VARCHAR(255) NULL,
     RoleID INT NOT NULL,
+    PasswordMustChange TINYINT(1) NOT NULL DEFAULT 0, -- 1 khi cấp tự động Ueh@<MSSV>
     IsActive TINYINT(1) NOT NULL DEFAULT 1,
     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_account_role FOREIGN KEY (RoleID) REFERENCES Role(RoleID)
@@ -31,38 +40,70 @@ CREATE TABLE IF NOT EXISTS Account (
     INDEX idx_account_search (FullName, StudentCode, Email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 3. Bảng Club (Thông tin Câu lạc bộ)
+-- ----------------------------------------------------------------------------
+-- 3. BẢNG CLUB (Thông tin Câu Lạc Bộ Tiếng Anh)
+-- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS Club (
     ClubID INT AUTO_INCREMENT PRIMARY KEY,
     ClubName VARCHAR(150) NOT NULL,
-    Description TEXT NULL,
+    ShortName VARCHAR(50) NOT NULL DEFAULT 'BELL UEH',
+    Description TEXT NOT NULL,
+    Vision TEXT NULL,
+    Mission TEXT NULL,
     Avatar VARCHAR(255) NULL,
     BannerImage VARCHAR(255) NULL,
     ContactInfo VARCHAR(255) NULL,
+    Email VARCHAR(100) NULL,
+    Phone VARCHAR(20) NULL,
+    FacebookUrl VARCHAR(255) NULL,
+    Address VARCHAR(255) NOT NULL DEFAULT 'UEH Cơ sở B - 279 Nguyễn Tri Phương, Phường 5, Quận 10, TP.HCM',
     ManagerID INT NOT NULL,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_club_manager FOREIGN KEY (ManagerID) REFERENCES Account(AccountID)
         ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 4. Bảng Club_Member (Thành viên Câu lạc bộ)
--- MemberRole chuẩn hóa: 'Member', 'Board Member', 'Event Supporter'
--- Status chuẩn hóa: 'Active', 'Inactive'
+-- ----------------------------------------------------------------------------
+-- 4. BẢNG DEPARTMENT (Phòng ban trực thuộc CLB - MỚI · UAT 05)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS Department (
+    DepartmentID INT AUTO_INCREMENT PRIMARY KEY,
+    ClubID INT NOT NULL,
+    DepartmentName VARCHAR(100) NOT NULL,
+    DepartmentCode VARCHAR(20) NOT NULL,  -- HR, SPEC, COMS, ER
+    Description TEXT NOT NULL,
+    KeyActivities TEXT NULL,
+    OrderIndex INT NOT NULL DEFAULT 1,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_department_club FOREIGN KEY (ClubID) REFERENCES Club(ClubID)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    UNIQUE KEY uk_club_dept_code (ClubID, DepartmentCode)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- 5. BẢNG CLUB_MEMBER (Thành viên CLB & Phân quyền nội bộ tầng 2)
+-- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS Club_Member (
     MemberID INT AUTO_INCREMENT PRIMARY KEY,
     AccountID INT NOT NULL,
     ClubID INT NOT NULL,
-    MemberRole VARCHAR(50) NOT NULL DEFAULT 'Member',
+    DepartmentID INT NULL,                -- Nullable đối với President/Vice President
+    MemberRole VARCHAR(50) NOT NULL DEFAULT 'Member', -- President, Vice President, Head, Vice Head, Member
     Status VARCHAR(30) NOT NULL DEFAULT 'Active',
     JoinedDate DATE NULL,
+    Bio TEXT NULL,
     CONSTRAINT uq_club_member UNIQUE (AccountID, ClubID),
     CONSTRAINT fk_member_account FOREIGN KEY (AccountID) REFERENCES Account(AccountID)
         ON UPDATE CASCADE ON DELETE CASCADE,
     CONSTRAINT fk_member_club FOREIGN KEY (ClubID) REFERENCES Club(ClubID)
-        ON UPDATE CASCADE ON DELETE CASCADE
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_member_department FOREIGN KEY (DepartmentID) REFERENCES Department(DepartmentID)
+        ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 5. Bảng Event (Sự kiện)
--- Status chuẩn hóa: 'Draft', 'Published', 'Cancelled'
+-- ----------------------------------------------------------------------------
+-- 6. BẢNG EVENT (Sự kiện CLB với State Machine 7 trạng thái)
+-- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS Event (
     EventID INT AUTO_INCREMENT PRIMARY KEY,
     ClubID INT NOT NULL,
@@ -71,8 +112,10 @@ CREATE TABLE IF NOT EXISTS Event (
     Location VARCHAR(255) NOT NULL,
     StartTime DATETIME NOT NULL,
     EndTime DATETIME NOT NULL,
+    RegistrationStartTime DATETIME NULL,
     RegistrationDeadline DATETIME NOT NULL,
-    MaxCapacity INT NULL,
+    MaxCapacity INT NULL,                 -- NULL = Không giới hạn
+    MinStaffRequired INT NOT NULL DEFAULT 2, -- Ràng buộc tối thiểu 2 BĐH/Cán bộ
     BannerImage VARCHAR(255) NULL,
     Status VARCHAR(30) NOT NULL DEFAULT 'Published',
     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -81,15 +124,43 @@ CREATE TABLE IF NOT EXISTS Event (
     INDEX idx_event_status_time (Status, StartTime)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 6. Bảng Event_Registration (Đăng ký sự kiện)
--- Status chuẩn hóa: 'Registered', 'Cancelled'
+-- ----------------------------------------------------------------------------
+-- 7. BẢNG EVENT_STAFF (Phân công cán bộ & Cấp quyền điểm danh - MỚI · UAT 08, 11)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS Event_Staff (
+    EventStaffID INT AUTO_INCREMENT PRIMARY KEY,
+    EventID INT NOT NULL,
+    AccountID INT NOT NULL,
+    StaffRole ENUM('Organizer', 'Checkin_Lead', 'Support', 'MC') NOT NULL DEFAULT 'Support',
+    AssignedBy INT NOT NULL,
+    AssignedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CheckInAt DATETIME NULL DEFAULT NULL,
+    CheckedInBy INT NULL DEFAULT NULL,
+    CONSTRAINT fk_staff_event FOREIGN KEY (EventID) REFERENCES Event(EventID)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_staff_account FOREIGN KEY (AccountID) REFERENCES Account(AccountID)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_staff_assigner FOREIGN KEY (AssignedBy) REFERENCES Account(AccountID)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_staff_checker FOREIGN KEY (CheckedInBy) REFERENCES Account(AccountID)
+        ON UPDATE CASCADE ON DELETE SET NULL,
+    UNIQUE KEY uk_event_account_staff (EventID, AccountID)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- 8. BẢNG EVENT_REGISTRATION (Đăng ký sự kiện - Thành viên & Khách vãng lai · UAT 02)
+-- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS Event_Registration (
     RegID INT AUTO_INCREMENT PRIMARY KEY,
     EventID INT NOT NULL,
-    AccountID INT NOT NULL,
+    AccountID INT NULL,                   -- Null nếu là khách vãng lai (Guest)
+    RegistrationType ENUM('Member', 'Guest') NOT NULL DEFAULT 'Member',
+    GuestName VARCHAR(100) NULL,
+    GuestEmail VARCHAR(100) NULL,
+    GuestPhone VARCHAR(20) NULL,
+    GuestStudentCode VARCHAR(20) NULL,
     RegDate DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     Status VARCHAR(30) NOT NULL DEFAULT 'Registered',
-    CONSTRAINT uq_event_account UNIQUE (EventID, AccountID),
     CONSTRAINT fk_reg_event FOREIGN KEY (EventID) REFERENCES Event(EventID)
         ON UPDATE CASCADE ON DELETE RESTRICT,
     CONSTRAINT fk_reg_account FOREIGN KEY (AccountID) REFERENCES Account(AccountID)
@@ -97,53 +168,193 @@ CREATE TABLE IF NOT EXISTS Event_Registration (
     INDEX idx_reg_event_status (EventID, Status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 7. Bảng Attendance (Điểm danh / Check-in)
--- AttendanceStatus chuẩn hóa: 1 (Present), 0 (Absent)
+-- ----------------------------------------------------------------------------
+-- 9. BẢNG ATTENDANCE (Điểm danh tham gia sự kiện · UAT 17)
+-- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS Attendance (
     AttendanceID INT AUTO_INCREMENT PRIMARY KEY,
-    RegID INT NOT NULL UNIQUE,
+    RegID INT NOT NULL,
     AttendanceStatus TINYINT(1) NOT NULL DEFAULT 1,
     CheckInAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CheckedInBy INT NOT NULL,
-    CONSTRAINT fk_att_reg FOREIGN KEY (RegID) REFERENCES Event_Registration(RegID)
+    CONSTRAINT fk_attendance_reg FOREIGN KEY (RegID) REFERENCES Event_Registration(RegID)
         ON UPDATE CASCADE ON DELETE CASCADE,
-    CONSTRAINT fk_att_checker FOREIGN KEY (CheckedInBy) REFERENCES Account(AccountID)
+    CONSTRAINT fk_attendance_staff FOREIGN KEY (CheckedInBy) REFERENCES Account(AccountID)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    UNIQUE KEY uk_attendance_reg (RegID)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------------------------------------------------------
+-- 10. BẢNG RECRUITMENT_CAMPAIGN (Đợt tuyển quân CLB - MỚI · UAT 02, 09)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS Recruitment_Campaign (
+    CampaignID INT AUTO_INCREMENT PRIMARY KEY,
+    ClubID INT NOT NULL,
+    Title VARCHAR(200) NOT NULL,
+    Description TEXT NOT NULL,
+    StartDate DATETIME NOT NULL,
+    EndDate DATETIME NOT NULL,
+    Status ENUM('Draft', 'Open', 'Closed') NOT NULL DEFAULT 'Draft',
+    TargetCount INT NOT NULL DEFAULT 20,
+    CreatedBy INT NOT NULL,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_campaign_club FOREIGN KEY (ClubID) REFERENCES Club(ClubID)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_campaign_creator FOREIGN KEY (CreatedBy) REFERENCES Account(AccountID)
         ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ----------------------------------------------------------------------------
+-- 11. BẢNG RECRUITMENT_APPLICATION (Hồ sơ ứng tuyển - MỚI · UAT 02, 09)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS Recruitment_Application (
+    ApplicationID INT AUTO_INCREMENT PRIMARY KEY,
+    CampaignID INT NOT NULL,
+    DepartmentID INT NOT NULL,
+    FullName VARCHAR(100) NOT NULL,
+    Email VARCHAR(100) NOT NULL,
+    Phone VARCHAR(20) NOT NULL,
+    StudentCode VARCHAR(20) NOT NULL,
+    Cohort VARCHAR(10) NOT NULL,
+    Major VARCHAR(100) NOT NULL,
+    CV_Path VARCHAR(255) NULL,
+    IntroText TEXT NOT NULL,
+    Status ENUM('Submitted', 'Interview_Scheduled', 'Interviewed', 'Approved', 'Rejected') NOT NULL DEFAULT 'Submitted',
+    InterviewDate DATETIME NULL,
+    InterviewNote TEXT NULL,
+    ReviewedBy INT NULL,
+    CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_app_campaign FOREIGN KEY (CampaignID) REFERENCES Recruitment_Campaign(CampaignID)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_app_department FOREIGN KEY (DepartmentID) REFERENCES Department(DepartmentID)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_app_reviewer FOREIGN KEY (ReviewedBy) REFERENCES Account(AccountID)
+        ON UPDATE CASCADE ON DELETE SET NULL,
+    UNIQUE KEY uk_campaign_student (CampaignID, StudentCode)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ============================================================================
--- DỮ LIỆU KHỞI TẠO MẪU (SEED DATA BÁM SÁT PROTOTYPE TUẦN 3)
--- Mật khẩu mặc định của tất cả tài khoản demo: Password@123
+-- SEED DATA CHUẨN: BELL CLUB UEH & 10 NHÂN SỰ LÃNH ĐẠO THỰC TẾ
+-- Password mặc định: password123 (hash bcrypt)
 -- ============================================================================
 
+-- Vai trò hệ thống
 INSERT INTO Role (RoleID, RoleName) VALUES
-(1, 'System Administrator'),
-(2, 'Club Manager'),
-(3, 'Club Member'),
-(4, 'Event Participant')
+(1, 'admin'),
+(2, 'clubmanager'),
+(3, 'clubmember'),
+(4, 'participant')
 ON DUPLICATE KEY UPDATE RoleName = VALUES(RoleName);
 
--- Hash bcrypt chuẩn cho 'Password@123': $2y$10$vjmH8REt.69lxZv/JKtIMeVzgRkOOJU6jJzJIBOGi/JwMYgJHyPVm
-INSERT INTO Account (AccountID, Email, PasswordHash, FullName, StudentCode, RoleID, IsActive) VALUES
-(1, 'admin@ueh.edu.vn', '$2y$10$vjmH8REt.69lxZv/JKtIMeVzgRkOOJU6jJzJIBOGi/JwMYgJHyPVm', 'System Admin EventFlow', NULL, 1, 1),
-(2, 'manager@st.ueh.edu.vn', '$2y$10$vjmH8REt.69lxZv/JKtIMeVzgRkOOJU6jJzJIBOGi/JwMYgJHyPVm', 'Dương Hoàng Sâm', '31241020001', 2, 1),
-(3, 'supporter@st.ueh.edu.vn', '$2y$10$vjmH8REt.69lxZv/JKtIMeVzgRkOOJU6jJzJIBOGi/JwMYgJHyPVm', 'Trần Yến Phượng', '31241022663', 3, 1),
-(4, 'minhan@st.ueh.edu.vn', '$2y$10$vjmH8REt.69lxZv/JKtIMeVzgRkOOJU6jJzJIBOGi/JwMYgJHyPVm', 'Nguyễn Minh An', '31241020123', 3, 1),
-(5, 'student@st.ueh.edu.vn', '$2y$10$vjmH8REt.69lxZv/JKtIMeVzgRkOOJU6jJzJIBOGi/JwMYgJHyPVm', 'Lê Hoàng Nam', '31241020999', 4, 1)
+-- Hồ sơ CLB BELL UEH
+INSERT INTO Club (ClubID, ClubName, ShortName, Description, Vision, Mission, Avatar, BannerImage, ContactInfo, Email, Phone, FacebookUrl, Address, ManagerID) VALUES
+(1, 'BELL Club - Câu lạc bộ Tiếng Anh Sinh viên UEH', 'BELL UEH',
+ 'BELL Club là tổ chức tiên phong về phong trào thực hành tiếng Anh năng động và chuyên nghiệp dành cho sinh viên Đại học Kinh tế TP. Hồ Chí Minh.',
+ 'Trở thành cộng đồng tiếng Anh sinh viên dẫn đầu cả nước về kỹ năng học thuật, tranh biện và hội nhập quốc tế.',
+ 'Tạo môi trường rèn luyện tiếng Anh tự nhiên, kết nối cơ hội nghề nghiệp và phát triển toàn diện kỹ năng lãnh đạo.',
+ 'assets/images/logo_bell.png', 'assets/images/banner_bell.jpg',
+ 'Email: bellclub@ueh.edu.vn | Hotline: 02838551779 | Fanpage: fb.com/bellueh',
+ 'bellclub@ueh.edu.vn', '02838551779', 'https://facebook.com/bellueh',
+ 'UEH Cơ sở B - 279 Nguyễn Tri Phương, Phường 5, Quận 10, TP.HCM', 2)
+ON DUPLICATE KEY UPDATE 
+    ClubName = VALUES(ClubName),
+    ShortName = VALUES(ShortName),
+    Description = VALUES(Description),
+    Vision = VALUES(Vision),
+    Mission = VALUES(Mission),
+    ContactInfo = VALUES(ContactInfo),
+    Email = VALUES(Email),
+    Phone = VALUES(Phone),
+    FacebookUrl = VALUES(FacebookUrl),
+    Address = VALUES(Address),
+    ManagerID = VALUES(ManagerID);
+
+-- 4 Phòng ban chuyên môn BELL Club
+INSERT INTO Department (DepartmentID, ClubID, DepartmentName, DepartmentCode, Description, KeyActivities, OrderIndex) VALUES
+(1, 1, 'Human Resources', 'HR',
+ 'The department that keeps the BELL community connected, cared for and growing together. Human Resources focuses on member experience, internal connection and development. From recruitment journeys and bonding activities to internal care initiatives, HR helps BELLers feel welcomed, supported and ready to contribute.',
+ 'Member care, Gatherings & BELL Care\nTraining, workshops & English Sharing Day\nInternal Communications & newsletters\nCheerleading, appreciation & connection', 1),
+(2, 1, 'Specialist', 'SPEC',
+ 'The English-learning heartbeat of BELL, where practice becomes habit and ideas become learning experiences. Specialist designs and delivers activities that help members and students use English more confidently. Through speaking groups, translation initiatives and accessible knowledge-sharing formats, this department turns learning into something practical and lively.',
+ 'Speaking Group Private (SGP) & Extended (SGE)\nTranslator Team, No Vietnamese Day & Monthly Challenge\nEnglish discussions and skill sharing\nRing the BELL & interactive practice', 2),
+(3, 1, 'Communications', 'COMS',
+ 'The voice, look and storytelling energy that bring BELL activities to life. Communications develops BELL’s visual identity and public-facing content. From campaigns and event coverage to creative projects and multimedia storytelling, COMS helps people see, feel and remember the BELL spirit.',
+ 'Content, Design & Production House\nVisuals, video and storytelling\nMedia campaigns and event coverage', 3),
+(4, 1, 'External Relations', 'ER',
+ 'The bridge connecting BELL with partners, sponsors and opportunities beyond the club. External Relations builds and maintains relationships with brands, partners and outside stakeholders. By supporting sponsorship, collaboration and long-term connection, ER helps BELL expand its reach and create stronger opportunities for members and programs.',
+ 'Sponsorship proposals & negotiation\nLong-term partner relationship building\nSpeakers, partners & event support\nSponsor and media collaborations', 4)
+ON DUPLICATE KEY UPDATE 
+    DepartmentName = VALUES(DepartmentName),
+    DepartmentCode = VALUES(DepartmentCode),
+    Description = VALUES(Description),
+    KeyActivities = VALUES(KeyActivities),
+    OrderIndex = VALUES(OrderIndex);
+
+-- 10 Cán bộ Ban Điều Hành & Lãnh Đạo Phòng Ban từ PDF (password: password123)
+INSERT INTO Account (AccountID, Email, PasswordHash, FullName, StudentCode, Phone, Cohort, Major, RoleID, IsActive) VALUES
+(1, 'admin@eventflow.ueh.edu.vn', '$2y$10$wT8f6sQ5yGZJt3a.U6yCg.H6eA5V6gR3L0P3h3J4k5l6m7n8o9p0q', 'System Administrator', 'ADMIN001', '0901000001', 'K47', 'Hệ thống thông tin', 1, 1),
+(2, 'minhanh.president@st.ueh.edu.vn', '$2y$10$wT8f6sQ5yGZJt3a.U6yCg.H6eA5V6gR3L0P3h3J4k5l6m7n8o9p0q', 'Nguyễn Minh Anh', '31241020001', '0902000001', 'K48', 'Kinh doanh quốc tế', 2, 1),
+(3, 'hoangnam.vp@st.ueh.edu.vn', '$2y$10$wT8f6sQ5yGZJt3a.U6yCg.H6eA5V6gR3L0P3h3J4k5l6m7n8o9p0q', 'Trần Hoàng Nam', '31241020002', '0902000002', 'K48', 'Thương mại điện tử', 2, 1),
+(4, 'thutrang.hr@st.ueh.edu.vn', '$2y$10$wT8f6sQ5yGZJt3a.U6yCg.H6eA5V6gR3L0P3h3J4k5l6m7n8o9p0q', 'Phạm Thu Trang', '31241020003', '0903000001', 'K49', 'Quản trị nhân lực', 3, 1),
+(5, 'vanbinh.hr@st.ueh.edu.vn', '$2y$10$wT8f6sQ5yGZJt3a.U6yCg.H6eA5V6gR3L0P3h3J4k5l6m7n8o9p0q', 'Nguyễn Văn Bình', '31241020004', '0903000002', 'K49', 'Quản trị kinh doanh', 3, 1),
+(6, 'minhkhang.spec@st.ueh.edu.vn', '$2y$10$wT8f6sQ5yGZJt3a.U6yCg.H6eA5V6gR3L0P3h3J4k5l6m7n8o9p0q', 'Trần Minh Khang', '31241020005', '0904000001', 'K49', 'Ngôn ngữ Anh thương mại', 3, 1),
+(7, 'thaovy.spec@st.ueh.edu.vn', '$2y$10$wT8f6sQ5yGZJt3a.U6yCg.H6eA5V6gR3L0P3h3J4k5l6m7n8o9p0q', 'Lê Thảo Vy', '31241020006', '0904000002', 'K50', 'Tài chính quốc tế', 3, 1),
+(8, 'hoanglong.coms@st.ueh.edu.vn', '$2y$10$wT8f6sQ5yGZJt3a.U6yCg.H6eA5V6gR3L0P3h3J4k5l6m7n8o9p0q', 'Nguyễn Hoàng Long', '31241020007', '0905000001', 'K49', 'Truyền thông số', 3, 1),
+(9, 'ngocmai.coms@st.ueh.edu.vn', '$2y$10$wT8f6sQ5yGZJt3a.U6yCg.H6eA5V6gR3L0P3h3J4k5l6m7n8o9p0q', 'Phạm Ngọc Mai', '31241020008', '0905000002', 'K50', 'Marketing', 3, 1),
+(10, 'thanhdat.er@st.ueh.edu.vn', '$2y$10$wT8f6sQ5yGZJt3a.U6yCg.H6eA5V6gR3L0P3h3J4k5l6m7n8o9p0q', 'Võ Thành Đạt', '31241020009', '0906000001', 'K49', 'Quan hệ công chúng', 3, 1),
+(11, 'khanhlinh.er@st.ueh.edu.vn', '$2y$10$wT8f6sQ5yGZJt3a.U6yCg.H6eA5V6gR3L0P3h3J4k5l6m7n8o9p0q', 'Đặng Khánh Linh', '31241020010', '0906000002', 'K50', 'Logistics', 3, 1)
 ON DUPLICATE KEY UPDATE FullName = VALUES(FullName);
 
-INSERT INTO Club (ClubID, ClubName, Description, Avatar, BannerImage, ContactInfo, ManagerID) VALUES
-(1, 'UEH English Club (Bell Club)', 'Câu lạc bộ Tiếng Anh sinh viên trực thuộc Đại học Kinh tế TP. Hồ Chí Minh (UEH). Lĩnh vực hoạt động: Học thuật, Giao lưu văn hóa, Rèn luyện kỹ năng giao tiếp và Tranh biện tiếng Anh.', 'assets/uploads/club/ueh_club_avatar.jpg', 'assets/uploads/club/ueh_club_banner.jpg', 'Email: englishclub@ueh.edu.vn | Fanpage: fb.com/uehenglishclub | Cơ sở B - 279 Nguyễn Tri Phương', 2)
-ON DUPLICATE KEY UPDATE ClubName = VALUES(ClubName), Avatar = VALUES(Avatar), BannerImage = VALUES(BannerImage);
+-- Gán Thành viên CLB theo chức danh & phòng ban
+INSERT INTO Club_Member (ClubID, AccountID, DepartmentID, MemberRole, Status, JoinedDate, Bio) VALUES
+(1, 2, NULL, 'President', 'Active', '2024-09-01', 'Chủ nhiệm CLB BELL UEH — Chịu trách nhiệm điều hành chung, định hướng chiến lược học thuật và đối ngoại.'),
+(1, 3, NULL, 'Vice President', 'Active', '2024-09-01', 'Phó Chủ nhiệm CLB BELL UEH — Phụ trách quản lý vận hành các ban chuyên môn và chất lượng sự kiện.'),
+(1, 4, 1, 'Head', 'Active', '2025-01-15', 'Trưởng phòng Nhân sự — Điều phối chiến dịch tuyển quân, gắn kết nội bộ và đào tạo thành viên.'),
+(1, 5, 1, 'Vice Head', 'Active', '2025-01-15', 'Phó phòng Nhân sự — Quản lý hồ sơ ứng tuyển, xếp lịch phỏng vấn và hỗ trợ văn hóa CLB.'),
+(1, 6, 2, 'Head', 'Active', '2025-01-15', 'Trưởng phòng Chuyên môn — Thiết kế hoạt động Speaking Group (SGP/SGE), điều phối nội dung học thuật.'),
+(1, 7, 2, 'Vice Head', 'Active', '2025-01-15', 'Phó phòng Chuyên môn — Phụ trách Translator Team, No Vietnamese Day & Monthly Challenge.'),
+(1, 8, 3, 'Head', 'Active', '2025-01-15', 'Trưởng phòng Truyền thông — Định hình nhận diện thương hiệu BELL, chiến dịch truyền thông đa phương tiện.'),
+(1, 9, 3, 'Vice Head', 'Active', '2025-01-15', 'Phó phòng Truyền thông — Phụ trách sản xuất hình ảnh, video và quản lý nội dung fanpage.'),
+(1, 10, 4, 'Head', 'Active', '2025-01-15', 'Trưởng phòng Quan hệ Đối ngoại — Kết nối nhà tài trợ, diễn giả, doanh nghiệp và đối tác đối ngoại.'),
+(1, 11, 4, 'Vice Head', 'Active', '2025-01-15', 'Phó phòng Quan hệ Đối ngoại — Điều phối tài trợ sự kiện, quyền lợi truyền thông và chăm sóc đối tác.')
+ON DUPLICATE KEY UPDATE MemberRole = VALUES(MemberRole), DepartmentID = VALUES(DepartmentID), Bio = VALUES(Bio);
 
-INSERT INTO Club_Member (MemberID, AccountID, ClubID, MemberRole, Status, JoinedDate) VALUES
-(1, 2, 1, 'Board Member', 'Active', '2025-09-01'),
-(2, 3, 1, 'Event Supporter', 'Active', '2025-10-15'),
-(3, 4, 1, 'Member', 'Active', '2026-01-10')
-ON DUPLICATE KEY UPDATE MemberRole = VALUES(MemberRole);
-
-INSERT INTO Event (EventID, ClubID, EventName, Description, Location, StartTime, EndTime, RegistrationDeadline, MaxCapacity, BannerImage, Status) VALUES
-(1, 1, 'English Speaking Circle', 'Buổi sinh hoạt giao tiếp tiếng Anh định kỳ theo chủ đề dành cho thành viên CLB và sinh viên UEH. Thảo luận các chủ đề đời sống, kết nối bạn bè và nâng cao phản xạ tiếng Anh tự nhiên.', 'UEH Cơ sở B - 279 Nguyễn Tri Phương (Phòng B1.302)', '2026-11-15 18:00:00', '2026-11-15 20:30:00', '2026-11-14 23:59:00', 40, 'assets/uploads/events/event_speaking.png', 'Published'),
-(2, 1, 'Debate Lab: Speak Up', 'Workshop hướng dẫn kỹ năng tranh biện tiếng Anh theo format Nghị viện Anh (British Parliamentary). Rèn luyện tư duy phản biện, lập luận logic và kỹ năng thuyết trình trước đám đông.', 'UEH Cơ sở B - Hội trường B1.302', '2026-11-20 14:00:00', '2026-11-20 17:00:00', '2026-11-19 23:59:00', 60, 'assets/uploads/events/event_debate.jpg', 'Published'),
-(3, 1, 'Cultural Exchange Day', 'Ngày hội giao lưu văn hóa và thực hành ngôn ngữ dành cho toàn thể sinh viên. Khám phá các nền văn hóa đa quốc gia, tham gia minigame và thưởng thức âm nhạc acoustic.', 'Sảnh B1 - UEH Nguyễn Tri Phương', '2026-11-28 08:30:00', '2026-11-28 11:30:00', '2026-11-26 23:59:00', NULL, 'assets/uploads/events/event_culture.jpg', 'Published')
+-- Sự kiện mẫu
+INSERT INTO Event (EventID, ClubID, EventName, Description, Location, StartTime, EndTime, RegistrationStartTime, RegistrationDeadline, MaxCapacity, MinStaffRequired, Status) VALUES
+(1, 1, 'BELL Speaking Circle: Global Mindset', 'Buổi sinh hoạt giao tiếp tiếng Anh định kỳ theo chủ đề dành cho sinh viên UEH.', 'UEH Cơ sở B - B1.302 (279 Nguyễn Tri Phương)', '2026-11-25 18:00:00', '2026-11-25 20:30:00', '2026-11-15 08:00:00', '2026-11-24 23:59:00', 40, 2, 'Published'),
+(2, 1, 'Debate Masterclass: British Parliamentary', 'Workshop chuyên sâu về kỹ năng tranh biện và phản biện tiếng Anh quốc tế.', 'Hội trường B1.302 - Cơ sở B UEH', '2026-11-28 14:00:00', '2026-11-28 17:00:00', '2026-11-20 08:00:00', '2026-11-27 18:00:00', 60, 2, 'Published')
 ON DUPLICATE KEY UPDATE EventName = VALUES(EventName);
+
+-- Phân công BTC Event_Staff (Tối thiểu 2 cán bộ - UAT 10)
+INSERT INTO Event_Staff (EventID, AccountID, StaffRole, AssignedBy) VALUES
+(1, 2, 'Organizer', 2),
+(1, 4, 'Checkin_Lead', 2),
+(1, 6, 'Support', 2),
+(2, 3, 'Organizer', 2),
+(2, 7, 'Checkin_Lead', 2),
+(3, 8, 'Organizer', 2),
+(3, 9, 'Checkin_Lead', 2),
+(3, 10, 'Support', 2),
+(4, 6, 'Organizer', 2),
+(4, 7, 'Checkin_Lead', 2),
+(4, 4, 'MC', 2),
+(5, 2, 'Organizer', 2),
+(5, 3, 'Organizer', 2),
+(5, 10, 'Checkin_Lead', 2),
+(5, 11, 'Support', 2)
+ON DUPLICATE KEY UPDATE StaffRole = VALUES(StaffRole);
+
+-- Chiến dịch tuyển quân mẫu
+INSERT INTO Recruitment_Campaign (CampaignID, ClubID, Title, Description, StartDate, EndDate, Status, TargetCount, CreatedBy) VALUES
+(1, 1, 'BELL Recruitment Gen 27: Ignite Your Spark',
+ 'Đợt tuyển chọn thành viên thế hệ thứ 27 của CLB Tiếng Anh BELL UEH cho 4 phòng ban: Human Resources, Specialist, Communications, External Relations.',
+ '2026-11-15 00:00:00', '2026-12-10 23:59:00', 'Open', 25, 4)
+ON DUPLICATE KEY UPDATE Title = VALUES(Title);
+
+-- Hồ sơ ứng tuyển mẫu đợt tuyển quân Gen 27 (UAT 02, 09)
+INSERT INTO Recruitment_Application (ApplicationID, CampaignID, DepartmentID, FullName, Email, Phone, StudentCode, Cohort, Major, CV_Path, IntroText, Status, InterviewDate, InterviewNote, ReviewedBy, CreatedAt, UpdatedAt) VALUES
+(1, 1, 1, 'Lê Quốc Bảo', '31241020088@st.ueh.edu.vn', '0912345678', '31241020088', 'K50', 'Kinh doanh quốc tế', 'uploads/cvs/sample_cv_lequocbao.pdf', 'Em là sinh viên năm nhất K50, rất đam mê các hoạt động gắn kết nội bộ và tổ chức teambuilding. Em mong muốn được tham gia ban Nhân sự BELL để trau dồi kỹ năng quản trị con người và cống hiến cho CLB.', 'Submitted', NULL, NULL, NULL, NOW(), NOW()),
+(2, 1, 2, 'Đỗ Mai Phương', '31241020123@st.ueh.edu.vn', '0987654321', '31241020123', 'K50', 'Ngôn ngữ Anh thương mại', 'uploads/cvs/sample_cv_domaiphuong.pdf', 'Em có chứng chỉ IELTS 7.5 và từng đạt giải Nhất cuộc thi Hùng biện Tiếng Anh cấp trường. Em muốn gia nhập ban Chuyên môn để cùng CLB thiết kế các chuỗi Speaking Group chất lượng cho sinh viên UEH.', 'Interview_Scheduled', '2026-11-25 14:30:00', 'Phỏng vấn trực tiếp tại Phòng B1.205 (UEH Cơ sở B). Yêu cầu mang theo thẻ sinh viên.', 4, NOW(), NOW()),
+(3, 1, 3, 'Hoàng Gia Huy', '31241020199@st.ueh.edu.vn', '0909888999', '31241020199', 'K50', 'Truyền thông số & Thiết kế đa phương tiện', 'uploads/cvs/sample_cv_hoanggiahuy.pdf', 'Em thành thạo Premiere, Photoshop, Figma và có kinh nghiệm sản xuất video ngắn TikTok đạt triệu view. Em mong muốn đưa hình ảnh của BELL Club lan tỏa mạnh mẽ hơn đến cộng đồng sinh viên.', 'Interviewed', '2026-11-21 09:00:00', 'Điểm phỏng vấn: 9.0/10. Portfolio thiết kế và dựng video rất xuất sắc, tư duy thương hiệu tốt. Đề xuất: Phê duyệt nhận vào ban COMS.', 4, NOW(), NOW())
+ON DUPLICATE KEY UPDATE FullName = VALUES(FullName);

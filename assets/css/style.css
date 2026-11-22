@@ -2,9 +2,27 @@
    EventFlow — Hệ Thống CSS Chuẩn Hóa Theo Design Rules & Prototype Figma
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Roboto:wght@400;500;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('theme-blue.css');
 
 :root {
+  /* EVENTFLOW UNIFIED BLUE BRAND DESIGN TOKENS */
+  --bell-orange:       #2563eb;   /* ★ Unified Brand Royal Blue (Thay thế cam) */
+  --bell-orange-deep:  #1d4ed8;   /* Hover & Active Deep Blue */
+  --bell-orange-light: #38bdf8;   /* Highlight Glow / Sky Blue */
+  --bell-orange-pale:  #eff6ff;   /* Soft Pill Badge Background (Blue-50) */
+  --bell-black:        #0f172a;   /* Rich Slate Navy */
+  --bell-dark:         #0b192c;   /* Midnight Deep Navy */
+  --bell-gray:         #64748b;   /* Body Secondary Text (Slate-500) */
+  --bell-cream:        #f8fafc;   /* Crisp Slate-50 Canvas Background */
+  --bell-border:       #e2e8f0;   /* Clean Slate-200 Border */
+
+  /* TYPOGRAPHY — THỐNG NHẤT VỚI INTER & ROBOTO */
+  --font-primary: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-serif:   'Inter', 'Roboto', sans-serif;
+  --font-sans:    'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
   /* PRIMARY — Indigo / Purple */
   --primary-50:   #EEF2FF;
   --primary-100:  #E0E7FF;
@@ -45,7 +63,7 @@
   --neutral-900:  #0F172A;
 
   /* SEMANTIC TOKENS */
-  --color-bg:       #D5DEF2;   /* ★ Tông xanh tím xám dịu mắt (Muted Slate Periwinkle) - chống chói triệt để */
+  --color-bg:       #f1f5f9;   /* ★ Slate-100 Canvas chuẩn hóa 60-30-10 Rule - tương phản sắc nét với thẻ trắng */
   --color-surface:  #FFFFFF;
   --color-success:  #10B981;
   --color-warning:  #F59E0B;
@@ -82,6 +100,7 @@ body {
   line-height: 1.6;
   margin: 0;
   padding: 0;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -90,6 +109,7 @@ body {
 
 main.main-content {
   flex: 1 0 auto;
+  overflow-x: hidden;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -362,11 +382,43 @@ a:hover {
 .badge-open {
   background-color: #ECFDF5;
   color: #059669;
+  border: 1px solid #A7F3D0;
 }
 
 .badge-closed {
   background-color: #F1F5F9;
   color: #64748B;
+  border: 1px solid #CBD5E1;
+}
+
+.badge-upcoming {
+  background-color: #EFF6FF;
+  color: #2563EB;
+  border: 1px solid #BFDBFE;
+}
+
+.badge-ongoing {
+  background-color: #ECFEFF;
+  color: #0891B2;
+  border: 1px solid #A5F3FC;
+}
+
+.badge-finished {
+  background-color: #F3F4F6;
+  color: #4B5563;
+  border: 1px solid #E5E7EB;
+}
+
+.badge-cancelled {
+  background-color: #FEF2F2;
+  color: #DC2626;
+  border: 1px solid #FECACA;
+}
+
+.badge-draft {
+  background-color: #F8FAFC;
+  color: #64748B;
+  border: 1px dashed #CBD5E1;
 }
 
 .badge-registered {
@@ -444,6 +496,20 @@ a:hover {
   background: rgba(129, 140, 248, 0.15);
 }
 
+.ef-auth-subtitle {
+  box-sizing: border-box;
+  max-width: 100%;
+  padding-left: 8px;
+  padding-right: 8px;
+  word-break: break-word;
+  text-wrap: balance;
+}
+
+.event-card-status {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 /* ==========================================================================
    SCROLLBAR & UTILITIES
    ========================================================================== */
@@ -499,3 +565,202 @@ a:hover {
   background: var(--bs-danger-bg-subtle);
   color: var(--bs-danger-text-emphasis);
 }
+
+@media (max-width: 991.98px) {
+  .ef-navbar {
+    height: auto;
+    min-height: 64px;
+    padding: 8px 0;
+  }
+
+  .ef-navbar .navbar-toggler {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 8px 12px;
+  }
+
+  .ef-navbar .navbar-collapse {
+    flex-basis: 100%;
+    max-height: calc(100vh - 64px);
+    overflow-y: auto;
+    padding-top: 8px;
+  }
+
+  .ef-navbar .navbar-nav {
+    gap: 0 !important;
+  }
+
+  .ef-navbar .ef-nav-link {
+    font-size: 0.9rem;
+    padding: 10px 12px !important;
+    white-space: normal;
+  }
+
+  .ef-navbar .dropdown-menu {
+    position: static;
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  .ef-navbar .dropdown-item {
+    white-space: normal;
+    padding: 10px 12px;
+  }
+
+  .ef-navbar .navbar-collapse > .d-flex {
+    flex-wrap: wrap;
+    gap: 8px !important;
+    margin-top: 8px !important;
+  }
+
+  .ef-navbar .navbar-collapse > .d-flex > .btn {
+    flex: 1 1 120px;
+  }
+
+  .ef-role-pill {
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .btn {
+    min-height: 44px;
+  }
+
+  .ef-hero-banner {
+    padding: 28px 20px;
+  }
+
+  .ef-login-brand-panel {
+    padding: 32px 24px;
+  }
+}
+
+/* ==========================================================================
+   BELL CLUB UEH BRAND EXTENSIONS (from https://www.bellclubueh.net)
+   ========================================================================== */
+
+.font-display { font-family: var(--font-display) !important; font-weight: 700; }
+.font-serif { font-family: var(--font-primary) !important; }
+.font-sans { font-family: var(--font-sans) !important; }
+
+.bg-bell-cream { background-color: var(--bell-cream) !important; }
+.bg-bell-orange { background-color: var(--bell-orange) !important; }
+.bg-bell-orange-pale { background-color: var(--bell-orange-pale) !important; }
+.bg-bell-black { background-color: var(--bell-black) !important; }
+.text-bell-orange { color: var(--bell-orange) !important; }
+.text-bell-black { color: var(--bell-black) !important; }
+.text-bell-gray { color: var(--bell-gray) !important; }
+.border-bell-orange { border-color: var(--bell-orange) !important; }
+
+.badge-bell-orange {
+  background-color: var(--bell-orange-pale) !important;
+  color: var(--bell-orange) !important;
+  border: 1px solid rgba(242, 101, 34, 0.3) !important;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.badge-bell-dark {
+  background-color: var(--bell-black) !important;
+  color: #ffffff !important;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.btn-bell-dark {
+  background-color: var(--bell-black) !important;
+  color: #ffffff !important;
+  border-radius: 9999px !important;
+  font-weight: 700;
+  padding: 0.55rem 1.4rem;
+  border: 1px solid var(--bell-black) !important;
+  transition: all 0.25s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.btn-bell-dark:hover {
+  background-color: var(--ef-blue-600, #2563eb) !important;
+  border-color: var(--ef-blue-600, #2563eb) !important;
+  color: #ffffff !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+}
+
+.btn-bell-orange {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+  color: #ffffff !important;
+  border-radius: 9999px !important;
+  font-weight: 700;
+  padding: 0.55rem 1.4rem;
+  border: 1px solid #2563eb !important;
+  transition: all 0.25s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.btn-bell-orange:hover {
+  background: linear-gradient(135deg, #1d4ed8, #1e40af) !important;
+  border-color: #1e40af !important;
+  color: #ffffff !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+}
+
+.btn-bell-outline {
+  background-color: transparent !important;
+  color: var(--bell-black) !important;
+  border-radius: 9999px !important;
+  font-weight: 600;
+  padding: 0.55rem 1.4rem;
+  border: 1.5px solid rgba(0, 0, 0, 0.15) !important;
+  transition: all 0.25s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.btn-bell-outline:hover {
+  background-color: #ffffff !important;
+  border-color: var(--bell-orange) !important;
+  color: var(--bell-orange) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.bell-card-editorial {
+  background-color: #ffffff;
+  border: 1px solid var(--bell-border);
+  border-radius: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.bell-card-editorial:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.07);
+}
+
+.bell-polaroid {
+  background-color: #ffffff;
+  border: 1px solid var(--bell-border);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+.bell-polaroid:hover {
+  transform: translateY(-4px) rotate(0.5deg);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.1);
+}
+
+.bell-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--bell-orange);
+  margin-right: 8px;
+}
+

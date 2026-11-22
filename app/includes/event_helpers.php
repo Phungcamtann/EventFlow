@@ -22,9 +22,18 @@ function event_now(PDO $pdo): string {
 }
 
 /**
- * Suy ra trạng thái hiển thị của sự kiện.
+ * Suy ra trạng thái hiển thị của sự kiện theo thời gian thực (State Machine - UAT 19).
  *
- * @param array  $evt        Dòng Event (cần: Status, RegistrationDeadline, MaxCapacity)
+ * 7 trạng thái chuẩn hóa:
+ * 1. draft:        'Bản nháp'          (Status = 'Draft')
+ * 2. cancelled:    'Đã hủy'            (Status = 'Cancelled')
+ * 3. finished:     'Đã kết thúc'       (now >= EndTime)
+ * 4. ongoing:      'Đang diễn ra'      (StartTime <= now < EndTime)
+ * 5. closed:       'Đã đóng đăng ký'   (now > RegistrationDeadline HOẶC hết chỗ)
+ * 6. upcoming:     'Sắp mở đăng ký'    (now < RegistrationStartTime)
+ * 7. open:         'Đang mở đăng ký'   (đang trong giai đoạn nhận đăng ký)
+ *
+ * @param array  $evt        Dòng Event (cần: Status, StartTime, EndTime, RegistrationStartTime, RegistrationDeadline, MaxCapacity)
  * @param int    $registered Số lượt đăng ký có Status = 'Registered'
  * @param string $now        Kết quả event_now()
  * @return array{
@@ -36,6 +45,11 @@ function event_state(array $evt, int $registered, string $now): array {
     $capacity  = ($evt['MaxCapacity'] ?? null) === null ? null : (int)$evt['MaxCapacity'];
     $seatsLeft = $capacity === null ? null : max(0, $capacity - $registered);
     $status    = $evt['Status'] ?? '';
+
+    $startTime = !empty($evt['StartTime']) ? $evt['StartTime'] : null;
+    $endTime   = !empty($evt['EndTime']) ? $evt['EndTime'] : null;
+    $regStart  = !empty($evt['RegistrationStartTime']) ? $evt['RegistrationStartTime'] : null;
+    $deadline  = !empty($evt['RegistrationDeadline']) ? $evt['RegistrationDeadline'] : null;
 
     $state = [
         'key'           => 'open',
@@ -57,29 +71,43 @@ function event_state(array $evt, int $registered, string $now): array {
     } elseif ($status === 'Draft') {
         $state['key']           = 'draft';
         $state['label']         = 'Bản nháp';
-        $state['css_class']     = 'badge-closed';
+        $state['css_class']     = 'badge-draft';
         $state['closed_reason'] = 'draft';
-    } elseif ($now > $evt['RegistrationDeadline']) {
+    } elseif ($endTime !== null && $now >= $endTime) {
+        $state['key']           = 'finished';
+        $state['label']         = 'Đã kết thúc';
+        $state['css_class']     = 'badge-finished';
+        $state['closed_reason'] = 'ended';
+    } elseif ($startTime !== null && $now >= $startTime) {
+        $state['key']           = 'ongoing';
+        $state['label']         = 'Đang diễn ra';
+        $state['css_class']     = 'badge-ongoing';
+        $state['closed_reason'] = 'started';
+    } elseif (($deadline !== null && $now > $deadline) || ($seatsLeft !== null && $seatsLeft === 0)) {
         $state['key']           = 'closed';
         $state['label']         = 'Đã đóng đăng ký';
         $state['css_class']     = 'badge-closed';
-        $state['closed_reason'] = 'deadline';
-    } elseif ($seatsLeft === 0) {
-        $state['key']           = 'closed';
-        $state['label']         = 'Đã đóng đăng ký';
-        $state['css_class']     = 'badge-closed';
-        $state['closed_reason'] = 'full';
+        $state['closed_reason'] = ($seatsLeft !== null && $seatsLeft === 0) ? 'full' : 'deadline';
+    } elseif ($regStart !== null && $now < $regStart) {
+        $state['key']           = 'upcoming';
+        $state['label']         = 'Sắp mở đăng ký';
+        $state['css_class']     = 'badge-upcoming';
+        $state['closed_reason'] = 'upcoming';
     } else {
         $state['is_open'] = true;
 
         if ($seatsLeft !== null && $seatsLeft <= EVENT_LOW_SEATS_THRESHOLD) {
             $state['highlights'][] = "Chỉ còn {$seatsLeft} chỗ";
         }
-        $hoursLeft = (strtotime($evt['RegistrationDeadline']) - strtotime($now)) / 3600;
-        if ($hoursLeft <= EVENT_DEADLINE_SOON_HOURS) {
-            $state['highlights'][] = 'Sắp hết hạn đăng ký';
+        if ($deadline !== null) {
+            $hoursLeft = (strtotime($deadline) - strtotime($now)) / 3600;
+            if ($hoursLeft > 0 && $hoursLeft <= EVENT_DEADLINE_SOON_HOURS) {
+                $state['highlights'][] = 'Sắp hết hạn đăng ký';
+            }
         }
     }
+
+    $state['state'] = $state['key'];
 
     return $state;
 }
@@ -142,4 +170,112 @@ function event_strlen(string $value): int {
     return function_exists('mb_strlen')
         ? mb_strlen($value, 'UTF-8')
         : (int)preg_match_all('/./us', $value);
+}
+
+/**
+ * Kiểm tra xem tài khoản có quyền mở bàn điểm danh / điều hành sự kiện không (UAT 08, 11 - RBAC Tầng 3).
+ * Quyền điểm danh:
+ * 1. System Admin
+ * 2. Club Manager (President / Vice President của CLB sở hữu sự kiện)
+ * 3. Hoặc cán bộ được chỉ định trong Event_Staff của sự kiện đó
+ */
+function can_user_checkin_event(PDO $pdo, int $eventId, int $accountId): bool {
+    if (is_system_admin()) {
+        return true;
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT e.ClubID, c.ManagerID, cm.MemberRole
+        FROM Event e
+        JOIN Club c ON e.ClubID = c.ClubID
+        LEFT JOIN Club_Member cm ON cm.ClubID = e.ClubID AND cm.AccountID = :aid AND cm.Status = 'Active'
+        WHERE e.EventID = :eid
+        LIMIT 1
+    ");
+    $stmt->execute([':eid' => $eventId, ':aid' => $accountId]);
+    $ev = $stmt->fetch();
+    if (!$ev) {
+        return false;
+    }
+
+    // Nếu là Club Manager chính thức hoặc President/Vice President trong Club_Member
+    if ((int)$ev['ManagerID'] === $accountId || in_array($ev['MemberRole'], ['President', 'Vice President'], true)) {
+        return true;
+    }
+
+    // Kiểm tra xem có nằm trong bảng Event_Staff của sự kiện này không
+    $staffStmt = $pdo->prepare("
+        SELECT EventStaffID, StaffRole 
+        FROM Event_Staff 
+        WHERE EventID = :eid AND AccountID = :aid
+        LIMIT 1
+    ");
+    $staffStmt->execute([':eid' => $eventId, ':aid' => $accountId]);
+    $staff = $staffStmt->fetch();
+
+    return !empty($staff);
+}
+
+/**
+ * Lấy vai trò cụ thể của cán bộ trong sự kiện (hoặc null nếu không phải staff)
+ */
+function get_user_event_staff_role(PDO $pdo, int $eventId, int $accountId): ?string {
+    $staffStmt = $pdo->prepare("
+        SELECT StaffRole 
+        FROM Event_Staff 
+        WHERE EventID = :eid AND AccountID = :aid
+        LIMIT 1
+    ");
+    $staffStmt->execute([':eid' => $eventId, ':aid' => $accountId]);
+    $role = $staffStmt->fetchColumn();
+    return $role ?: null;
+}
+
+/**
+ * Lấy danh sách ban tổ chức / cán bộ phụ trách sự kiện (Event_Staff)
+ */
+function get_event_staff_list(PDO $pdo, int $eventId): array {
+    $stmt = $pdo->prepare("
+        SELECT es.*, a.FullName, a.StudentCode, a.Email, a.Phone, a.Major, a.Cohort,
+               d.DepartmentName, d.DepartmentCode, cm.MemberRole
+        FROM Event_Staff es
+        JOIN Account a ON a.AccountID = es.AccountID
+        LEFT JOIN Event e ON e.EventID = es.EventID
+        LEFT JOIN Club_Member cm ON cm.AccountID = a.AccountID AND cm.ClubID = e.ClubID
+        LEFT JOIN Department d ON d.DepartmentID = cm.DepartmentID
+        WHERE es.EventID = :eid
+        ORDER BY CASE WHEN es.StaffRole = 'Organizer' THEN 1 
+                      WHEN es.StaffRole = 'Checkin_Lead' THEN 2 
+                      WHEN es.StaffRole = 'MC' THEN 3
+                      WHEN es.StaffRole = 'Support' THEN 4
+                      ELSE 5 END, 
+                 a.FullName ASC
+    ");
+    $stmt->execute([':eid' => $eventId]);
+    return $stmt->fetchAll();
+}
+
+/**
+ * Chuẩn hóa tên tiếng Việt cho chức vụ / vai trò thành viên CLB & vai trò hệ thống
+ */
+if (!function_exists('format_club_member_role')) {
+    function format_club_member_role(?string $role): string {
+        if (empty($role)) {
+            return 'Thành viên';
+        }
+        $r = trim($role);
+        return match(strtolower($r)) {
+            'president'                           => 'Chủ nhiệm CLB',
+            'vice president', 'vice_president'    => 'Phó Chủ nhiệm',
+            'head'                                => 'Trưởng phòng',
+            'vice head', 'vice_head', 'vice-head' => 'Phó phòng',
+            'board member', 'board_member'        => 'Ủy viên BĐH',
+            'event supporter', 'event_supporter'  => 'CTV Sự kiện',
+            'member'                              => 'Thành viên',
+            'club manager', 'club_manager'        => 'Ban Chủ Nhiệm',
+            'admin'                               => 'Quản trị viên',
+            'student'                             => 'Sinh viên',
+            default                               => htmlspecialchars($role),
+        };
+    }
 }

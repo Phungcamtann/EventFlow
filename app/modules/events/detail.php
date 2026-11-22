@@ -10,13 +10,12 @@ require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/session_auth.php';
 require_once __DIR__ . '/../../includes/event_helpers.php';
 
-require_login();
-
+// Mở trang chi tiết công khai (Khách vãng lai truy cập không bắt buộc đăng nhập)
 $pdo         = get_db_connection();
 $eventId     = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-$userId      = current_user_id();
+$userId      = is_logged_in() ? (int)current_user_id() : 0;
 $detailUrl   = base_url('app/modules/events/detail.php?id=' . $eventId);
-$canRegister = has_role(['Club Member', 'Event Participant']);
+$canRegister = is_logged_in() && has_role(['Club Member', 'Event Participant']);
 $h           = static fn($v): string => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
 
 /**
@@ -154,6 +153,136 @@ function event_cancel_registration(PDO $pdo, int $eventId, int $accountId): arra
     }
 }
 
+/**
+ * Đăng ký sự kiện dành cho Khách vãng lai / Sinh viên chưa có tài khoản (UAT 02 / Luồng NV 3).
+ * Kiểm tra chống trùng MSSV/Email và bảo vệ MaxCapacity bằng khóa dòng FOR UPDATE.
+ */
+function event_register_guest(PDO $pdo, int $eventId, string $fullName, string $studentCode, string $email, string $phone): array {
+    $fail = static function (string $msg) use ($pdo): array {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        return [false, $msg];
+    };
+
+    $fullName    = trim($fullName);
+    $studentCode = strtoupper(trim($studentCode));
+    $email       = strtolower(trim($email));
+    $phone       = trim($phone);
+
+    if ($fullName === '' || $studentCode === '' || $email === '' || $phone === '') {
+        return [false, 'Vui lòng điền đầy đủ tất cả các trường thông tin.'];
+    }
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return [false, 'Định dạng email không hợp lệ.'];
+    }
+    if (!preg_match('/^[0-9]{9,11}$/', preg_replace('/[^\d]/', '', $phone))) {
+        return [false, 'Số điện thoại không hợp lệ (yêu cầu 9 - 11 chữ số).'];
+    }
+
+    try {
+        $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare("SELECT * FROM Event WHERE EventID = :id FOR UPDATE");
+        $stmt->execute([':id' => $eventId]);
+        $evt = $stmt->fetch();
+
+        if (!$evt || $evt['Status'] === 'Draft') {
+            return $fail('Không tìm thấy sự kiện.');
+        }
+        if ($evt['Status'] === 'Cancelled') {
+            return $fail('Sự kiện đã bị hủy, không thể đăng ký.');
+        }
+        if (event_now($pdo) > $evt['RegistrationDeadline']) {
+            return $fail('Đã quá hạn đăng ký sự kiện.');
+        }
+
+        // 1. Chống trùng với lượt đăng ký khách vãng lai đã có
+        $dupGuestStmt = $pdo->prepare("
+            SELECT RegID, Status FROM Event_Registration
+            WHERE EventID = :e 
+              AND RegistrationType = 'Guest'
+              AND (GuestStudentCode = :code OR LOWER(GuestEmail) = :email)
+            FOR UPDATE
+        ");
+        $dupGuestStmt->execute([':e' => $eventId, ':code' => $studentCode, ':email' => $email]);
+        $dupGuest = $dupGuestStmt->fetch();
+
+        if ($dupGuest && $dupGuest['Status'] === 'Registered') {
+            return $fail('MSSV hoặc Email này đã được đăng ký cho sự kiện này trước đó.');
+        }
+
+        // 2. Chống trùng với thành viên có tài khoản đã đăng ký
+        $dupAccStmt = $pdo->prepare("
+            SELECT r.RegID, r.Status 
+            FROM Event_Registration r
+            JOIN Account a ON a.AccountID = r.AccountID
+            WHERE r.EventID = :e 
+              AND (a.StudentCode = :code OR LOWER(a.Email) = :email)
+              AND r.Status = 'Registered'
+            FOR UPDATE
+        ");
+        $dupAccStmt->execute([':e' => $eventId, ':code' => $studentCode, ':email' => $email]);
+        if ($dupAccStmt->fetch()) {
+            return $fail('Sinh viên có MSSV hoặc Email này đã đăng ký sự kiện bằng tài khoản hệ thống.');
+        }
+
+        // 3. Kiểm tra số chỗ còn lại (bảo vệ capacity)
+        $cntStmt = $pdo->prepare("
+            SELECT COUNT(*) FROM Event_Registration
+            WHERE EventID = :e AND Status = 'Registered'
+        ");
+        $cntStmt->execute([':e' => $eventId]);
+        $registered = (int)$cntStmt->fetchColumn();
+
+        if ($evt['MaxCapacity'] !== null && $registered >= (int)$evt['MaxCapacity']) {
+            return $fail('Rất tiếc, sự kiện đã hết chỗ.');
+        }
+
+        // 4. Lưu lượt đăng ký
+        if ($dupGuest) {
+            $up = $pdo->prepare("
+                UPDATE Event_Registration 
+                SET Status = 'Registered', 
+                    GuestName = :name, 
+                    GuestPhone = :phone, 
+                    GuestEmail = :email,
+                    RegDate = NOW()
+                WHERE RegID = :id
+            ");
+            $up->execute([
+                ':name'  => $fullName,
+                ':phone' => $phone,
+                ':email' => $email,
+                ':id'    => $dupGuest['RegID']
+            ]);
+        } else {
+            $ins = $pdo->prepare("
+                INSERT INTO Event_Registration 
+                    (EventID, AccountID, RegistrationType, GuestName, GuestEmail, GuestPhone, GuestStudentCode, RegDate, Status)
+                VALUES 
+                    (:e, NULL, 'Guest', :name, :email, :phone, :code, NOW(), 'Registered')
+            ");
+            $ins->execute([
+                ':e'     => $eventId,
+                ':name'  => $fullName,
+                ':email' => $email,
+                ':phone' => $phone,
+                ':code'  => $studentCode
+            ]);
+        }
+
+        $pdo->commit();
+        return [true, 'Đăng ký thành công! Thông tin của bạn đã được ghi nhận vào danh sách tham gia.'];
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log('[EventFlow] guest register failed: ' . $e->getMessage());
+        return [false, 'Không thể xử lý yêu cầu. Vui lòng thử lại sau.'];
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Xử lý POST (Post/Redirect/Get)
 // ---------------------------------------------------------------------------
@@ -162,6 +291,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!verify_csrf_token()) {
         set_flash('danger', 'Mã xác thực không hợp lệ hoặc phiên làm việc đã hết hạn. Vui lòng thử lại.');
+    } elseif ($action === 'guest_register') {
+        $gName  = trim($_POST['guest_name'] ?? '');
+        $gCode  = trim($_POST['guest_student_code'] ?? '');
+        $gEmail = trim($_POST['guest_email'] ?? '');
+        $gPhone = trim($_POST['guest_phone'] ?? '');
+
+        [$ok, $msg] = event_register_guest($pdo, $eventId, $gName, $gCode, $gEmail, $gPhone);
+        set_flash($ok ? 'success' : 'danger', $msg);
     } elseif (!$canRegister) {
         set_flash('danger', 'Tài khoản của bạn không có quyền đăng ký sự kiện.');
     } elseif ($action === 'register') {
@@ -245,7 +382,8 @@ $pageTitle = $evt['EventName'] . ' — EventFlow';
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
-<div class="container py-4">
+<div class="bg-ef-canvas py-4" style="min-height: 100vh;">
+    <div class="container">
     <!-- Breadcrumb -->
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb">
@@ -286,21 +424,28 @@ require_once __DIR__ . '/../../includes/header.php';
                 <div class="card-body p-4">
                     <div class="row g-3 mb-4">
                         <div class="col-sm-6">
-                            <div class="small text-muted"><i class="bi bi-calendar-event me-1 text-primary"></i> Bắt đầu</div>
-                            <div class="fw-semibold text-dark"><?= $h(event_fmt_dt($evt['StartTime'])) ?></div>
-                        </div>
-                        <div class="col-sm-6">
-                            <div class="small text-muted"><i class="bi bi-calendar-check me-1 text-primary"></i> Kết thúc</div>
-                            <div class="fw-semibold text-dark"><?= $h(event_fmt_dt($evt['EndTime'])) ?></div>
+                            <div class="small text-muted"><i class="bi bi-calendar-event me-1 text-primary"></i> Thời gian diễn ra</div>
+                            <div class="fw-semibold text-dark"><?= $h(event_fmt_dt($evt['StartTime'])) ?> — <?= $h(event_fmt_dt($evt['EndTime'])) ?></div>
                         </div>
                         <div class="col-sm-6">
                             <div class="small text-muted"><i class="bi bi-geo-alt me-1 text-primary"></i> Địa điểm</div>
                             <div class="fw-semibold text-dark"><?= $h($evt['Location']) ?></div>
                         </div>
-                        <div class="col-sm-6">
-                            <div class="small text-muted"><i class="bi bi-hourglass-split me-1 text-primary"></i> Hạn đăng ký</div>
-                            <div class="fw-semibold text-dark"><?= $h(event_fmt_dt($evt['RegistrationDeadline'])) ?></div>
-                        </div>
+                        <?php if (!empty($evt['RegistrationStartTime'])): ?>
+                            <div class="col-sm-6">
+                                <div class="small text-muted"><i class="bi bi-calendar-plus me-1 text-primary"></i> Mở đăng ký</div>
+                                <div class="fw-semibold text-dark"><?= $h(event_fmt_dt($evt['RegistrationStartTime'])) ?></div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="small text-muted"><i class="bi bi-hourglass-split me-1 text-primary"></i> Hạn chót đăng ký</div>
+                                <div class="fw-semibold text-dark"><?= $h(event_fmt_dt($evt['RegistrationDeadline'])) ?></div>
+                            </div>
+                        <?php else: ?>
+                            <div class="col-sm-6">
+                                <div class="small text-muted"><i class="bi bi-hourglass-split me-1 text-primary"></i> Hạn chót đăng ký</div>
+                                <div class="fw-semibold text-dark"><?= $h(event_fmt_dt($evt['RegistrationDeadline'])) ?></div>
+                            </div>
+                        <?php endif; ?>
                     </div>
 
                     <h2 class="h6 fw-bold text-dark">Mô tả sự kiện</h2>
@@ -359,16 +504,43 @@ require_once __DIR__ . '/../../includes/header.php';
                         </form>
                     <?php endif; ?>
 
-                    <?php
-                    // Thông báo khi không thể đăng ký
-                    if (!$canRegister): ?>
+                    <?php if ($userId === 0): ?>
+                        <?php if ($state['is_open']): ?>
+                            <button type="button" class="btn btn-primary w-100 fw-semibold shadow-sm mb-2" data-bs-toggle="modal" data-bs-target="#modalGuestRegister">
+                                <i class="bi bi-pencil-square me-1"></i> Đăng ký tham gia (Khách vãng lai)
+                            </button>
+                            <div class="text-center small text-muted mb-3">
+                                Đã có tài khoản? <a href="<?= base_url('app/modules/auth/login.php') ?>" class="text-primary text-decoration-none fw-semibold">Đăng nhập tại đây</a>
+                            </div>
+                        <?php else: ?>
+                            <div class="alert alert-light border small mb-0">
+                                <i class="bi bi-info-circle me-1"></i> Cổng đăng ký sự kiện hiện đang đóng.
+                            </div>
+                        <?php endif; ?>
+                    <?php elseif (!$canRegister): ?>
                         <div class="alert alert-light border small mb-0">
                             <i class="bi bi-info-circle me-1"></i> Chỉ thành viên CLB và sinh viên tham gia mới đăng ký được sự kiện.
                         </div>
-                    <?php elseif ($state['closed_reason'] === 'cancelled'): ?>
+                    <?php elseif ($state['key'] === 'cancelled'): ?>
                         <div class="alert alert-danger small mb-0 mt-3">
                             <i class="bi bi-x-octagon me-1"></i> Sự kiện này đã bị hủy.
                             <?= $isRegistered ? 'Thông tin đăng ký của bạn vẫn được lưu lại.' : '' ?>
+                        </div>
+                    <?php elseif ($state['key'] === 'draft'): ?>
+                        <div class="alert alert-secondary small mb-0 mt-3">
+                            <i class="bi bi-file-earmark-text me-1"></i> Sự kiện đang ở chế độ bản nháp (chưa mở cho người dùng).
+                        </div>
+                    <?php elseif ($state['key'] === 'upcoming'): ?>
+                        <div class="alert alert-primary-subtle border border-primary-subtle small mb-0 mt-3 text-primary">
+                            <i class="bi bi-clock-history me-1"></i> Cổng đăng ký sẽ chính thức mở vào lúc <strong><?= $h(event_fmt_dt($evt['RegistrationStartTime'])) ?></strong>.
+                        </div>
+                    <?php elseif ($state['key'] === 'ongoing'): ?>
+                        <div class="alert alert-info-subtle border border-info-subtle small mb-0 mt-3 text-info-emphasis">
+                            <i class="bi bi-broadcast me-1"></i> Sự kiện đang diễn ra.
+                        </div>
+                    <?php elseif ($state['key'] === 'finished'): ?>
+                        <div class="alert alert-secondary small mb-0 mt-3">
+                            <i class="bi bi-calendar-check me-1"></i> Sự kiện đã kết thúc.
                         </div>
                     <?php elseif (!$isRegistered && $state['closed_reason'] === 'deadline'): ?>
                         <div class="alert alert-secondary small mb-0 mt-3">
@@ -386,6 +558,61 @@ require_once __DIR__ . '/../../includes/header.php';
                     <?php endif; ?>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- Modal Đăng Ký Khách Vãng Lai -->
+<div class="modal fade" id="modalGuestRegister" tabindex="-1" aria-labelledby="modalGuestRegisterLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-primary text-white border-0 py-3 px-4">
+                <h5 class="modal-title fw-bold" id="modalGuestRegisterLabel">
+                    <i class="bi bi-pencil-square me-2"></i> Đăng Ký Tham Gia Sự Kiện
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="<?= $h($detailUrl) ?>">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="guest_register">
+                <div class="modal-body p-4">
+                    <div class="alert alert-light border small mb-3">
+                        <i class="bi bi-info-circle-fill text-primary me-1"></i> Dành cho sinh viên chưa có tài khoản EventFlow. Thông tin sẽ được dùng để đối soát và điểm danh tại bàn check-in.
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="guest_name" class="form-label small fw-semibold">Họ và tên sinh viên <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control rounded-3" id="guest_name" name="guest_name" placeholder="Nguyễn Văn A" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="guest_student_code" class="form-label small fw-semibold">Mã số sinh viên (MSSV) <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control rounded-3" id="guest_student_code" name="guest_student_code" placeholder="VD: 31241020055" required>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label for="guest_email" class="form-label small fw-semibold">Email liên hệ <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control rounded-3" id="guest_email" name="guest_email" placeholder="email@st.ueh.edu.vn" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="guest_phone" class="form-label small fw-semibold">Số điện thoại <span class="text-danger">*</span></label>
+                            <input type="tel" class="form-control rounded-3" id="guest_phone" name="guest_phone" placeholder="VD: 0901234567" required>
+                        </div>
+                    </div>
+
+                    <div class="bg-light p-3 rounded-3 small text-muted">
+                        <i class="bi bi-shield-check text-success me-1"></i> Cam kết bảo mật thông tin & kiểm tra chống trùng tự động theo sự kiện.
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0 py-3 px-4">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold">
+                        <i class="bi bi-check2-circle me-1"></i> Xác Nhận Đăng Ký
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
