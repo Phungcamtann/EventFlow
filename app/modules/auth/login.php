@@ -388,8 +388,9 @@ require_once __DIR__ . '/../../includes/header.php';
 }
 </style>
 
-<div class="container py-4 py-lg-5">
-    <div class="ef-sliding-auth-wrapper">
+<div class="bg-ef-canvas py-4 py-lg-5" style="min-height: calc(100vh - 120px);">
+    <div class="container">
+        <div class="ef-sliding-auth-wrapper">
         <div class="ef-sliding-auth-card <?= $isApplyMode ? 'is-apply-mode' : '' ?>" id="authSlidingCard">
             
             <!-- ==============================================================
@@ -670,6 +671,7 @@ require_once __DIR__ . '/../../includes/header.php';
 
         </div>
     </div>
+</div>
 </div>
 
 <script>

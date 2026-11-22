@@ -53,7 +53,9 @@
                         </div>
                         <div class="d-flex align-items-center gap-2 mb-2">
                             <i class="bi bi-github text-primary"></i>
-                            <span>Dự án Quản lý Dự án CNTT — Nhóm 8 UEH</span>
+                            <a href="https://github.com/Phungcamtann/EventFlow" target="_blank" rel="noopener noreferrer" class="text-decoration-none" style="color: #64748b;" onmouseover="this.style.color='#2563eb'" onmouseout="this.style.color='#64748b'">
+                                Dự án Quản lý Dự án CNTT — Nhóm 8 UEH <i class="bi bi-box-arrow-up-right ms-1" style="font-size: 0.72rem;"></i>
+                            </a>
                         </div>
                     </div>
                 </div>

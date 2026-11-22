@@ -60,6 +60,15 @@
   --ef-font-serif:     'Inter', 'Roboto', sans-serif;
 }
 
+body {
+  background-color: #e6f4fb;
+  background-image: url('../images/bg_bell_pattern.webp');
+  background-repeat: no-repeat;
+  background-position: center top;
+  background-size: cover;
+  background-attachment: fixed;
+}
+
 /* ==========================================================================
    2. GLOBAL UTILITY CLASSES — THEME XANH
    ========================================================================== */

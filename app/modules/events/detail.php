@@ -382,7 +382,8 @@ $pageTitle = $evt['EventName'] . ' — EventFlow';
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
-<div class="container py-4">
+<div class="bg-ef-canvas py-4" style="min-height: 100vh;">
+    <div class="container">
     <!-- Breadcrumb -->
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb">
@@ -559,6 +560,7 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
         </div>
     </div>
+</div>
 </div>
 
 <!-- Modal Đăng Ký Khách Vãng Lai -->
