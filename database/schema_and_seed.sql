@@ -351,3 +351,10 @@ INSERT INTO Recruitment_Campaign (CampaignID, ClubID, Title, Description, StartD
  'Đợt tuyển chọn thành viên thế hệ thứ 27 của CLB Tiếng Anh BELL UEH cho 4 phòng ban: Human Resources, Specialist, Communications, External Relations.',
  '2026-11-15 00:00:00', '2026-12-10 23:59:00', 'Open', 25, 4)
 ON DUPLICATE KEY UPDATE Title = VALUES(Title);
+
+-- Hồ sơ ứng tuyển mẫu đợt tuyển quân Gen 27 (UAT 02, 09)
+INSERT INTO Recruitment_Application (ApplicationID, CampaignID, DepartmentID, FullName, Email, Phone, StudentCode, Cohort, Major, CV_Path, IntroText, Status, InterviewDate, InterviewNote, ReviewedBy, CreatedAt, UpdatedAt) VALUES
+(1, 1, 1, 'Lê Quốc Bảo', '31241020088@st.ueh.edu.vn', '0912345678', '31241020088', 'K50', 'Kinh doanh quốc tế', 'uploads/cvs/sample_cv_lequocbao.pdf', 'Em là sinh viên năm nhất K50, rất đam mê các hoạt động gắn kết nội bộ và tổ chức teambuilding. Em mong muốn được tham gia ban Nhân sự BELL để trau dồi kỹ năng quản trị con người và cống hiến cho CLB.', 'Submitted', NULL, NULL, NULL, NOW(), NOW()),
+(2, 1, 2, 'Đỗ Mai Phương', '31241020123@st.ueh.edu.vn', '0987654321', '31241020123', 'K50', 'Ngôn ngữ Anh thương mại', 'uploads/cvs/sample_cv_domaiphuong.pdf', 'Em có chứng chỉ IELTS 7.5 và từng đạt giải Nhất cuộc thi Hùng biện Tiếng Anh cấp trường. Em muốn gia nhập ban Chuyên môn để cùng CLB thiết kế các chuỗi Speaking Group chất lượng cho sinh viên UEH.', 'Interview_Scheduled', '2026-11-25 14:30:00', 'Phỏng vấn trực tiếp tại Phòng B1.205 (UEH Cơ sở B). Yêu cầu mang theo thẻ sinh viên.', 4, NOW(), NOW()),
+(3, 1, 3, 'Hoàng Gia Huy', '31241020199@st.ueh.edu.vn', '0909888999', '31241020199', 'K50', 'Truyền thông số & Thiết kế đa phương tiện', 'uploads/cvs/sample_cv_hoanggiahuy.pdf', 'Em thành thạo Premiere, Photoshop, Figma và có kinh nghiệm sản xuất video ngắn TikTok đạt triệu view. Em mong muốn đưa hình ảnh của BELL Club lan tỏa mạnh mẽ hơn đến cộng đồng sinh viên.', 'Interviewed', '2026-11-21 09:00:00', 'Điểm phỏng vấn: 9.0/10. Portfolio thiết kế và dựng video rất xuất sắc, tư duy thương hiệu tốt. Đề xuất: Phê duyệt nhận vào ban COMS.', 4, NOW(), NOW())
+ON DUPLICATE KEY UPDATE FullName = VALUES(FullName);

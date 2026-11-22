@@ -225,6 +225,26 @@ function can_manage_club_profile(): bool {
 }
 
 /**
+ * Kiểm tra quyền quản lý tuyển quân & cấp tài khoản tự động (UAT 02, 09)
+ * Dành cho: President, Vice President, Head/Vice Head (đặc biệt HR) hoặc Club Manager.
+ * System Admin chỉ quản trị tài khoản hệ thống & logs, không can thiệp tuyển quân CLB.
+ */
+function can_manage_recruitment(): bool {
+    if (!is_logged_in()) {
+        return false;
+    }
+    if (is_system_admin()) {
+        return false;
+    }
+    if (is_club_manager()) {
+        return true;
+    }
+    $memberRole = $_SESSION['user']['MemberRole'] ?? '';
+    $clubStatus = $_SESSION['user']['ClubStatus'] ?? '';
+    return ($clubStatus === 'Active') && in_array($memberRole, ['President', 'Vice President', 'Board Member', 'Head', 'Vice Head'], true);
+}
+
+/**
  * Yêu cầu đăng nhập trước khi truy cập trang
  */
 function require_login(): void {

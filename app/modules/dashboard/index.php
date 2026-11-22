@@ -614,6 +614,202 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         fclose($fp);
         exit;
     }
+
+    // 15. PHÊ DUYỆT HỒ SƠ & CẤP TÀI KHOẢN TỰ ĐỘNG (UAT 02, 09)
+    elseif ($action === 'recruitment_auto_provision' && can_manage_recruitment()) {
+        $appId = (int)($_POST['application_id'] ?? 0);
+        try {
+            $pdo->beginTransaction();
+            $stmt = $pdo->prepare("SELECT * FROM Recruitment_Application WHERE ApplicationID = :id FOR UPDATE");
+            $stmt->execute([':id' => $appId]);
+            $app = $stmt->fetch();
+
+            if (!$app) {
+                $pdo->rollBack();
+                set_flash('danger', 'Không tìm thấy hồ sơ ứng tuyển.');
+                header('Location: ' . base_url('app/modules/dashboard/index.php#recruitment'));
+                exit;
+            }
+
+            if ($app['Status'] === 'Approved') {
+                $pdo->rollBack();
+                set_flash('warning', 'Hồ sơ này đã được phê duyệt và cấp tài khoản trước đó.');
+                header('Location: ' . base_url('app/modules/dashboard/index.php#recruitment'));
+                exit;
+            }
+
+            // Kiểm tra xem tài khoản đã tồn tại hay chưa
+            $accStmt = $pdo->prepare("SELECT AccountID FROM Account WHERE Email = :email OR StudentCode = :code FOR UPDATE");
+            $accStmt->execute([':email' => $app['Email'], ':code' => $app['StudentCode']]);
+            $existAcc = $accStmt->fetch();
+
+            $rawDefaultPassword = 'Ueh@' . $app['StudentCode'];
+            $passwordHash = password_hash($rawDefaultPassword, PASSWORD_BCRYPT);
+
+            if ($existAcc) {
+                $newAccountId = (int)$existAcc['AccountID'];
+                $upAcc = $pdo->prepare("
+                    UPDATE Account 
+                    SET RoleID = 2, 
+                        PasswordMustChange = 1,
+                        FullName = :name,
+                        Phone = :phone,
+                        Cohort = :cohort,
+                        Major = :major,
+                        IsActive = 1
+                    WHERE AccountID = :aid
+                ");
+                $upAcc->execute([
+                    ':name'   => $app['FullName'],
+                    ':phone'  => $app['Phone'],
+                    ':cohort' => $app['Cohort'],
+                    ':major'  => $app['Major'],
+                    ':aid'    => $newAccountId
+                ]);
+            } else {
+                $insAcc = $pdo->prepare("
+                    INSERT INTO Account (
+                        Email, PasswordHash, FullName, StudentCode, Phone, Cohort, Major,
+                        RoleID, PasswordMustChange, IsActive, CreatedAt
+                    ) VALUES (
+                        :email, :hash, :name, :code, :phone, :cohort, :major,
+                        2, 1, 1, NOW()
+                    )
+                ");
+                $insAcc->execute([
+                    ':email'  => $app['Email'],
+                    ':hash'   => $passwordHash,
+                    ':name'   => $app['FullName'],
+                    ':code'   => $app['StudentCode'],
+                    ':phone'  => $app['Phone'],
+                    ':cohort' => $app['Cohort'],
+                    ':major'  => $app['Major']
+                ]);
+                $newAccountId = (int)$pdo->lastInsertId();
+            }
+
+            // Thêm hoặc cập nhật vào Club_Member
+            $cmStmt = $pdo->prepare("SELECT MemberID FROM Club_Member WHERE AccountID = :aid AND ClubID = 1 FOR UPDATE");
+            $cmStmt->execute([':aid' => $newAccountId]);
+            $existCm = $cmStmt->fetch();
+
+            if ($existCm) {
+                $upCm = $pdo->prepare("
+                    UPDATE Club_Member 
+                    SET DepartmentID = :dept, MemberRole = 'Member', Status = 'Active', JoinedDate = CURDATE()
+                    WHERE MemberID = :mid
+                ");
+                $upCm->execute([':dept' => $app['DepartmentID'], ':mid' => $existCm['MemberID']]);
+            } else {
+                $insCm = $pdo->prepare("
+                    INSERT INTO Club_Member (AccountID, ClubID, DepartmentID, MemberRole, Status, JoinedDate)
+                    VALUES (:aid, 1, :dept, 'Member', 'Active', CURDATE())
+                ");
+                $insCm->execute([':aid' => $newAccountId, ':dept' => $app['DepartmentID']]);
+            }
+
+            // Cập nhật trạng thái hồ sơ thành Approved
+            $upApp = $pdo->prepare("
+                UPDATE Recruitment_Application
+                SET Status = 'Approved', ReviewedBy = :uid, UpdatedAt = NOW()
+                WHERE ApplicationID = :id
+            ");
+            $upApp->execute([':uid' => $userId, ':id' => $appId]);
+
+            $pdo->commit();
+            set_flash('success', "Đã phê duyệt hồ sơ và kích hoạt tài khoản thành viên cho sinh viên <strong>{$app['FullName']}</strong> ({$app['Email']}) thành công! Mật khẩu khởi tạo: <code>{$rawDefaultPassword}</code> (Đã gắn cờ bắt buộc đổi mật khẩu lần đầu).");
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log('[EventFlow Auto Provision Error] ' . $e->getMessage());
+            set_flash('danger', 'Đã xảy ra lỗi khi cấp tài khoản: ' . $e->getMessage());
+        }
+
+        header('Location: ' . base_url('app/modules/dashboard/index.php#recruitment'));
+        exit;
+    }
+
+    // 16. LÊN LỊCH PHỎNG VẤN ỨNG VIÊN
+    elseif ($action === 'recruitment_schedule_interview' && can_manage_recruitment()) {
+        $appId = (int)($_POST['application_id'] ?? 0);
+        $intDate = trim($_POST['interview_date'] ?? '');
+        $intNote = trim($_POST['interview_note'] ?? '');
+
+        if ($appId <= 0 || $intDate === '') {
+            set_flash('danger', 'Vui lòng chọn thời gian phỏng vấn hợp lệ.');
+        } else {
+            $formattedDate = date('Y-m-d H:i:s', strtotime($intDate));
+            $up = $pdo->prepare("
+                UPDATE Recruitment_Application
+                SET Status = 'Interview_Scheduled',
+                    InterviewDate = :dt,
+                    InterviewNote = :note,
+                    ReviewedBy = :uid,
+                    UpdatedAt = NOW()
+                WHERE ApplicationID = :id
+            ");
+            $up->execute([
+                ':dt'   => $formattedDate,
+                ':note' => $intNote,
+                ':uid'  => $userId,
+                ':id'   => $appId
+            ]);
+            set_flash('success', 'Đã cập nhật lịch phỏng vấn cho ứng viên.');
+        }
+        header('Location: ' . base_url('app/modules/dashboard/index.php#recruitment'));
+        exit;
+    }
+
+    // 17. LƯU KẾT QUẢ / GHI CHÚ PHỎNG VẤN
+    elseif ($action === 'recruitment_record_interview' && can_manage_recruitment()) {
+        $appId = (int)($_POST['application_id'] ?? 0);
+        $intNote = trim($_POST['interview_note'] ?? '');
+
+        if ($appId <= 0 || $intNote === '') {
+            set_flash('danger', 'Vui lòng nhập nội dung đánh giá/ghi chú.');
+        } else {
+            $up = $pdo->prepare("
+                UPDATE Recruitment_Application
+                SET Status = 'Interviewed',
+                    InterviewNote = :note,
+                    ReviewedBy = :uid,
+                    UpdatedAt = NOW()
+                WHERE ApplicationID = :id
+            ");
+            $up->execute([
+                ':note' => $intNote,
+                ':uid'  => $userId,
+                ':id'   => $appId
+            ]);
+            set_flash('success', 'Đã lưu kết quả phỏng vấn và đánh giá ứng viên.');
+        }
+        header('Location: ' . base_url('app/modules/dashboard/index.php#recruitment'));
+        exit;
+    }
+
+    // 18. TỪ CHỐI HỒ SƠ ỨNG TUYỂN
+    elseif ($action === 'recruitment_reject' && can_manage_recruitment()) {
+        $appId = (int)($_POST['application_id'] ?? 0);
+        $reason = trim($_POST['reject_reason'] ?? '');
+
+        $up = $pdo->prepare("
+            UPDATE Recruitment_Application
+            SET Status = 'Rejected',
+                InterviewNote = CONCAT(COALESCE(InterviewNote, ''), '\n[Lý do từ chối]: ', :reason),
+                ReviewedBy = :uid,
+                UpdatedAt = NOW()
+            WHERE ApplicationID = :id
+        ");
+        $up->execute([
+            ':reason' => $reason,
+            ':uid'    => $userId,
+            ':id'     => $appId
+        ]);
+        set_flash('info', 'Đã chuyển trạng thái hồ sơ sang Từ chối.');
+        header('Location: ' . base_url('app/modules/dashboard/index.php#recruitment'));
+        exit;
+    }
 }
 
 // ============================================================================
@@ -907,6 +1103,49 @@ if ($consoleEventId > 0) {
     }
 }
 
+// 11. Dữ liệu Quản lý Tuyển quân (Recruitment Management - UAT 02, 09)
+$recruitmentApplications = [];
+$recruitmentStats = [
+    'total'               => 0,
+    'submitted'           => 0,
+    'interview_scheduled' => 0,
+    'interviewed'         => 0,
+    'approved'            => 0,
+    'rejected'            => 0
+];
+$pendingRecruitmentCount = 0;
+
+if (can_manage_recruitment()) {
+    $cId = $activeCampaign ? (int)$activeCampaign['CampaignID'] : 1;
+    $recAppsStmt = $pdo->prepare("
+        SELECT ra.*, d.DepartmentName, d.DepartmentCode, u.FullName AS ReviewerName
+        FROM Recruitment_Application ra
+        JOIN Department d ON d.DepartmentID = ra.DepartmentID
+        LEFT JOIN Account u ON u.AccountID = ra.ReviewedBy
+        WHERE ra.CampaignID = :cid
+        ORDER BY ra.CreatedAt DESC
+    ");
+    $recAppsStmt->execute([':cid' => $cId]);
+    $recruitmentApplications = $recAppsStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $recruitmentStats['total'] = count($recruitmentApplications);
+    foreach ($recruitmentApplications as $ra) {
+        $st = $ra['Status'];
+        if ($st === 'Submitted') {
+            $recruitmentStats['submitted']++;
+            $pendingRecruitmentCount++;
+        } elseif ($st === 'Interview_Scheduled') {
+            $recruitmentStats['interview_scheduled']++;
+        } elseif ($st === 'Interviewed') {
+            $recruitmentStats['interviewed']++;
+        } elseif ($st === 'Approved') {
+            $recruitmentStats['approved']++;
+        } elseif ($st === 'Rejected') {
+            $recruitmentStats['rejected']++;
+        }
+    }
+}
+
 // KHỞI TẠO HEADER TIÊU CHUẨN CỦA WEBSITE (THANH ĐIỀU HƯỚNG TRÊN CÙNG LUÔN HIỆN DIỆN)
 $pageTitle = 'Quản Lý CLB & Bàn Làm Việc BĐH';
 require_once __DIR__ . '/../../includes/header.php';
@@ -964,9 +1203,11 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                         <a href="#events" class="workspace-nav-link" data-block="events" onclick="switchWorkspaceBlock('events', event)">
                             <i class="bi bi-calendar-event me-2"></i> Quản lý Sự kiện
                         </a>
-                        <a href="#create-event" class="workspace-nav-link" data-block="create-event" onclick="switchWorkspaceBlock('create-event', event)">
-                            <i class="bi bi-plus-circle me-2"></i> Tạo Sự kiện mới
-                        </a>
+                        <?php if (!is_system_admin()): ?>
+                            <a href="#create-event" class="workspace-nav-link" data-block="create-event" onclick="switchWorkspaceBlock('create-event', event)">
+                                <i class="bi bi-plus-circle me-2"></i> Tạo Sự kiện mới
+                            </a>
+                        <?php endif; ?>
                         <a href="#my-events" class="workspace-nav-link" data-block="my-events" onclick="switchWorkspaceBlock('my-events', event)">
                             <i class="bi bi-bookmark-check me-2"></i> Sự kiện của tôi
                         </a>
@@ -980,6 +1221,14 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                         <a href="#club-info" class="workspace-nav-link" data-block="club-info" onclick="switchWorkspaceBlock('club-info', event)">
                             <i class="bi bi-building me-2"></i> Thông tin CLB
                         </a>
+                        <?php if (can_manage_recruitment()): ?>
+                            <a href="#recruitment" class="workspace-nav-link" data-block="recruitment" onclick="switchWorkspaceBlock('recruitment', event)">
+                                <i class="bi bi-person-lines-fill me-2 text-info"></i> Tuyển quân Gen 27
+                                <?php if ($pendingRecruitmentCount > 0): ?>
+                                    <span class="badge bg-warning text-dark ms-auto" style="font-size: 0.65rem; font-weight: 700;"><?= $pendingRecruitmentCount ?></span>
+                                <?php endif; ?>
+                            </a>
+                        <?php endif; ?>
 
                         <div class="text-uppercase text-secondary font-monospace fw-bold px-2.5 pt-2.5 pb-1" style="font-size: 0.68rem; letter-spacing: 0.08em;">
                             HỆ THỐNG
@@ -2631,9 +2880,374 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                         </div>
                     </div>
 
+                    <!-- ======================================================
+                         KHỐI 11: QUẢN LÝ TUYỂN QUÂN & CẤP TÀI KHOẢN (BLOCK: #recruitment) - UAT 02, 09
+                         ====================================================== -->
+                    <?php if (can_manage_recruitment()): ?>
+                    <div id="block-recruitment" class="workspace-content-block d-none">
+                        <!-- Header -->
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+                            <div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <h1 class="h3 fw-bold text-dark mb-0">
+                                        <i class="bi bi-person-lines-fill text-primary me-2"></i>Tuyển Quân & Cấp Tài Khoản
+                                    </h1>
+                                    <span class="badge bg-primary text-white font-monospace rounded-pill px-3 py-1.5 small">BELL Gen 27</span>
+                                </div>
+                                <p class="text-secondary small mb-0">
+                                    Sàng lọc hồ sơ, xem CV PDF, lên lịch phỏng vấn và tự động kích hoạt tài khoản tân thành viên kèm mật khẩu khởi tạo <code>Ueh@&lt;MSSV&gt;</code>.
+                                </p>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <a href="<?= base_url('app/modules/recruitment/apply.php') ?>" target="_blank" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-semibold shadow-xs">
+                                    <i class="bi bi-box-arrow-up-right me-1"></i> Mở Cổng Ứng Tuyển
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- 5 KPI Summary Cards -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-6 col-md-4 col-xl" style="min-width: 150px;">
+                                <div class="ef-card-editorial p-3 h-100 text-center border-start border-4 border-primary">
+                                    <span class="text-secondary small fw-semibold d-block mb-1">Tổng hồ sơ</span>
+                                    <span class="h3 fw-bold text-dark mb-0 font-monospace"><?= $recruitmentStats['total'] ?></span>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-4 col-xl" style="min-width: 150px;">
+                                <div class="ef-card-editorial p-3 h-100 text-center border-start border-4 border-warning">
+                                    <span class="text-warning-emphasis small fw-semibold d-block mb-1">Chờ sơ khảo</span>
+                                    <span class="h3 fw-bold text-warning-emphasis mb-0 font-monospace"><?= $recruitmentStats['submitted'] ?></span>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-4 col-xl" style="min-width: 150px;">
+                                <div class="ef-card-editorial p-3 h-100 text-center border-start border-4 border-info">
+                                    <span class="text-info-emphasis small fw-semibold d-block mb-1">Lịch phỏng vấn</span>
+                                    <span class="h3 fw-bold text-info-emphasis mb-0 font-monospace"><?= $recruitmentStats['interview_scheduled'] ?></span>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-4 col-xl" style="min-width: 150px;">
+                                <div class="ef-card-editorial p-3 h-100 text-center border-start border-4 border-primary">
+                                    <span class="text-primary small fw-semibold d-block mb-1">Đã phỏng vấn</span>
+                                    <span class="h3 fw-bold text-primary mb-0 font-monospace"><?= $recruitmentStats['interviewed'] ?></span>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-4 col-xl" style="min-width: 150px;">
+                                <div class="ef-card-editorial p-3 h-100 text-center border-start border-4 border-success">
+                                    <span class="text-success small fw-semibold d-block mb-1">Đã cấp tài khoản</span>
+                                    <span class="h3 fw-bold text-success mb-0 font-monospace"><?= $recruitmentStats['approved'] ?></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bộ Lọc & Tìm Kiếm -->
+                        <div class="ef-card-editorial p-3 mb-4">
+                            <div class="row g-2 align-items-center">
+                                <div class="col-md-5">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                                        <input type="text" id="recSearchInput" class="form-control border-start-0" placeholder="Tìm theo tên ứng viên, MSSV, email..." oninput="filterRecruitmentTable()">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <select id="recDeptFilter" class="form-select form-select-sm rounded-3" onchange="filterRecruitmentTable()">
+                                        <option value="">Tất cả phòng ban (4 Ban)</option>
+                                        <option value="HR">Human Resources (HR)</option>
+                                        <option value="SPEC">Specialist (SPEC)</option>
+                                        <option value="COMS">Communications (COMS)</option>
+                                        <option value="ER">External Relations (ER)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <select id="recStatusFilter" class="form-select form-select-sm rounded-3" onchange="filterRecruitmentTable()">
+                                        <option value="">Tất cả trạng thái hồ sơ</option>
+                                        <option value="Submitted">Chờ sơ khảo</option>
+                                        <option value="Interview_Scheduled">Lịch phỏng vấn</option>
+                                        <option value="Interviewed">Đã phỏng vấn</option>
+                                        <option value="Approved">Đã phê duyệt & cấp TK</option>
+                                        <option value="Rejected">Đã từ chối</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Danh Sách Ứng Viên -->
+                        <div class="ef-card-editorial p-0 overflow-hidden shadow-sm">
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0" id="recTable">
+                                    <thead class="bg-light text-secondary font-monospace small" style="font-size: 0.75rem;">
+                                        <tr>
+                                            <th class="ps-3 py-3">ỨNG VIÊN & MSSV</th>
+                                            <th class="py-3">KHÓA / NGÀNH</th>
+                                            <th class="py-3">PHÒNG BAN</th>
+                                            <th class="py-3">HỒ SƠ & CV</th>
+                                            <th class="py-3">LỊCH HẸN & GHI CHÚ</th>
+                                            <th class="py-3 text-center">TRẠNG THÁI</th>
+                                            <th class="pe-3 py-3 text-end" style="min-width: 200px;">THAO TÁC</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="border-top-0" id="recTableBody">
+                                        <?php if (empty($recruitmentApplications)): ?>
+                                            <tr>
+                                                <td colspan="7" class="text-center py-5 text-muted">
+                                                    <i class="bi bi-inbox fs-2 text-secondary d-block mb-2"></i>
+                                                    Chưa có hồ sơ ứng tuyển nào trong đợt tuyển quân này. Hãy chia sẻ link Cổng Ứng Tuyển đến các bạn sinh viên!
+                                                </td>
+                                            </tr>
+                                        <?php else: ?>
+                                            <?php foreach ($recruitmentApplications as $ra): 
+                                                $deptCode = $ra['DepartmentCode'];
+                                                $badgeClass = 'bg-secondary';
+                                                if ($deptCode === 'HR') $badgeClass = 'bg-purple-subtle text-purple border border-purple-subtle';
+                                                elseif ($deptCode === 'SPEC') $badgeClass = 'bg-warning-subtle text-warning-emphasis border border-warning-subtle';
+                                                elseif ($deptCode === 'COMS') $badgeClass = 'bg-primary-subtle text-primary border border-primary-subtle';
+                                                elseif ($deptCode === 'ER') $badgeClass = 'bg-success-subtle text-success border border-success-subtle';
+                                            ?>
+                                                <tr class="rec-row" 
+                                                    data-name="<?= htmlspecialchars(mb_strtolower($ra['FullName'], 'UTF-8')) ?>" 
+                                                    data-code="<?= htmlspecialchars(mb_strtolower($ra['StudentCode'], 'UTF-8')) ?>" 
+                                                    data-email="<?= htmlspecialchars(mb_strtolower($ra['Email'], 'UTF-8')) ?>" 
+                                                    data-dept="<?= htmlspecialchars($deptCode) ?>" 
+                                                    data-status="<?= htmlspecialchars($ra['Status']) ?>">
+                                                    <td class="ps-3 py-3">
+                                                        <div class="fw-bold text-dark"><?= htmlspecialchars($ra['FullName']) ?></div>
+                                                        <div class="small text-muted font-monospace">
+                                                            <?= htmlspecialchars($ra['StudentCode']) ?> &bull; <?= htmlspecialchars($ra['Email']) ?>
+                                                        </div>
+                                                        <div class="small text-muted"><?= htmlspecialchars($ra['Phone']) ?></div>
+                                                    </td>
+                                                    <td class="py-3">
+                                                        <span class="badge bg-light text-dark border font-monospace small px-2 py-1 mb-1 d-inline-block">
+                                                            <?= htmlspecialchars($ra['Cohort']) ?>
+                                                        </span>
+                                                        <div class="small text-secondary"><?= htmlspecialchars($ra['Major']) ?></div>
+                                                    </td>
+                                                    <td class="py-3">
+                                                        <span class="badge <?= $badgeClass ?> rounded-pill px-2.5 py-1 fw-semibold">
+                                                            <?= htmlspecialchars($ra['DepartmentName']) ?> (<?= htmlspecialchars($deptCode) ?>)
+                                                        </span>
+                                                    </td>
+                                                    <td class="py-3">
+                                                        <div class="d-flex align-items-center gap-1.5 flex-wrap">
+                                                            <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2.5 py-1 shadow-2xs" 
+                                                                    onclick="showIntroModal('<?= htmlspecialchars($ra['FullName']) ?>', '<?= htmlspecialchars(addslashes($ra['IntroText'])) ?>')">
+                                                                <i class="bi bi-chat-left-quote me-1"></i>Đoạn giới thiệu
+                                                            </button>
+                                                            <?php if (!empty($ra['CV_Path'])): ?>
+                                                                <a href="<?= base_url($ra['CV_Path']) ?>" target="_blank" class="btn btn-xs btn-outline-primary rounded-pill px-2.5 py-1 shadow-2xs">
+                                                                    <i class="bi bi-file-earmark-pdf me-1"></i>Xem CV PDF
+                                                                </a>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                    </td>
+                                                    <td class="py-3" style="max-width: 220px;">
+                                                        <?php if (!empty($ra['InterviewDate'])): ?>
+                                                            <div class="small fw-semibold text-info-emphasis">
+                                                                <i class="bi bi-calendar-event me-1"></i><?= date('H:i d/m/Y', strtotime($ra['InterviewDate'])) ?>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                        <?php if (!empty($ra['InterviewNote'])): ?>
+                                                            <div class="small text-muted text-truncate" title="<?= htmlspecialchars($ra['InterviewNote']) ?>">
+                                                                <i class="bi bi-chat-dots me-1"></i><?= htmlspecialchars($ra['InterviewNote']) ?>
+                                                            </div>
+                                                        <?php elseif (empty($ra['InterviewDate'])): ?>
+                                                            <span class="small text-muted fst-italic">Chưa có lịch hẹn</span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td class="py-3 text-center">
+                                                        <?php if ($ra['Status'] === 'Submitted'): ?>
+                                                            <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-2.5 py-1">Chờ sơ khảo</span>
+                                                        <?php elseif ($ra['Status'] === 'Interview_Scheduled'): ?>
+                                                            <span class="badge bg-info-subtle text-info-emphasis rounded-pill px-2.5 py-1">Lịch phỏng vấn</span>
+                                                        <?php elseif ($ra['Status'] === 'Interviewed'): ?>
+                                                            <span class="badge bg-primary-subtle text-primary rounded-pill px-2.5 py-1">Đã phỏng vấn</span>
+                                                        <?php elseif ($ra['Status'] === 'Approved'): ?>
+                                                            <span class="badge bg-success-subtle text-success rounded-pill px-2.5 py-1 fw-bold">
+                                                                <i class="bi bi-check-circle-fill me-1"></i>Đã cấp TK
+                                                            </span>
+                                                        <?php elseif ($ra['Status'] === 'Rejected'): ?>
+                                                            <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2.5 py-1">Đã từ chối</span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td class="pe-3 py-3 text-end">
+                                                        <div class="d-inline-flex align-items-center gap-1">
+                                                            <!-- Lên lịch phỏng vấn -->
+                                                            <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-2 shadow-xs" 
+                                                                    onclick="openScheduleModal(<?= $ra['ApplicationID'] ?>, '<?= htmlspecialchars($ra['FullName']) ?>', '<?= !empty($ra['InterviewDate']) ? date('Y-m-d\TH:i', strtotime($ra['InterviewDate'])) : '' ?>', '<?= htmlspecialchars(addslashes($ra['InterviewNote'] ?? '')) ?>')" 
+                                                                    title="Lên lịch phỏng vấn">
+                                                                <i class="bi bi-calendar-plus"></i>
+                                                            </button>
+
+                                                            <!-- Ghi chú / Đánh giá -->
+                                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 shadow-xs" 
+                                                                    onclick="openRecordModal(<?= $ra['ApplicationID'] ?>, '<?= htmlspecialchars($ra['FullName']) ?>', '<?= htmlspecialchars(addslashes($ra['InterviewNote'] ?? '')) ?>')" 
+                                                                    title="Ghi chú & Đánh giá">
+                                                                <i class="bi bi-pencil-square"></i>
+                                                            </button>
+
+                                                            <!-- Phê duyệt & Cấp tài khoản tự động -->
+                                                            <?php if ($ra['Status'] !== 'Approved'): ?>
+                                                                <form method="POST" action="<?= base_url('app/modules/dashboard/index.php') ?>" class="d-inline m-0"
+                                                                      onsubmit="return confirm('XÁC NHẬN PHÊ DUYỆT & CẤP TÀI KHOẢN TỰ ĐỘNG:\n\nHệ thống sẽ tự động tạo tài khoản cho ứng viên <?= htmlspecialchars($ra['FullName']) ?> với:\n- Username: <?= htmlspecialchars($ra['Email']) ?>\n- Mật khẩu mặc định: Ueh@<?= htmlspecialchars($ra['StudentCode']) ?>\n- Cờ: Bắt buộc đổi mật khẩu khi đăng nhập lần đầu\n- Phân quyền: Thành viên Ban <?= htmlspecialchars($ra['DepartmentCode']) ?>\n\nBạn có chắc chắn muốn thực hiện?');">
+                                                                    <?= csrf_field() ?>
+                                                                    <input type="hidden" name="action" value="recruitment_auto_provision">
+                                                                    <input type="hidden" name="application_id" value="<?= (int)$ra['ApplicationID'] ?>">
+                                                                    <button type="submit" class="btn btn-sm btn-success rounded-pill px-2.5 shadow-xs fw-semibold" title="Phê duyệt & Cấp tài khoản tự động">
+                                                                        <i class="bi bi-key-fill me-1"></i>Cấp TK
+                                                                    </button>
+                                                                </form>
+                                                            <?php endif; ?>
+
+                                                            <!-- Từ chối -->
+                                                            <?php if ($ra['Status'] !== 'Approved' && $ra['Status'] !== 'Rejected'): ?>
+                                                                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2 shadow-xs" 
+                                                                        onclick="openRejectModal(<?= $ra['ApplicationID'] ?>, '<?= htmlspecialchars($ra['FullName']) ?>')" 
+                                                                        title="Từ chối hồ sơ">
+                                                                    <i class="bi bi-x-circle"></i>
+                                                                </button>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
                 </div>
             </div>
 
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================================================
+     CÁC MODAL PHỤ TRỢ QUẢN LÝ TUYỂN QUÂN (UAT 02, 09)
+     ========================================================================== -->
+<!-- Modal 1: Xem Giới Thiệu Bản Thân (< 100 từ) -->
+<div class="modal fade" id="modalViewIntro" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-light border-bottom py-3 px-4">
+                <h5 class="modal-title fw-bold text-dark fs-6" id="introModalTitle">
+                    <i class="bi bi-chat-left-quote text-primary me-2"></i>Giới Thiệu Bản Thân
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="alert alert-light border rounded-3 p-3 text-secondary mb-0" id="introModalBody" style="line-height: 1.7; white-space: pre-wrap; font-size: 0.92rem;">
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-0 py-2.5 px-4">
+                <button type="button" class="btn btn-sm btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 2: Lên Lịch Phỏng Vấn -->
+<div class="modal fade" id="modalScheduleInterview" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-info text-white border-0 py-3 px-4">
+                <h5 class="modal-title fw-bold fs-6">
+                    <i class="bi bi-calendar-event me-2"></i>Lên Lịch Phỏng Vấn Ứng Viên
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="<?= base_url('app/modules/dashboard/index.php') ?>">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="recruitment_schedule_interview">
+                <input type="hidden" name="application_id" id="scheduleAppId">
+                <div class="modal-body p-4">
+                    <p class="small text-muted mb-3">Ứng viên: <strong class="text-dark" id="scheduleApplicantName"></strong></p>
+
+                    <div class="mb-3">
+                        <label for="scheduleDate" class="form-label small fw-semibold">Thời gian phỏng vấn <span class="text-danger">*</span></label>
+                        <input type="datetime-local" class="form-control rounded-3" id="scheduleDate" name="interview_date" required>
+                    </div>
+
+                    <div class="mb-2">
+                        <label for="scheduleNote" class="form-label small fw-semibold">Địa điểm / Link Google Meet & Dặn dò</label>
+                        <textarea class="form-control rounded-3" id="scheduleNote" name="interview_note" rows="3" placeholder="VD: Phòng B1.205 hoặc link https://meet.google.com/... Dặn ứng viên chuẩn bị trang phục lịch sự."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0 py-3 px-4">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-info text-white rounded-pill px-4 fw-semibold">
+                        <i class="bi bi-check2-circle me-1"></i>Lưu Lịch Hẹn
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 3: Ghi Chú & Đánh Giá Phỏng Vấn -->
+<div class="modal fade" id="modalRecordInterview" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-primary text-white border-0 py-3 px-4">
+                <h5 class="modal-title fw-bold fs-6">
+                    <i class="bi bi-pencil-square me-2"></i>Đánh Giá & Chấm Điểm Ứng Viên
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="<?= base_url('app/modules/dashboard/index.php') ?>">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="recruitment_record_interview">
+                <input type="hidden" name="application_id" id="recordAppId">
+                <div class="modal-body p-4">
+                    <p class="small text-muted mb-3">Ứng viên: <strong class="text-dark" id="recordApplicantName"></strong></p>
+
+                    <div class="mb-2">
+                        <label for="recordNote" class="form-label small fw-semibold">Nhận xét chuyên môn & Điểm đánh giá <span class="text-danger">*</span></label>
+                        <textarea class="form-control rounded-3" id="recordNote" name="interview_note" rows="4" placeholder="VD: Phát âm tiếng Anh lưu loát, tự tin, tư duy logic tốt. Phù hợp định hướng ban Chuyên môn (SPEC). Điểm đánh giá: 8.5/10." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0 py-3 px-4">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold">
+                        <i class="bi bi-save me-1"></i>Lưu Đánh Giá
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 4: Từ Chối Hồ Sơ -->
+<div class="modal fade" id="modalRejectApplication" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-danger text-white border-0 py-3 px-4">
+                <h5 class="modal-title fw-bold fs-6">
+                    <i class="bi bi-x-circle me-2"></i>Từ Chối Hồ Sơ Ứng Tuyển
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="<?= base_url('app/modules/dashboard/index.php') ?>">
+                <?= csrf_field() ?>
+                <input type="hidden" name="action" value="recruitment_reject">
+                <input type="hidden" name="application_id" id="rejectAppId">
+                <div class="modal-body p-4">
+                    <p class="small text-muted mb-3">Bạn đang từ chối hồ sơ của: <strong class="text-dark" id="rejectApplicantName"></strong></p>
+
+                    <div class="mb-2">
+                        <label for="rejectReason" class="form-label small fw-semibold">Lý do từ chối (Tùy chọn)</label>
+                        <textarea class="form-control rounded-3" id="rejectReason" name="reject_reason" rows="3" placeholder="VD: Ứng viên chưa phù hợp với định hướng hoạt động đợt này."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0 py-3 px-4">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-danger rounded-pill px-4 fw-semibold">
+                        <i class="bi bi-check2 me-1"></i>Xác Nhận Từ Chối
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -3409,6 +4023,61 @@ function filterDeptMembers(deptKey, btnElement) {
         });
     });
 })();
+
+// ============================================================================
+// JAVASCRIPT HỖ TRỢ QUẢN LÝ TUYỂN QUÂN (UAT 02, 09)
+// ============================================================================
+function showIntroModal(name, intro) {
+    document.getElementById('introModalTitle').innerHTML = '<i class="bi bi-chat-left-quote text-primary me-2"></i>Giới thiệu bản thân: ' + name;
+    document.getElementById('introModalBody').textContent = intro || '(Ứng viên chưa cung cấp đoạn giới thiệu)';
+    const modal = new bootstrap.Modal(document.getElementById('modalViewIntro'));
+    modal.show();
+}
+
+function openScheduleModal(appId, name, currentDate, note) {
+    document.getElementById('scheduleAppId').value = appId;
+    document.getElementById('scheduleApplicantName').textContent = name;
+    document.getElementById('scheduleDate').value = currentDate || '';
+    document.getElementById('scheduleNote').value = note || '';
+    const modal = new bootstrap.Modal(document.getElementById('modalScheduleInterview'));
+    modal.show();
+}
+
+function openRecordModal(appId, name, note) {
+    document.getElementById('recordAppId').value = appId;
+    document.getElementById('recordApplicantName').textContent = name;
+    document.getElementById('recordNote').value = note || '';
+    const modal = new bootstrap.Modal(document.getElementById('modalRecordInterview'));
+    modal.show();
+}
+
+function openRejectModal(appId, name) {
+    document.getElementById('rejectAppId').value = appId;
+    document.getElementById('rejectApplicantName').textContent = name;
+    document.getElementById('rejectReason').value = '';
+    const modal = new bootstrap.Modal(document.getElementById('modalRejectApplication'));
+    modal.show();
+}
+
+function filterRecruitmentTable() {
+    const q = (document.getElementById('recSearchInput')?.value || '').toLowerCase().trim();
+    const dept = (document.getElementById('recDeptFilter')?.value || '').trim();
+    const status = (document.getElementById('recStatusFilter')?.value || '').trim();
+
+    document.querySelectorAll('.rec-row').forEach(row => {
+        const rowName = (row.getAttribute('data-name') || '').toLowerCase();
+        const rowCode = (row.getAttribute('data-code') || '').toLowerCase();
+        const rowEmail = (row.getAttribute('data-email') || '').toLowerCase();
+        const rowDept = row.getAttribute('data-dept') || '';
+        const rowStatus = row.getAttribute('data-status') || '';
+
+        const matchQ = !q || rowName.includes(q) || rowCode.includes(q) || rowEmail.includes(q);
+        const matchDept = !dept || rowDept === dept;
+        const matchStatus = !status || rowStatus === status;
+
+        row.style.display = (matchQ && matchDept && matchStatus) ? '' : 'none';
+    });
+}
 </script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

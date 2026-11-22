@@ -84,6 +84,22 @@
   - [x] "Sự kiện tôi tham gia" (Participant) với trạng thái điểm danh thực tế.
   - [x] Áp dụng đồng bộ ở cả `app/modules/events/my_events.php` và `app/modules/dashboard/index.php#my-events`.
 
-#### ⏳ Phase 4: Đăng Ký Khách Vãng Lai & Phễu Tuyển Quân Cấp Tài Khoản Tự Động (UAT 02, 09)
-- [ ] Đăng ký sự kiện khách vãng lai (Họ tên, MSSV, SĐT, Email) chống trùng lặp & bảo vệ quota.
-- [ ] Phễu Tuyển quân: Form nộp hồ sơ CV PDF, không gian chấm điểm phỏng vấn, nút "Duyệt" tự động sinh tài khoản `Ueh@<MSSV>`.
+#### 🚀 Phase 4: Đăng Ký Khách Vãng Lai & Phễu Tuyển Quân Cấp Tài Khoản Tự Động (UAT 02, 09) — ĐÃ HOÀN THÀNH
+- [x] **Đăng ký sự kiện khách vãng lai (`app/modules/events/detail.php`) (UAT 02):**
+  - [x] Mở endpoint xem chi tiết sự kiện công khai không bắt buộc đăng nhập/session.
+  - [x] Nút "Đăng ký tham gia (Khách vãng lai)" kích hoạt modal `#modalGuestRegister` với 4 trường: Họ tên, MSSV, SĐT, Email.
+  - [x] Transaction `SELECT ... FOR UPDATE` bảo vệ giới hạn sức chứa (MaxCapacity) và kiểm tra chống trùng lặp theo cặp `(EventID, MSSV)` / `(EventID, Email)`.
+  - [x] Ghi nhận lượt đăng ký vào bảng `Event_Registration` với `RegistrationType = 'Guest'`.
+- [x] **Cổng Tuyển Quân Sliding Split-Container (`app/modules/auth/login.php` & `app/modules/recruitment/apply.php`):**
+  - [x] Xóa bỏ hoàn toàn khối màu trắng "Sự kiện sắp diễn ra" cũ theo yêu cầu người dùng, giữ panel thương hiệu tinh gọn và hiện đại.
+  - [x] Cơ chế trượt 60fps Split-Container: Khối tím trượt sang phải, Khối form ứng tuyển trượt sang trái khi bấm "Ứng tuyển BELL Gen 27 ngay", và ngược lại khi bấm "Quay lại Đăng nhập".
+  - [x] Form ứng tuyển 4 ban (HR, SPEC, COMS, ER) với trường bắt buộc "Giới thiệu bản thân" (< 100 từ) có bộ đếm từ realtime `X / 100 từ` đặt ngay phía trên ô upload CV.
+  - [x] Hỗ trợ upload CV PDF (tối đa 5MB) lưu trữ an toàn tại `uploads/cvs/`.
+- [x] **Không gian Quản lý Tuyển quân & Cấp tài khoản tự động (`app/modules/dashboard/index.php#recruitment` & `manage.php`) (UAT 09):**
+  - [x] Left-sidebar hiển thị mục "Tuyển quân Gen 27" kèm badge đếm số hồ sơ chờ duyệt (chỉ mở cho President, Vice President, Head/Vice Head HR hoặc Club Manager).
+  - [x] Tách biệt System Admin: System Admin chỉ quản trị tài khoản hệ thống (`#block-admin-accounts`) và logs kỹ thuật, không can thiệp sâu sự kiện CLB hay tuyển quân.
+  - [x] Khối `#block-recruitment` gồm 5 thẻ KPI thống kê (Tổng hồ sơ, Chờ sơ khảo, Lịch phỏng vấn, Đã phỏng vấn, Đã cấp tài khoản).
+  - [x] Bộ lọc realtime theo 4 phòng ban và trạng thái hồ sơ, tìm kiếm tức thì theo tên, MSSV, Email.
+  - [x] Modal xem đoạn Giới thiệu bản thân (< 100 từ) và liên kết mở xem CV PDF trong tab mới.
+  - [x] Modal Lên lịch phỏng vấn (Interview Date & Notes) và Modal Chấm điểm / Ghi chú đánh giá năng lực.
+  - [x] Nút "Cấp TK" (Phê duyệt & Cấp tài khoản tự động): Transaction tự động tạo tài khoản trong `Account` với mật khẩu khởi tạo `Ueh@<MSSV>`, gắn cờ `PasswordMustChange = 1`, phân quyền `RoleID = 2` (Club Member), tự động thêm vào `Club_Member` đúng phòng ban đã ứng tuyển, cập nhật trạng thái `Approved`.

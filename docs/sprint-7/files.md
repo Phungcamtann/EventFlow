@@ -29,3 +29,9 @@
 | 17 | `app/modules/attendance/checkin.php` | Siết chặt RBAC Tầng 3, chỉ cho phép cán bộ trong `Event_Staff` hoặc Manager của sự kiện mở bàn điểm danh | UAT 08, 11, 17 | 🟢 Sẵn sàng duyệt |
 | 18 | `app/modules/attendance/stats.php` | Bổ sung nút truy cập trực tiếp vào Event Console cho từng sự kiện | UAT 14, 16 | 🟢 Sẵn sàng duyệt |
 | 19 | `database/schema_and_seed.sql` | Nạp dữ liệu mẫu ban tổ chức `Event_Staff` cho toàn bộ 5 sự kiện đạt chuẩn tối thiểu 2 BĐH | UAT 10 | 🟢 Sẵn sàng duyệt |
+| 20 | `app/modules/auth/login.php` | Cổng Đăng nhập & Ứng tuyển dạng trượt 60fps Split-Container: Xóa card sự kiện cũ, bổ sung form nộp hồ sơ 4 ban, trường "Giới thiệu bản thân" (< 100 từ) có bộ đếm từ realtime, upload CV PDF | UAT 02, 09 | 🟢 Sẵn sàng duyệt |
+| 21 | `app/modules/events/detail.php` | Mở endpoint công khai cho khách vãng lai, bổ sung Modal Đăng ký tham gia sự kiện với transaction `FOR UPDATE` bảo vệ quota và chống trùng lặp MSSV/Email | UAT 02 | 🟢 Sẵn sàng duyệt |
+| 22 | `app/modules/dashboard/index.php` | Khối `#block-recruitment` tích hợp Single Container: 5 thẻ KPI, bộ lọc 4 ban & trạng thái, modal xem Intro/CV, lên lịch/đánh giá phỏng vấn, nút "Cấp TK" tự động sinh mật khẩu `Ueh@<MSSV>`, tách biệt phân quyền System Admin | UAT 02, 09 | 🟢 Sẵn sàng duyệt |
+| 23 | `app/modules/recruitment/apply.php` | Cổng chuyển hướng trực tiếp tới giao diện Ứng tuyển trượt `login.php?mode=apply` | UAT 02 | 🟢 Sẵn sàng duyệt |
+| 24 | `app/modules/recruitment/manage.php` | Không gian Quản lý Tuyển quân dành riêng cho HR Head & President, điều hướng về `dashboard/index.php#recruitment` | UAT 09 | 🟢 Sẵn sàng duyệt |
+| 25 | `app/includes/session_auth.php` | Bổ sung hàm kiểm tra phân quyền quản lý tuyển quân `can_manage_recruitment()` | UAT 09 | 🟢 Sẵn sàng duyệt |
