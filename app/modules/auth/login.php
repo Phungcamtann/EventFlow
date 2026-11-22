@@ -410,8 +410,8 @@ require_once __DIR__ . '/../../includes/header.php';
                             </div>
 
                             <div class="mb-4">
-                                <span class="badge bg-white bg-opacity-10 text-white border border-white border-opacity-25 px-3 py-2 rounded-pill font-mono small fw-normal">
-                                    Dành cho câu lạc bộ sinh viên
+                                <span class="rounded-pill font-monospace small px-3 py-1.5 d-inline-block shadow-2xs" style="background: rgba(255, 255, 255, 0.18); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.35); font-weight: 600; letter-spacing: 0.03em;">
+                                    DÀNH CHO CÂU LẠC BỘ SINH VIÊN
                                 </span>
                             </div>
 
@@ -441,8 +441,8 @@ require_once __DIR__ . '/../../includes/header.php';
                             </div>
 
                             <div class="mb-4">
-                                <span class="badge bg-white bg-opacity-15 text-white border border-white border-opacity-25 px-3 py-2 rounded-pill font-mono small fw-normal">
-                                    Chiến Dịch Tuyển Quân Gen 27
+                                <span class="rounded-pill font-monospace small px-3 py-1.5 d-inline-block shadow-2xs" style="background: rgba(255, 255, 255, 0.22); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.4); font-weight: 600; letter-spacing: 0.03em;">
+                                    <i class="bi bi-stars me-1 text-warning"></i> CHIẾN DỊCH TUYỂN QUÂN GEN 27
                                 </span>
                             </div>
 
@@ -547,7 +547,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 </div>
 
                 <!-- ----------------------------------------------------------
-                     FORM 2: ỨNG TUYỂN THÀNH VIÊN BELL GEN 27 (UAT 02)
+                     FORM 2: ỨNG TUYỂN THÀNH VIÊN BELL GEN 27
                      ---------------------------------------------------------- -->
                 <div class="ef-form-content ef-form-apply">
                     <div class="mb-3">

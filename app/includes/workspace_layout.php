@@ -197,7 +197,7 @@ function workspace_header(string $pageTitle, string $activeMenu = 'dashboard', a
     <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebar()"></div>
 
     <!-- ==========================================
-         LEFT-SIDEBAR NAVIGATION (UAT 20 & 06, 13)
+         LEFT-SIDEBAR NAVIGATION
          ========================================== -->
     <aside class="workspace-sidebar" id="workspaceSidebar">
         <!-- Brand Header -->

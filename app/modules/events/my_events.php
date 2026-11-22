@@ -94,11 +94,11 @@ require_once __DIR__ . '/../../includes/header.php';
             <h1 class="h3 fw-bold text-dark mb-1">
                 <i class="bi bi-bookmark-check text-primary me-2"></i>Sự Kiện Của Tôi
             </h1>
-            <p class="text-secondary small mb-0">Theo dõi các sự kiện bạn tham gia và các hoạt động bạn được phân công phụ trách (UAT 10).</p>
+            <p class="text-secondary small mb-0">Theo dõi các sự kiện bạn tham gia và các hoạt động bạn được phân công phụ trách.</p>
         </div>
     </div>
 
-    <!-- Dual-Tab Navigation (UAT 10) -->
+    <!-- Dual-Tab Navigation -->
     <ul class="nav nav-pills ef-tab-pills mb-4 p-1.5 bg-light rounded-pill border d-inline-flex" id="myEventsTab" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link rounded-pill px-4 py-2 fw-semibold <?= !empty($myStaffEvents) ? 'active' : '' ?>" id="staff-tab" data-bs-toggle="pill" data-bs-target="#tab-staff" type="button" role="tab" aria-selected="<?= !empty($myStaffEvents) ? 'true' : 'false' ?>">

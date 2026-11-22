@@ -65,7 +65,7 @@ $todayDay = ((int)date('Y') === $currentYear && (int)date('m') === $currentMonth
     <div class="container">
 
         <!-- ==========================================
-             1. HERO BANNER SLIDER (CAROUSEL THEO UAT 20)
+             1. HERO BANNER SLIDER
              ========================================== -->
         <div id="homeBannerCarousel" class="carousel slide carousel-fade mb-5 shadow-lg rounded-4 overflow-hidden" data-bs-ride="carousel" data-bs-interval="6000">
             <!-- Carousel Indicators -->
@@ -78,116 +78,33 @@ $todayDay = ((int)date('Y') === $currentYear && (int)date('m') === $currentMonth
             <!-- Carousel Slides -->
             <div class="carousel-inner">
                 <!-- Slide 1: Welcome & BELL Club UEH -->
-                <div class="carousel-item active ef-hero-navy text-white p-4 p-md-5">
-                    <div class="row align-items-center g-4 py-2 py-md-4">
-                        <div class="col-lg-8">
-                            <div class="d-flex align-items-center gap-2 mb-3">
-                                <span class="badge badge-ef-sky rounded-pill px-3 py-1 font-monospace" style="font-size: 0.72rem;">
-                                    CLB TIẾNG ANH UEH ✱ EST. 1995
-                                </span>
-                                <span class="badge rounded-pill bg-white text-dark px-3 py-1 font-monospace" style="font-size: 0.72rem;">
-                                    THẾ HỆ 27
-                                </span>
-                            </div>
-                            <h1 class="display-5 fw-bold mb-3 text-white" style="letter-spacing: -0.02em; line-height: 1.15;">
-                                Business English for <span class="fst-italic text-ef-sky fw-semibold">Learners and Lovers</span>
-                            </h1>
-                            <p class="text-white-50 fs-6 mb-4 lh-base" style="max-width: 620px;">
-                                Nơi rèn luyện tiếng Anh học thuật, bản lĩnh tranh biện và tinh thần gắn kết gia đình sinh viên Đại học Kinh tế TP. Hồ Chí Minh suốt 30+ năm qua.
-                            </p>
-                            <div class="d-flex flex-wrap align-items-center gap-3">
-                                <a href="#hot-events" class="btn btn-ef-primary shadow-sm">
-                                    <i class="bi bi-fire"></i> Khám phá Sự kiện Hot
-                                </a>
-                                <a href="<?= base_url('app/modules/club/info.php') ?>" class="btn btn-ef-dark text-white border-secondary">
-                                    <i class="bi bi-diagram-3-fill"></i> Giới thiệu 4 Phòng Ban
-                                </a>
-                            </div>
-                        </div>
-                        <div class="col-lg-4 text-center text-lg-end d-none d-lg-block">
-                            <div class="p-4 rounded-4 text-start d-inline-block" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(8px);">
-                                <div class="text-white-50 font-monospace small mb-1">CỘNG ĐỒNG BELLERS</div>
-                                <div class="display-6 fw-bold text-white mb-2">120+ <span class="fs-6 fw-normal text-white-50">Thành viên</span></div>
-                                <div class="text-white-50 font-monospace small mb-1">CƠ CẤU TỔ CHỨC</div>
-                                <div class="h4 fw-bold text-ef-sky mb-0">04 <span class="fs-6 fw-normal text-white">Phòng ban · 10 Cán bộ</span></div>
-                            </div>
-                        </div>
+                <div class="carousel-item active position-relative">
+                    <img src="<?= base_url('assets/images/banners/banner_slide_1.webp') ?>" class="d-block w-100 h-auto" alt="Business English for Learners and Lovers">
+                    <div class="position-absolute d-flex gap-2 gap-md-3" style="left: 4.5%; bottom: 12%; z-index: 5;">
+                        <a href="#hot-events" class="btn btn-transparent p-0 d-inline-block rounded-pill" style="width: 175px; height: 44px;" title="Khám phá Sự kiện Hot"></a>
+                        <a href="<?= base_url('app/modules/club/info.php#departments') ?>" class="btn btn-transparent p-0 d-inline-block rounded-pill" style="width: 185px; height: 44px;" title="Giới thiệu 4 Phòng Ban"></a>
                     </div>
                 </div>
 
                 <!-- Slide 2: Hoạt động học thuật & Debate Lab -->
-                <div class="carousel-item ef-hero-navy text-white p-4 p-md-5">
-                    <div class="row align-items-center g-4 py-2 py-md-4">
-                        <div class="col-lg-8">
-                            <div class="d-flex align-items-center gap-2 mb-3">
-                                <span class="badge badge-ef-blue rounded-pill px-3 py-1 font-monospace" style="font-size: 0.72rem;">
-                                    CHUYÊN MÔN HỌC THUẬT
-                                </span>
-                            </div>
-                            <h2 class="display-5 fw-bold mb-3 text-white" style="letter-spacing: -0.02em; line-height: 1.15;">
-                                Speaking Circle & <span class="fst-italic text-ef-sky fw-semibold">Debate Lab</span>
-                            </h2>
-                            <p class="text-white-50 fs-6 mb-4 lh-base" style="max-width: 620px;">
-                                Tham gia các buổi sinh hoạt Speaking chuyên đề định kỳ, Workshop kỹ năng tranh biện và ngày hội No Vietnamese Day tại UEH Cơ sở B.
-                            </p>
-                            <div class="d-flex flex-wrap align-items-center gap-3">
-                                <a href="<?= base_url('app/modules/events/calendar.php') ?>" class="btn btn-ef-primary shadow-sm">
-                                    <i class="bi bi-calendar3"></i> Xem Lịch Sự Kiện
-                                </a>
-                                <a href="<?= base_url('app/modules/events/index.php') ?>" class="btn btn-ef-dark text-white border-secondary">
-                                    <i class="bi bi-list-ul"></i> Tất cả sự kiện
-                                </a>
-                            </div>
-                        </div>
-                        <div class="col-lg-4 text-center text-lg-end d-none d-lg-block">
-                            <div class="p-4 rounded-4 text-start d-inline-block" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(8px);">
-                                <div class="text-white-50 font-monospace small mb-1">ĐỊA ĐIỂM SINH HOẠT</div>
-                                <div class="h5 fw-bold text-white mb-2">UEH Cơ sở B</div>
-                                <div class="text-white-50 font-monospace small mb-1">ĐỊNH KỲ HOẠT ĐỘNG</div>
-                                <div class="h5 fw-bold text-ef-sky mb-0">Thứ 3 & Thứ 7 hàng tuần</div>
-                            </div>
-                        </div>
+                <div class="carousel-item position-relative">
+                    <img src="<?= base_url('assets/images/banners/banner_slide_2.webp') ?>" class="d-block w-100 h-auto" alt="Speaking Circle & Debate Lab">
+                    <div class="position-absolute d-flex gap-2 gap-md-3" style="left: 4.5%; bottom: 12%; z-index: 5;">
+                        <a href="<?= base_url('app/modules/events/calendar.php') ?>" class="btn btn-transparent p-0 d-inline-block rounded-pill" style="width: 160px; height: 44px;" title="Xem Lịch Sự Kiện"></a>
+                        <a href="<?= base_url('app/modules/events/index.php') ?>" class="btn btn-transparent p-0 d-inline-block rounded-pill" style="width: 145px; height: 44px;" title="Tất cả sự kiện"></a>
                     </div>
                 </div>
 
                 <!-- Slide 3: EventFlow Platform -->
-                <div class="carousel-item ef-hero-navy text-white p-4 p-md-5">
-                    <div class="row align-items-center g-4 py-2 py-md-4">
-                        <div class="col-lg-8">
-                            <div class="d-flex align-items-center gap-2 mb-3">
-                                <span class="badge badge-ef-sky rounded-pill px-3 py-1 font-monospace" style="font-size: 0.72rem;">
-                                    EVENTFLOW SMART PLATFORM
-                                </span>
-                            </div>
-                            <h2 class="display-5 fw-bold mb-3 text-white" style="letter-spacing: -0.02em; line-height: 1.15;">
-                                Quản Lý Sự Kiện & <span class="fst-italic text-ef-sky fw-semibold">Điểm Danh Realtime</span>
-                            </h2>
-                            <p class="text-white-50 fs-6 mb-4 lh-base" style="max-width: 620px;">
-                                Tối ưu hóa công tác tổ chức sự kiện CLB sinh viên: Đồng bộ dữ liệu điểm danh thời gian thực, quản lý phân công BTC và bảo vệ quota đăng ký.
-                            </p>
-                            <div class="d-flex flex-wrap align-items-center gap-3">
-                                <?php if (is_logged_in()): ?>
-                                    <a href="<?= base_url('app/modules/dashboard/index.php') ?>" class="btn btn-ef-primary shadow-sm">
-                                        <i class="bi bi-sliders"></i> Vào Quản Lý CLB
-                                    </a>
-                                <?php else: ?>
-                                    <a href="<?= base_url('app/modules/auth/login.php') ?>" class="btn btn-ef-primary shadow-sm">
-                                        <i class="bi bi-box-arrow-in-right"></i> Đăng nhập hệ thống
-                                    </a>
-                                <?php endif; ?>
-                                <a href="<?= base_url('app/modules/club/info.php') ?>" class="btn btn-ef-dark text-white border-secondary">
-                                    <i class="bi bi-info-circle"></i> Giới thiệu CLB
-                                </a>
-                            </div>
-                        </div>
-                        <div class="col-lg-4 text-center text-lg-end d-none d-lg-block">
-                            <div class="p-4 rounded-4 text-start d-inline-block" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(8px);">
-                                <div class="text-white-50 font-monospace small mb-1">CÔNG NGHỆ ĐIỂM DANH</div>
-                                <div class="h5 fw-bold text-white mb-2">Realtime Polling 3s</div>
-                                <div class="text-white-50 font-monospace small mb-1">BẢN QUYỀN HỆ THỐNG</div>
-                                <div class="h6 fw-bold text-ef-sky mb-0">Nhóm 8 · QLDA UEH</div>
-                            </div>
-                        </div>
+                <div class="carousel-item position-relative">
+                    <img src="<?= base_url('assets/images/banners/banner_slide_3.webp') ?>" class="d-block w-100 h-auto" alt="Quản Lý Sự Kiện & Điểm Danh Realtime">
+                    <div class="position-absolute d-flex gap-2 gap-md-3" style="left: 4.5%; bottom: 12%; z-index: 5;">
+                        <?php if (is_logged_in()): ?>
+                            <a href="<?= base_url('app/modules/dashboard/index.php') ?>" class="btn btn-transparent p-0 d-inline-block rounded-pill" style="width: 165px; height: 44px;" title="Vào Quản Lý CLB"></a>
+                        <?php else: ?>
+                            <a href="<?= base_url('app/modules/auth/login.php') ?>" class="btn btn-transparent p-0 d-inline-block rounded-pill" style="width: 165px; height: 44px;" title="Đăng nhập hệ thống"></a>
+                        <?php endif; ?>
+                        <a href="<?= base_url('app/modules/club/info.php') ?>" class="btn btn-transparent p-0 d-inline-block rounded-pill" style="width: 150px; height: 44px;" title="Giới thiệu CLB"></a>
                     </div>
                 </div>
             </div>
@@ -205,7 +122,7 @@ $todayDay = ((int)date('Y') === $currentYear && (int)date('m') === $currentMonth
 
 
         <!-- ==========================================
-             2. KHỐI SỰ KIỆN HOT (4 CARDS THEO UAT 20)
+             2. KHỐI SỰ KIỆN HOT (NỔI BẬT & SẮP DIỄN RA)
              ========================================== -->
         <div id="hot-events" class="mb-5">
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
@@ -259,51 +176,69 @@ $todayDay = ((int)date('Y') === $currentYear && (int)date('m') === $currentMonth
                         $seatsText = event_seats_text($state);
                     ?>
                         <div class="col-md-6 col-lg-3">
-                            <div class="ef-card-editorial h-100 p-4 d-flex flex-column justify-content-between position-relative">
+                            <div class="ef-card-editorial h-100 overflow-hidden d-flex flex-column justify-content-between position-relative">
                                 <div>
-                                    <!-- Category & Status Header -->
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <span class="badge <?= $catStyle['badge'] ?> rounded-pill px-2.5 py-1 font-monospace" style="font-size: 0.68rem;">
-                                            <?= $catStyle['tag'] ?>
-                                        </span>
-                                        <span class="badge-pill-custom <?= $state['css_class'] ?>" style="font-size: 0.68rem;">
-                                            <?= htmlspecialchars($state['label']) ?>
-                                        </span>
-                                    </div>
-
-                                    <!-- Event Title -->
-                                    <h3 class="h6 fw-bold text-dark mb-2 lh-base" style="min-height: 44px;">
-                                        <?= htmlspecialchars($evt['EventName']) ?>
-                                    </h3>
-
-                                    <!-- Meta Info -->
-                                    <div class="small text-secondary d-flex flex-column gap-2 mb-3">
-                                        <div class="d-flex align-items-center">
-                                            <i class="bi bi-calendar3 text-ef-primary me-2"></i>
-                                            <span class="font-monospace"><?= $dBadge ?></span>
-                                        </div>
-                                        <div class="d-flex align-items-center">
-                                            <i class="bi bi-clock text-ef-primary me-2"></i>
-                                            <span><?= $timeStr ?></span>
-                                        </div>
-                                        <div class="d-flex align-items-center text-truncate" title="<?= htmlspecialchars($evt['Location']) ?>">
-                                            <i class="bi bi-geo-alt text-ef-primary me-2 flex-shrink-0"></i>
-                                            <span class="text-truncate"><?= htmlspecialchars($evt['Location']) ?></span>
-                                        </div>
-                                        <?php if ($seatsText !== null): ?>
-                                            <div class="d-flex align-items-center font-monospace" style="font-size: 0.75rem;">
-                                                <i class="bi bi-people text-ef-primary me-2"></i>
-                                                <span>Đã đăng ký: <strong><?= htmlspecialchars($seatsText) ?></strong></span>
+                                    <!-- Banner Thumbnail Header -->
+                                    <div class="position-relative overflow-hidden" style="height: 140px; background: linear-gradient(135deg, #1e3a8a, #0b192c);">
+                                        <?php if (!empty($evt['BannerImage']) && file_exists(__DIR__ . '/' . $evt['BannerImage'])): ?>
+                                            <img src="<?= base_url($evt['BannerImage']) ?>" alt="<?= htmlspecialchars($evt['EventName']) ?>" class="w-100 h-100 object-fit-cover">
+                                        <?php else: ?>
+                                            <div class="w-100 h-100 d-flex flex-column align-items-center justify-content-center text-white" style="background: radial-gradient(circle at 80% 20%, rgba(37,99,235,0.45) 0%, rgba(15,23,42,0.95) 100%);">
+                                                <i class="bi <?= $cat === 'DEBATE' ? 'bi-chat-square-quote-fill' : ($cat === 'WORKSHOP' ? 'bi-mortarboard-fill' : ($cat === 'CULTURE' ? 'bi-stars' : 'bi-mic-fill')) ?> fs-2 text-white-50 mb-1"></i>
+                                                <span class="font-monospace text-white-50" style="font-size: 0.65rem; letter-spacing: 0.08em;"><?= $catStyle['tag'] ?> · BELL</span>
                                             </div>
                                         <?php endif; ?>
+                                        <div class="position-absolute top-0 end-0 m-2">
+                                            <span class="badge-pill-custom <?= $state['css_class'] ?>" style="font-size: 0.65rem; box-shadow: 0 2px 6px rgba(0,0,0,0.25);">
+                                                <?= htmlspecialchars($state['label']) ?>
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="p-4">
+                                        <!-- Category Tag -->
+                                        <div class="mb-2">
+                                            <span class="badge <?= $catStyle['badge'] ?> rounded-pill px-2.5 py-1 font-monospace" style="font-size: 0.68rem;">
+                                                <?= $catStyle['tag'] ?>
+                                            </span>
+                                        </div>
+
+                                        <!-- Event Title -->
+                                        <h3 class="h6 fw-bold text-dark mb-2 lh-base" style="min-height: 44px;">
+                                            <?= htmlspecialchars($evt['EventName']) ?>
+                                        </h3>
+
+                                        <!-- Meta Info -->
+                                        <div class="small text-secondary d-flex flex-column gap-2 mb-0">
+                                            <div class="d-flex align-items-center">
+                                                <i class="bi bi-calendar3 text-ef-primary me-2"></i>
+                                                <span class="font-monospace"><?= $dBadge ?></span>
+                                            </div>
+                                            <div class="d-flex align-items-center">
+                                                <i class="bi bi-clock text-ef-primary me-2"></i>
+                                                <span><?= $timeStr ?></span>
+                                            </div>
+                                            <div class="d-flex align-items-center text-truncate" title="<?= htmlspecialchars($evt['Location']) ?>">
+                                                <i class="bi bi-geo-alt text-ef-primary me-2 flex-shrink-0"></i>
+                                                <span class="text-truncate"><?= htmlspecialchars($evt['Location']) ?></span>
+                                            </div>
+                                            <?php if ($seatsText !== null): ?>
+                                                <div class="d-flex align-items-center font-monospace" style="font-size: 0.75rem;">
+                                                    <i class="bi bi-people text-ef-primary me-2"></i>
+                                                    <span>Đã đăng ký: <strong><?= htmlspecialchars($seatsText) ?></strong></span>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
                                     </div>
                                 </div>
 
                                 <!-- Action Button -->
-                                <div class="pt-3 border-top border-light">
-                                    <a href="<?= base_url('app/modules/events/detail.php?id=' . (int)$evt['EventID']) ?>" class="btn btn-sm btn-outline-primary w-100 rounded-pill fw-semibold">
-                                        Chi tiết & Đăng ký <i class="bi bi-arrow-right ms-1"></i>
-                                    </a>
+                                <div class="px-4 pb-4 pt-0">
+                                    <div class="pt-3 border-top border-light">
+                                        <a href="<?= base_url('app/modules/events/detail.php?id=' . (int)$evt['EventID']) ?>" class="btn btn-sm btn-outline-primary w-100 rounded-pill fw-semibold">
+                                            Chi tiết & Đăng ký <i class="bi bi-arrow-right ms-1"></i>
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -370,7 +305,7 @@ $todayDay = ((int)date('Y') === $currentYear && (int)date('m') === $currentMonth
                 </div>
             </div>
 
-            <!-- Col Right: Mini Dot Calendar Widget (UAT 18) -->
+            <!-- Col Right: Mini Dot Calendar Widget -->
             <div class="col-lg-5">
                 <div class="ef-card-editorial p-4 h-100 d-flex flex-column justify-content-between">
                     <div>

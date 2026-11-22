@@ -248,7 +248,7 @@ foreach ($events as $evt) {
 </div>
 
 <!-- ==========================================
-     CSS CHO NOTION CALENDAR (UAT 18)
+     CSS CHO NOTION CALENDAR
      ========================================== -->
 <style>
 /* Month View Grid */
@@ -362,7 +362,7 @@ foreach ($events as $evt) {
     left: 8px;
 }
 
-/* Red Current Time Bar (UAT 18 Mockup) */
+/* Red Current Time Bar */
 .current-time-line {
     position: absolute;
     left: 0;

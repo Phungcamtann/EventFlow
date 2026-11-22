@@ -176,9 +176,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // --- Kiểm tra phân công tối thiểu 2 cán bộ BĐH (UAT 10) ---
         $staffIds = array_map('intval', $_POST['staff_ids'] ?? []);
         if (!$isEditMode && count($staffIds) < 2) {
-            $errors[] = 'Vui lòng phân công tối thiểu 2 cán bộ Ban Điều Hành phụ trách sự kiện (UAT 10).';
+            $errors[] = 'Vui lòng phân công tối thiểu 2 cán bộ Ban Điều Hành phụ trách sự kiện.';
         } elseif ($isEditMode && !empty($_POST['staff_ids']) && count($staffIds) < 2) {
-            $errors[] = 'Sự kiện phải có tối thiểu 2 cán bộ Ban Điều Hành phụ trách (UAT 10).';
+            $errors[] = 'Sự kiện phải có tối thiểu 2 cán bộ Ban Điều Hành phụ trách.';
         }
 
         // --- Xử lý tải lên Banner sự kiện ---
@@ -473,14 +473,14 @@ require_once __DIR__ . '/../../includes/header.php';
                             </div>
                         </div>
 
-                        <!-- Phân công Ban Tổ Chức (UAT 10) -->
+                        <!-- Phân công Ban Tổ Chức -->
                         <div class="mb-4 pt-3 border-top">
                             <div class="d-flex align-items-center justify-content-between mb-2">
                                 <label class="form-label fw-bold text-dark mb-0">
                                     <i class="bi bi-people-fill text-primary me-2"></i>Phân công Cán bộ Ban Điều Hành phụ trách <span class="text-danger">*</span>
                                 </label>
                                 <span class="badge bg-primary-subtle text-primary font-monospace" style="font-size: 0.75rem;">
-                                    Tối thiểu 2 cán bộ BĐH (UAT 10)
+                                    Tối thiểu 2 cán bộ Ban Điều Hành
                                 </span>
                             </div>
                             <p class="text-muted small mb-2">Chọn các cán bộ được cấp quyền điều hành và mở bàn điểm danh cho sự kiện này:</p>
@@ -550,7 +550,7 @@ require_once __DIR__ . '/../../includes/header.php';
 
         var staffChecks = form.querySelectorAll('input[name="staff_ids[]"]:checked');
         if (staffChecks && staffChecks.length < 2) {
-            msgs.push('Vui lòng phân công tối thiểu 2 cán bộ Ban Điều Hành phụ trách sự kiện (UAT 10).');
+            msgs.push('Vui lòng phân công tối thiểu 2 cán bộ Ban Điều Hành phụ trách sự kiện.');
         }
 
         if (msgs.length) {

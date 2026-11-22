@@ -29,16 +29,16 @@ $title = !empty($pageTitle) ? $pageTitle . ' — EventFlow' : 'EventFlow — Qu�
 <body>
 
     <!-- TOP UTILITY TICKER STRIP -->
-    <div class="py-1 text-white border-bottom border-dark border-opacity-25 ef-top-ticker">
+    <div class="py-1 border-bottom ef-top-ticker">
         <div class="container d-flex justify-content-between align-items-center">
-            <span class="text-white-50 text-uppercase fw-semibold d-none d-md-inline font-monospace">
+            <span class="text-uppercase fw-semibold d-none d-md-inline font-monospace" style="color: #64748b; font-size: 0.72rem; letter-spacing: 0.06em;">
                 EVENTFLOW — NỀN TẢNG QUẢN LÝ & ĐIỂM DANH SỰ KIỆN CLB SINH VIÊN
             </span>
-            <span class="text-white-50 text-uppercase fw-semibold d-inline d-md-none font-monospace">
+            <span class="text-uppercase fw-semibold d-inline d-md-none font-monospace" style="color: #64748b; font-size: 0.72rem; letter-spacing: 0.06em;">
                 EVENTFLOW · UEH
             </span>
-            <span class="text-uppercase fw-bold text-ef-sky font-monospace" style="font-size: 0.72rem;">
-                ĐẠI HỌC KINH TẾ TP. HỒ CHÍ MINH <span class="text-white-50">✱</span> UEH
+            <span class="text-uppercase fw-bold font-monospace" style="font-size: 0.72rem; color: #2563eb; letter-spacing: 0.05em;">
+                ĐẠI HỌC KINH TẾ TP. HỒ CHÍ MINH <span style="color: #94a3b8;">✱</span> UEH
             </span>
         </div>
     </div>

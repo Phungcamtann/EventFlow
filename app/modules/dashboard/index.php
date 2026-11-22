@@ -144,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($loc === '') $errors[] = 'Vui lòng nhập địa điểm tổ chức.';
         if ($start === '' || $end === '') $errors[] = 'Vui lòng chọn thời gian bắt đầu và kết thúc sự kiện.';
         if ($start >= $end) $errors[] = 'Thời gian kết thúc phải diễn ra sau thời gian bắt đầu.';
-        if (count($staffIds) < 2) $errors[] = 'Vui lòng phân công tối thiểu 2 cán bộ Ban Điều Hành phụ trách sự kiện (UAT 10).';
+        if (count($staffIds) < 2) $errors[] = 'Vui lòng phân công tối thiểu 2 cán bộ Ban Điều Hành phụ trách sự kiện.';
 
         if (!empty($errors)) {
             set_flash('danger', implode('<br>', $errors));
@@ -482,7 +482,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $currentStaffCount = (int)$cntStmt->fetchColumn();
 
         if ($currentStaffCount <= 2) {
-            set_flash('danger', 'Không thể xóa cán bộ này. Quy định bắt buộc sự kiện phải có tối thiểu 2 cán bộ BĐH (UAT 10).');
+            set_flash('danger', 'Không thể xóa cán bộ này. Quy định bắt buộc sự kiện phải có tối thiểu 2 cán bộ Ban Điều Hành.');
         } else {
             $del = $pdo->prepare("DELETE FROM Event_Staff WHERE EventID = :eid AND AccountID = :aid");
             $del->execute([':eid' => $cEvtId, ':aid' => $staffAccId]);
@@ -1200,9 +1200,121 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
         <div class="row g-4">
 
             <!-- ==============================================================
-                 CỘT TRÁI: LEFT MENU ĐIỀU HƯỚNG (LIGHT THEME CHUẨN SẠCH SẼ)
+                 MOBILE TOP BAR & OFFCANVAS TOGGLE (DÀNH CHO GIAO DIỆN MOBILE & TABLET < 992PX)
                  ============================================================== -->
-            <div class="col-lg-3 col-xl-2">
+            <div class="col-12 d-lg-none mb-2">
+                <div class="p-3 bg-white border rounded-4 shadow-sm d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-2.5 overflow-hidden">
+                        <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-xs flex-shrink-0" 
+                             style="width: 36px; height: 36px; font-size: 0.82rem; background: linear-gradient(135deg, #2563eb, #1d4ed8);">
+                            <?= $initials ?>
+                        </div>
+                        <div class="overflow-hidden">
+                            <div class="fw-bold text-dark small text-truncate" id="mobileActiveBlockTitle">Thống kê & Tổng quan</div>
+                            <span class="badge badge-ef-sky font-monospace" style="font-size: 0.62rem;">
+                                <?= htmlspecialchars($roleBadge) ?>
+                            </span>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-sm rounded-pill px-3 py-1.5 d-flex align-items-center gap-1.5 shadow-sm flex-shrink-0" 
+                            type="button" data-bs-toggle="offcanvas" data-bs-target="#workspaceMobileDrawer" aria-controls="workspaceMobileDrawer">
+                        <i class="bi bi-grid-fill"></i>
+                        <span class="fw-semibold">Danh mục</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- OFFCANVAS DRAWER FOR MOBILE -->
+            <div class="offcanvas offcanvas-start rounded-end-4" tabindex="-1" id="workspaceMobileDrawer" aria-labelledby="workspaceMobileDrawerLabel" style="width: 300px;">
+                <div class="offcanvas-header border-bottom py-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <img src="<?= base_url('assets/images/logo.png') ?>" alt="EventFlow" class="rounded-3 shadow-xs" style="width: 28px; height: 28px; object-fit: contain;">
+                        <span class="fw-bold text-dark fs-6" id="workspaceMobileDrawerLabel">Không Gian Quản Trị</span>
+                    </div>
+                    <button type="button" class="btn-close shadow-none" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                </div>
+                <div class="offcanvas-body p-3">
+                    <!-- User Snapshot -->
+                    <div class="d-flex align-items-center gap-2.5 p-2.5 rounded-3 mb-3 border bg-light">
+                        <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-sm flex-shrink-0" 
+                             style="width: 38px; height: 38px; font-size: 0.85rem; background: linear-gradient(135deg, #2563eb, #1d4ed8);">
+                            <?= $initials ?>
+                        </div>
+                        <div class="overflow-hidden">
+                            <div class="fw-bold text-dark small text-truncate"><?= htmlspecialchars($userAcc['FullName']) ?></div>
+                            <span class="badge badge-ef-sky font-monospace" style="font-size: 0.62rem;">
+                                <?= htmlspecialchars($roleBadge) ?>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Items with auto-close on click -->
+                    <nav class="d-flex flex-column gap-1">
+                        <div class="text-uppercase text-muted font-monospace fw-bold px-2.5 pt-1 pb-1" style="font-size: 0.68rem; letter-spacing: 0.08em;">
+                            TỔNG QUAN
+                        </div>
+                        <a href="#stats" class="workspace-nav-link" data-block="stats" data-bs-dismiss="offcanvas" onclick="switchWorkspaceBlock('stats', event)">
+                            <i class="bi bi-speedometer2 me-2"></i> Thống kê & Tổng quan
+                        </a>
+                        <a href="#calendar" class="workspace-nav-link" data-block="calendar" data-bs-dismiss="offcanvas" onclick="switchWorkspaceBlock('calendar', event)">
+                            <i class="bi bi-calendar3 me-2"></i> Lịch Sự Kiện
+                        </a>
+
+                        <div class="text-uppercase text-muted font-monospace fw-bold px-2.5 pt-2.5 pb-1" style="font-size: 0.68rem; letter-spacing: 0.08em;">
+                            QUẢN TRỊ SỰ KIỆN
+                        </div>
+                        <a href="#events" class="workspace-nav-link" data-block="events" data-bs-dismiss="offcanvas" onclick="switchWorkspaceBlock('events', event)">
+                            <i class="bi bi-calendar-event me-2"></i> Quản lý Sự kiện
+                        </a>
+                        <?php if (!is_system_admin()): ?>
+                            <a href="#create-event" class="workspace-nav-link" data-block="create-event" data-bs-dismiss="offcanvas" onclick="switchWorkspaceBlock('create-event', event)">
+                                <i class="bi bi-plus-circle me-2"></i> Tạo Sự kiện mới
+                            </a>
+                        <?php endif; ?>
+                        <a href="#my-events" class="workspace-nav-link" data-block="my-events" data-bs-dismiss="offcanvas" onclick="switchWorkspaceBlock('my-events', event)">
+                            <i class="bi bi-bookmark-check me-2"></i> Sự kiện của tôi
+                        </a>
+
+                        <div class="text-uppercase text-muted font-monospace fw-bold px-2.5 pt-2.5 pb-1" style="font-size: 0.68rem; letter-spacing: 0.08em;">
+                            TỔ CHỨC & CLB
+                        </div>
+                        <a href="#members" class="workspace-nav-link" data-block="members" data-bs-dismiss="offcanvas" onclick="switchWorkspaceBlock('members', event)">
+                            <i class="bi bi-people-fill me-2"></i> Nhân sự
+                        </a>
+                        <a href="#club-info" class="workspace-nav-link" data-block="club-info" data-bs-dismiss="offcanvas" onclick="switchWorkspaceBlock('club-info', event)">
+                            <i class="bi bi-building me-2"></i> Thông tin CLB
+                        </a>
+                        <?php if (can_manage_recruitment()): ?>
+                            <a href="#recruitment" class="workspace-nav-link" data-block="recruitment" data-bs-dismiss="offcanvas" onclick="switchWorkspaceBlock('recruitment', event)">
+                                <i class="bi bi-person-lines-fill me-2 text-primary"></i> Đơn Ứng Tuyển
+                                <?php if ($pendingRecruitmentCount > 0): ?>
+                                    <span class="badge bg-warning text-dark ms-auto" style="font-size: 0.65rem; font-weight: 700;"><?= $pendingRecruitmentCount ?></span>
+                                <?php endif; ?>
+                            </a>
+                        <?php endif; ?>
+
+                        <div class="text-uppercase text-muted font-monospace fw-bold px-2.5 pt-2.5 pb-1" style="font-size: 0.68rem; letter-spacing: 0.08em;">
+                            HỆ THỐNG
+                        </div>
+                        <a href="#profile" class="workspace-nav-link" data-block="profile" data-bs-dismiss="offcanvas" onclick="switchWorkspaceBlock('profile', event)">
+                            <i class="bi bi-person-gear me-2"></i> Hồ sơ cá nhân
+                        </a>
+                        <?php if (is_system_admin()): ?>
+                            <a href="#admin-accounts" class="workspace-nav-link text-danger" data-block="admin-accounts" data-bs-dismiss="offcanvas" onclick="switchWorkspaceBlock('admin-accounts', event)">
+                                <i class="bi bi-shield-lock me-2"></i> Quản trị tài khoản
+                            </a>
+                        <?php endif; ?>
+                        <a href="<?= base_url('app/modules/auth/logout.php') ?>" class="workspace-nav-link text-danger">
+                            <i class="bi bi-box-arrow-right me-2"></i> Đăng xuất
+                        </a>
+                    </nav>
+                </div>
+            </div>
+
+            <!-- ==============================================================
+                 CỘT TRÁI: LEFT MENU ĐIỀU HƯỚNG (CHỈ HIỆN TRÊN DESKTOP LG+)
+                 ============================================================== -->
+            <div class="col-lg-3 col-xl-2 d-none d-lg-block">
                 <aside class="ef-card-editorial p-3 sticky-top shadow-sm ef-workspace-left-menu" style="top: 85px; background-color: #ffffff; color: #1e293b; border: 1px solid #e2e8f0; border-radius: 16px;">
                     <!-- User Snapshot Card -->
                     <div class="d-flex align-items-center gap-2.5 p-2.5 rounded-3 mb-3 border" style="background: #f8fafc; border-color: #e2e8f0 !important;">
@@ -1617,7 +1729,6 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                         <!-- ======================================================
                          KHỐI 2.5: TRUNG TÂM ĐIỀU HÀNH CONSOLE (BLOCK: #event-console)
                          Hợp nhất 4 tabs: Tổng quan, Điểm danh realtime 3s, BTC, Thống kê
-                         Đáp ứng: UAT 14, 15, 16, 08, 11, 10, 17
                          ====================================================== -->
                     <div id="block-event-console" class="workspace-content-block d-none">
                         <!-- Top Header & Event Switcher Toolbar -->
@@ -1825,7 +1936,7 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                 </div>
 
                                 <!-- ==============================================
-                                     TAB 2: BÀN ĐIỂM DANH REALTIME (POLLING 3S - UAT 17)
+                                     TAB 2: BÀN ĐIỂM DANH REALTIME (POLLING 3S)
                                      ============================================== -->
                                 <div class="tab-pane fade" id="c-pane-checkin" role="tabpanel">
                                     <div class="ef-card-editorial p-4 bg-white border rounded-3 shadow-xs">
@@ -1936,7 +2047,7 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                 </div>
 
                                 <!-- ==============================================
-                                     TAB 3: BAN TỔ CHỨC & PHÂN CÔNG (UAT 10)
+                                     TAB 3: BAN TỔ CHỨC & PHÂN CÔNG ĐIỀU HÀNH
                                      ============================================== -->
                                 <div class="tab-pane fade" id="c-pane-staff" role="tabpanel">
                                     <div class="row g-3">
@@ -1968,10 +2079,10 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                                     </form>
                                                 </div>
 
-                                                <!-- Quy định UAT 10 -->
+                                                <!-- Quy định phân công cán bộ -->
                                                 <div class="alert alert-info border-0 rounded-3 py-2 px-3 small mb-3 font-monospace" style="font-size: 0.76rem;">
                                                     <i class="bi bi-shield-check me-1.5 text-primary"></i>
-                                                    <strong>Quy định UAT 10:</strong> Bắt buộc duy trì tối thiểu 2 cán bộ BĐH điều hành sự kiện. Khi danh sách còn 2 người, nút gỡ bỏ sẽ bị khóa an toàn.
+                                                    <strong>Quy định phân công:</strong> Bắt buộc duy trì tối thiểu 2 cán bộ Ban Điều Hành phụ trách sự kiện. Khi danh sách còn 2 người, nút gỡ bỏ sẽ được khóa an toàn.
                                                 </div>
 
                                                 <div class="table-responsive">
@@ -2038,7 +2149,7 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                                                                 </button>
                                                                             </form>
                                                                         <?php else: ?>
-                                                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1 disabled" title="Không thể xóa khi chỉ còn 2 cán bộ (UAT 10)">
+                                                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1 disabled" title="Bắt buộc duy trì tối thiểu 2 cán bộ phụ trách sự kiện">
                                                                                 <i class="bi bi-lock-fill"></i>
                                                                             </button>
                                                                         <?php endif; ?>
@@ -2142,7 +2253,7 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                 <h1 class="h3 fw-bold text-dark mb-1">
                                     <i class="bi bi-plus-circle text-primary me-2"></i>Tạo Sự Kiện Mới
                                 </h1>
-                                <p class="text-secondary small mb-0">Thiết lập thông tin hoạt động, giới hạn vé và phân công tối thiểu 2 cán bộ BĐH (UAT 10).</p>
+                                <p class="text-secondary small mb-0">Thiết lập thông tin hoạt động, giới hạn số lượng và phân công tối thiểu 2 cán bộ điều hành.</p>
                             </div>
                             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="switchWorkspaceBlock('events', event)">
                                 <i class="bi bi-arrow-left me-1"></i> Quay lại Danh Sách Sự Kiện
@@ -2206,7 +2317,7 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                                                 <label class="form-label fw-bold text-dark small mb-0">
                                                     <i class="bi bi-shield-check text-primary me-1"></i> Phân công Cán bộ Ban Điều Hành phụ trách <span class="text-danger">*</span>
                                                 </label>
-                                                <span class="badge bg-primary-subtle text-primary font-monospace" style="font-size: 0.72rem;">Yêu cầu tối thiểu 2 cán bộ BĐH (UAT 10)</span>
+                                                <span class="badge bg-primary-subtle text-primary font-monospace" style="font-size: 0.72rem;">Yêu cầu tối thiểu 2 cán bộ phụ trách</span>
                                             </div>
                                             <p class="text-secondary small mb-2">Chọn các thành viên Ban Điều Hành điều phối sự kiện và vận hành điểm danh:</p>
                                             
@@ -2261,7 +2372,7 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                             </div>
                         </div>
 
-                        <!-- Tab 1: Sự kiện phân công điều hành (UAT 10) -->
+                        <!-- Tab 1: Sự kiện phân công điều hành -->
                         <div class="ef-card-editorial p-4 mb-4">
                             <h2 class="h5 fw-bold text-dark mb-3">
                                 <i class="bi bi-shield-lock text-primary me-2"></i>Sự Kiện Được Phân Công Điều Hành (Ban Tổ Chức)
@@ -2956,7 +3067,7 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
                     </div>
 
                     <!-- ======================================================
-                         KHỐI 11: QUẢN LÝ TUYỂN QUÂN & CẤP TÀI KHOẢN (BLOCK: #recruitment) - UAT 02, 09
+                         KHỐI 11: QUẢN LÝ TUYỂN QUÂN & CẤP TÀI KHOẢN (BLOCK: #recruitment)
                          ====================================================== -->
                     <?php if (can_manage_recruitment()): ?>
                     <div id="block-recruitment" class="workspace-content-block d-none">
@@ -3197,7 +3308,7 @@ $roleBadge = $_SESSION['user']['MemberRole'] ?? $_SESSION['user']['RoleName'];
 </div>
 
 <!-- ==========================================================================
-     CÁC MODAL PHỤ TRỢ QUẢN LÝ TUYỂN QUÂN (UAT 02, 09)
+     CÁC MODAL PHỤ TRỢ QUẢN LÝ TUYỂN QUÂN
      ========================================================================== -->
 <!-- Modal Xem Toàn Bộ Đơn Ứng Tuyển & CV (Theo yêu cầu PDF Review) -->
 <div class="modal fade" id="modalViewApplicationDetail" tabindex="-1" aria-hidden="true">
@@ -3808,6 +3919,15 @@ function switchWorkspaceBlock(blockId, event) {
             link.classList.add('active');
         }
     });
+
+    // Cập nhật tiêu đề hiển thị trên Mobile Bar
+    const mobileTitleEl = document.getElementById('mobileActiveBlockTitle');
+    if (mobileTitleEl) {
+        const activeLink = document.querySelector(`.workspace-nav-link[data-block="${activeNavBlock}"]`);
+        if (activeLink) {
+            mobileTitleEl.textContent = activeLink.textContent.trim();
+        }
+    }
 
     // Cập nhật URL Hash không làm giật trang
     if (history.pushState) {

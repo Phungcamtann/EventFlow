@@ -64,8 +64,15 @@
    2. GLOBAL UTILITY CLASSES — THEME XANH
    ========================================================================== */
 
-/* NỀN & BẢNG MÀU */
-.bg-ef-canvas { background-color: var(--ef-canvas) !important; }
+/* NỀN & BẢNG MÀU (ÁP DỤNG BACKGROUND HỌA TIẾT CHUÔNG BELL THEO YÊU CẦU USER) */
+.bg-ef-canvas {
+  background-color: #e6f4fb !important;
+  background-image: url('../images/bg_bell_pattern.webp') !important;
+  background-repeat: no-repeat !important;
+  background-position: center top !important;
+  background-size: cover !important;
+  background-attachment: fixed !important;
+}
 .bg-ef-surface { background-color: var(--ef-surface) !important; }
 .bg-ef-navy { background-color: #0b192c !important; }
 .bg-ef-blue-subtle { background-color: var(--ef-blue-50) !important; }
@@ -221,10 +228,11 @@
 
 /* TOP TICKER STRIP */
 .ef-top-ticker {
-  background-color: #0f172a !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: #f8fafc !important;
+  border-bottom: 1px solid #e2e8f0 !important;
   font-size: 0.72rem;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
+  color: #64748b !important;
 }
 
 /* ==========================================================================

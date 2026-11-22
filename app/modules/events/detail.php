@@ -561,7 +561,7 @@ require_once __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 
-<!-- Modal Đăng Ký Khách Vãng Lai (UAT 02) -->
+<!-- Modal Đăng Ký Khách Vãng Lai -->
 <div class="modal fade" id="modalGuestRegister" tabindex="-1" aria-labelledby="modalGuestRegisterLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">

@@ -30,7 +30,7 @@ if ($clubIds === []) {
 
 // Kiểm tra RBAC Tầng 3 (UAT 08, 11): Chỉ cán bộ trong Event_Staff hoặc Manager mới được check-in
 if ($eventId > 0 && !can_user_checkin_event($pdo, $eventId, (int)current_user_id())) {
-    render_forbidden_page('Bạn không được chỉ định trong Ban Tổ Chức (Event Staff) của sự kiện này nên không có quyền mở bàn điểm danh (RBAC Tầng 3 · UAT 08, 11).');
+    render_forbidden_page('Bạn không được chỉ định trong Ban Tổ Chức (Event Staff) của sự kiện này nên không có quyền mở bàn điểm danh.');
 }
 
 /**
@@ -288,10 +288,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!can_user_checkin_event($pdo, $eventId, (int)current_user_id())) {
         if ($isAjax) {
             header('Content-Type: application/json; charset=utf-8');
-            echo json_encode(['success' => false, 'message' => 'Bạn không thuộc ban tổ chức (Event Staff) của sự kiện này nên không có quyền điểm danh (UAT 08, 11).']);
+            echo json_encode(['success' => false, 'message' => 'Bạn không thuộc ban tổ chức (Event Staff) của sự kiện này nên không có quyền điểm danh.']);
             exit;
         }
-        render_forbidden_page('Bạn không được chỉ định trong Ban Tổ Chức (Event Staff) của sự kiện này nên không có quyền mở bàn điểm danh (RBAC Tầng 3 · UAT 08, 11).');
+        render_forbidden_page('Bạn không được chỉ định trong Ban Tổ Chức (Event Staff) của sự kiện này nên không có quyền mở bàn điểm danh.');
     }
 
     $action = $_POST['action'] ?? '';

@@ -342,7 +342,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                     Tìm & Thêm tài khoản thành viên <span class="text-danger">*</span>
                                 </label>
 
-                                <!-- Khung Tìm kiếm theo MSSV hoặc Email (UAT 07) -->
+                                <!-- Khung Tìm kiếm theo MSSV hoặc Email -->
                                 <div id="search_box_container" class="<?= !empty($selectedAccount) ? 'd-none' : '' ?>">
                                     <div class="input-group">
                                         <span class="input-group-text bg-white border-end-0 text-muted">
